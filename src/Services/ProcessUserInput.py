@@ -19,17 +19,15 @@ from src.InheritedCommands.Times import Time, OnlineTime
 
 
 class ProcessUserInput:
-    databaseConnection = None
-    discord = None
 
-    def __init__(self, discord: Client):
+    def __init__(self, client: Client):
         self.databaseConnection = mysql.connector.connect(
             user=rp.getParameter(parameters.USER),
             password=rp.getParameter(parameters.PASSWORD),
             host=rp.getParameter(parameters.HOST),
             database=rp.getParameter(parameters.NAME),
         )
-        self.discord = discord
+        self.client = client
 
     async def processMessage(self, message: Message):
         if message.channel.guild.id is None or message.author.id is None:
@@ -51,8 +49,8 @@ class ProcessUserInput:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE user_id = %s"
 
-            cursor.execute(query, ([userId]))
-            dcUserDb = cursor.fetchall()
+            cursor.execute(query, ([userId],))
+            dcUserDb = cursor.fetchall()  # fetchone TODO
 
             if not dcUserDb:
                 pass  # TODO create DiscordUser
@@ -138,7 +136,7 @@ class ProcessUserInput:
     # moves all users in the authors voice channel to the given one
     async def moveUsers(self, message: Message):
         channelName = message.content[6:]
-        channels = self.discord.get_all_channels()
+        channels = self.client.get_all_channels()
         author = message.author
         voiceChannels = []
 
