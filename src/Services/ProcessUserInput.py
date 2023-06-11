@@ -49,7 +49,7 @@ class ProcessUserInput:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE user_id = %s"
 
-            cursor.execute(query, ([userId],))
+            cursor.execute(query, ([userId]))
             dcUserDb = cursor.fetchall()  # fetchone TODO
 
             if not dcUserDb:
@@ -90,6 +90,8 @@ class ProcessUserInput:
             pass
         elif ChatCommand.TIME == command:
             await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
+        elif ChatCommand.HELP == command:
+            await self.sendHelp(message)
 
     def getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
@@ -257,3 +259,45 @@ class ProcessUserInput:
             await message.reply("Du darfst nur die Zeit anfragen!")
         else:
             await message.reply(time.getStringForTime(dcUserDb))
+
+    async def sendHelp(self, message: Message):
+        messageParts = self.getMessageparts(message.content)
+
+        if len(messageParts) < 2:
+            output = ""
+
+            with self.databaseConnection.cursor() as cursor:
+                for chatCommand in ChatCommand:
+                    query = "SELECT command, explanation FROM commands WHERE command = %s"
+
+                    cursor.execute(query, (chatCommand.value,))
+
+                    command = cursor.fetchone()
+                    cursor.reset()
+
+                    output += "**__" + str(command[0]) + "__**: " + str(command[1]) + "\n\n"
+
+            await message.reply(output)
+
+        elif len(messageParts) == 2:
+            command = self.getCommand(messageParts[1])
+
+            if not command:
+                await message.reply("Diesen Befehl gibt es nicht!")
+
+                return
+            elif command == ChatCommand.XP:
+                pass  # TODO
+                return
+
+            query = "SELECT execute_explanation FROM commands WHERE command = %s"
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, (command.value,))
+
+                commandExplanation = cursor.fetchone()
+
+            if not commandExplanation[0]:
+                await message.reply("Schreib einfach '%s', mehr gibt es nicht!" % command.value)
+            else:
+                await message.reply("'%s'" % commandExplanation[0])
