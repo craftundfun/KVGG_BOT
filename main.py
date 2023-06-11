@@ -14,9 +14,9 @@ class MyClient(discord.Client):
         if message.author == self.user:
             return
 
-        if message.content == 'ping':
-            pui = ProcessUserInput.ProcessUserInput()
-            pui.processMessage(message, self)
+        if message.content:
+            pui = ProcessUserInput.ProcessUserInput(self)
+            await pui.processMessage(message)
 
 
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
