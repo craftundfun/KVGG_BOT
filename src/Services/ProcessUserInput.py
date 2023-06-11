@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
 from src.Helper import WriteSaveQuery
 from src.Id.ChatCommand import ChatCommand
@@ -65,8 +64,6 @@ class ProcessUserInput:
             )
 
             cursor.execute(query[0], query[1])
-            cursor.close()
-
             self.databaseConnection.commit()
 
     async def processCommand(self, message: Message):
@@ -92,6 +89,8 @@ class ProcessUserInput:
             await self.sendHelp(message)
         elif ChatCommand.STREAM == command:
             await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
+        elif ChatCommand.WhatsApp == command:
+            await self.manageWhatsAppSettings(message)
 
     def getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
@@ -301,3 +300,126 @@ class ProcessUserInput:
                 await message.reply("Schreib einfach '%s', mehr gibt es nicht!" % command.value)
             else:
                 await message.reply("'%s'" % commandExplanation[0])
+
+    async def manageWhatsAppSettings(self, message: Message):
+        messageParts = self.getMessageparts(message.content)
+
+        # get dcUserDb with user
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT u.id, recieve_join_notification, receive_leave_notification, " \
+                    "receive_uni_join_notification, receive_uni_leave_notification FROM discord INNER JOIN user u " \
+                    "on discord.id = u.discord_user_id " \
+                    "WHERE discord.user_id = %s"
+
+            cursor.execute(query, (message.author.id,))
+            user = dict(zip(cursor.column_names, list(cursor.fetchone())))
+
+        if not user:
+            await message.reply("Es ist ein Fehler aufgetreten!")
+
+            return
+        elif len(messageParts) < 2:
+            await message.reply("Zu wenige Argumente!")
+
+            return
+
+        # !whatsapp join
+        if messageParts[1] == 'join':
+            # !whatsapp join []
+            if len(messageParts) < 3:
+                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
+
+                return
+
+            # !whatsapp join on
+            if messageParts[2] == 'on':
+                user['recieve_join_notification'] = 1
+
+            # !whatsapp join off
+            elif messageParts[2] == 'off':
+                user['recieve_join_notification'] = 0
+
+            # !whatsapp join aisugd
+            else:
+                await message.reply("Falsches Argument nach '%s'!" % messageParts[1])
+
+                return
+
+        # !whatsapp leave
+        elif messageParts[1] == 'leave':
+            # !whatsapp leave []
+            if len(messageParts) < 3:
+                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
+
+                return
+
+            # !whatsapp leave on
+            if messageParts[2] == 'on':
+                user['receive_leave_notification'] = 1
+
+            # !whatsapp leave off
+            elif messageParts[2] == 'off':
+                user['receive_leave_notification'] = 0
+
+            # !whatsapp leave aisugd
+            else:
+                await message.reply("Falsches Argument nach '%s'!" % messageParts[1])
+
+                return
+
+        # !whatsapp uni
+        elif messageParts[1] == 'uni':
+            if len(messageParts) == 2:
+                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
+
+                return
+
+            if messageParts[2] == 'join':
+                if len(messageParts) == 3:
+                    await message.reply("Fehlendes Argument nach '%s'!" % messageParts[2])
+
+                    return
+
+                if messageParts[3] == 'on':
+                    user['receive_uni_join_notification'] = 1
+                elif messageParts[3] == 'off':
+                    user['receive_uni_join_notification'] = 0
+                else:
+                    await message.reply("Falsches Argument nach '%s'!" % messageParts[2])
+
+            elif messageParts[2] == 'leave':
+                if len(messageParts) == 3:
+                    await message.reply("Fehlendes Argument nach '%s'!" % messageParts[2])
+
+                    return
+
+                if messageParts[3] == 'on':
+                    user['receive_uni_leave_notification'] = 1
+                elif messageParts[3] == 'off':
+                    user['receive_uni_leave_notification'] = 0
+                else:
+                    await message.reply("Falsches Argument nach '%s'!" % messageParts[2])
+
+            else:
+                await message.reply("Dies ist keine Möglichkeit!")
+
+                return
+
+        else:
+            await message.reply("Dies ist keine Möglichkeit!")
+
+            return
+
+        with self.databaseConnection.cursor() as cursor:
+            query = WriteSaveQuery.writeSaveQuery(
+                rp.getParameter(rp.Parameters.NAME) + ".user",
+                user['id'],
+                user
+            )
+
+            print(query)
+
+            #cursor.execute(query[0], query[1])
+            #self.databaseConnection.commit()
+
+

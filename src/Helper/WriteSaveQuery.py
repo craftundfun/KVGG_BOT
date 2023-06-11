@@ -9,6 +9,9 @@ def writeSaveQuery(table_name: string, entity_id: string, data: dict) -> string:
 
     # for every column
     for column, value in data.items():
+        if column == 'id':
+            continue
+
         if value is None:
             set_clauses.append(f"{column} = %s")
             how_many_None += 1
@@ -19,7 +22,7 @@ def writeSaveQuery(table_name: string, entity_id: string, data: dict) -> string:
             set_clauses.append(f"{column} = '{value}'")
 
     set_clause = ', '.join(set_clauses)
-    update_query = f"UPDATE {table_name}\nSET {set_clause}\nWHERE id = {entity_id}"
+    update_query = f"UPDATE {table_name} SET {set_clause} WHERE id = {entity_id}"
     parameters = ()
 
     # create Tuple for None-parameter
