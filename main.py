@@ -1,3 +1,5 @@
+from signal import SIGINT, signal
+
 import discord
 import mysql.connector
 from src.Helper import ReadParameters

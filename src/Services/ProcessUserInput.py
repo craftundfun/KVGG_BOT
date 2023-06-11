@@ -6,6 +6,7 @@ from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
 from src.Helper.ReadParameters import Parameters as parameters
 from discord import Message, Client
+from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, OlegCounter, JjCounter, CookieCounter, CarlCounter
 
 import string
 import discord
@@ -30,15 +31,15 @@ class ProcessUserInput:
         if message.channel.guild.id is None or message.author.id is None:
             return
 
-        dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
+        # dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
 
-        if not dcUserDb:
-            return
+        # if not dcUserDb:
+        #    return
 
         # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
         # TODO addExperience
 
-        self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        # self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
         await self.processCommand(message)
 
@@ -91,6 +92,8 @@ class ProcessUserInput:
             await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
         elif ChatCommand.WhatsApp == command:
             await self.manageWhatsAppSettings(message)
+        elif ChatCommand.LEADERBOARD == command:
+            await self.sendLeaderboard(message)
 
         self.databaseConnection.close()
 
@@ -424,3 +427,174 @@ class ProcessUserInput:
             self.databaseConnection.commit()
 
         await message.reply("Deine Einstellung wurde übernommen!")
+
+    async def sendLeaderboard(self, message: Message):
+        messageParts = self.getMessageparts(message.content)
+
+        if len(messageParts) > 1 and messageParts[1] == 'xp':
+            # TODO
+            return
+
+        with self.databaseConnection.cursor() as cursor:
+            # online time
+            query = "SELECT username, formated_time " \
+                    "FROM discord " \
+                    "WHERE time_online IS NOT NULL " \
+                    "ORDER BY time_online DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersOnlineTime = cursor.fetchall()
+            cursor.reset()
+
+            # stream time
+            query = "SELECT username, formatted_stream_time " \
+                    "FROM discord " \
+                    "WHERE time_streamed IS NOT NULL " \
+                    "ORDER BY time_streamed DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersStreamTime = cursor.fetchall()
+            cursor.reset()
+
+            # message count
+            query = "SELECT username, message_count_all_time " \
+                    "FROM discord " \
+                    "WHERE message_count_all_time != 0 " \
+                    "ORDER BY message_count_all_time DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersMessageCount = cursor.fetchall()
+            cursor.reset()
+
+            # Rene counter
+            query = "SELECT username, rene_counter " \
+                    "FROM discord " \
+                    "WHERE rene_counter != 0 " \
+                    "ORDER BY rene_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersReneCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Felix counter
+            query = "SELECT username, felix_counter " \
+                    "FROM discord " \
+                    "WHERE felix_counter != 0 " \
+                    "ORDER BY felix_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersFelixCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Paul counter
+            query = "SELECT username, paul_counter " \
+                    "FROM discord " \
+                    "WHERE paul_counter != 0 " \
+                    "ORDER BY paul_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersPaulCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Bjarne counter
+            query = "SELECT username, bjarne_counter " \
+                    "FROM discord " \
+                    "WHERE bjarne_counter != 0 " \
+                    "ORDER BY bjarne_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersBjarneCounter = cursor.fetchall()
+            cursor.reset()
+
+            # JJ counter
+            query = "SELECT username, jj_counter " \
+                    "FROM discord " \
+                    "WHERE jj_counter != 0 " \
+                    "ORDER BY jj_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersJjCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Oleg counter
+            query = "SELECT username, oleg_counter " \
+                    "FROM discord " \
+                    "WHERE oleg_counter != 0 " \
+                    "ORDER BY oleg_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersOlegCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Carl counter
+            query = "SELECT username, carl_counter " \
+                    "FROM discord " \
+                    "WHERE carl_counter != 0 " \
+                    "ORDER BY carl_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersCarlCounter = cursor.fetchall()
+            cursor.reset()
+
+            # Cookie counter
+            query = "SELECT username, cookie_counter " \
+                    "FROM discord " \
+                    "WHERE cookie_counter != 0 " \
+                    "ORDER BY cookie_counter DESC " \
+                    "LIMIT 3"
+
+            cursor.execute(query)
+            usersCookieCounter = cursor.fetchall()
+
+        answer = "--------------\n"
+        answer += "__**Leaderboard**__\n"
+        answer += "--------------\n\n"
+        answer += "- __Online-Zeit__:\n"
+
+        if len(usersOnlineTime) != 0:
+            for index, user in enumerate(usersOnlineTime):
+                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+
+        answer += "\n- __Stream-Zeit__:\n"
+
+        if len(usersStreamTime) != 0:
+            for index, user in enumerate(usersStreamTime):
+                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+
+        answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
+
+        if len(usersMessageCount) != 0:
+            for index, user in enumerate(usersMessageCount):
+                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+
+        answer += self.leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
+        answer += self.leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
+        answer += self.leaderboardHelperCounter(usersPaulCounter, PaulCounter.PaulCounter())
+        answer += self.leaderboardHelperCounter(usersBjarneCounter, BjarneCounter.BjarneCounter())
+        answer += self.leaderboardHelperCounter(usersOlegCounter, OlegCounter.OlegCounter())
+        answer += self.leaderboardHelperCounter(usersJjCounter, JjCounter.JjCounter())
+        answer += self.leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
+        answer += self.leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
+
+        await message.reply(answer)
+
+    def leaderboardHelperCounter(self, users, counter: Counter) -> string:
+        if len(users) < 1:
+            return ""
+
+        answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
+
+        for index, user in enumerate(users):
+            answer += "\t%d: %s - %d\n" % (index + 1, user[0], user[1])
+
+        return answer
