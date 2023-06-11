@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import array
 import json
 
 from src.Helper import WriteSaveQuery
@@ -13,6 +14,8 @@ import string
 import discord
 import mysql.connector
 import requests
+
+from src.InheritedCommands.Times import Time, OnlineTime
 
 
 class ProcessUserInput:
@@ -32,32 +35,43 @@ class ProcessUserInput:
         if message.channel.guild.id is None or message.author.id is None:
             return
 
-        cursor = self.databaseConnection.cursor()
-        query = "SELECT * FROM discord WHERE user_id = %s"
-
-        cursor.execute(query, ([message.author.id]))
-        dcUserDb = cursor.fetchall()
+        dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
 
         if not dcUserDb:
-            pass  # TODO create DiscordUser
             return
 
-        dcUserDb = dict(zip(cursor.column_names, dcUserDb[0]))
-        # print(dcUserDb['message_count_all_time'])
         # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
-        dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1000000
         # TODO addExperience
 
-        query = WriteSaveQuery.writeSaveQuery(
-            rp.getParameter(rp.Parameters.NAME) + ".discord",
-            str(dcUserDb['id']),
-            dcUserDb
-        )
-
-        cursor.execute(query[0], query[1])
-        self.databaseConnection.commit()
+        self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
         await self.processCommand(message)
+
+    def getDiscordUserFromDatabase(self, userId: int) -> dict | None:
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM discord WHERE user_id = %s"
+
+            cursor.execute(query, ([userId]))
+            dcUserDb = cursor.fetchall()
+
+            if not dcUserDb:
+                pass  # TODO create DiscordUser
+                return None
+
+            return dict(zip(cursor.column_names, dcUserDb[0]))
+
+    def saveDiscordUserToDatabase(self, userId: string, data):
+        with self.databaseConnection.cursor() as cursor:
+            query = WriteSaveQuery.writeSaveQuery(
+                rp.getParameter(rp.Parameters.NAME) + ".discord",
+                userId,
+                data
+            )
+
+            cursor.execute(query[0], query[1])
+            cursor.close()
+
+            self.databaseConnection.commit()
 
     async def processCommand(self, message: Message):
         command = message.content
@@ -73,6 +87,11 @@ class ProcessUserInput:
             await self.answerJoke(message)
         elif ChatCommand.MOVE == command:
             await self.moveUsers(message)
+        elif ChatCommand.QUOTE == command:
+            # TODO quotesManager.answerQuote()
+            pass
+        elif ChatCommand.TIME == command:
+            await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
 
     def getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
@@ -106,7 +125,7 @@ class ProcessUserInput:
             params=payload,
         )
 
-        if answer.status_code is 200:
+        if answer.status_code != 200:
             await message.reply("Es gab Probleme beim Erreichen der API - kein Witz.")
 
             return
@@ -184,3 +203,59 @@ class ProcessUserInput:
             return
 
         await message.reply("Alle Mitglieder wurden verschoben!")
+
+    def getMessageparts(self, message: string) -> array:
+        messageParts = message.split(' ')
+        return [part for part in messageParts if part.strip() != ""]
+
+    def getUserIdByTag(self, tag: string) -> string:
+        return tag[2:len(tag) - 1]
+
+    async def accessTimeAndEdit(self, time: Time, message: Message):
+        messageParts = self.getMessageparts(message.content)
+
+        if len(messageParts) == 1:
+            dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
+
+            if not dcUserDb:
+                await message.reply("Du warst noch nie online!")
+
+                return
+
+            await message.reply(time.getStringForTime(dcUserDb))
+
+            return
+
+        tag = self.getUserIdByTag(messageParts[1])
+        dcUserDb = self.getDiscordUserFromDatabase(tag)
+
+        # TODO all
+
+        if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
+            await message.reply("Dieser Benutzer war noch nie online!")
+
+            return
+
+        if len(messageParts) > 2 and self.hasUserWantedRoles(message.author, RoleId.ADMIN, RoleId.MOD):
+            try:
+                correction = int(messageParts[2])
+            except ValueError:
+                await message.reply("Deine Korrektur war keine Zahl!")
+
+                return
+
+            onlineBefore = time.getTime(dcUserDb)
+
+            time.increaseTime(dcUserDb, correction)
+            self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+
+            onlineAfter = time.getTime(dcUserDb)
+
+            await message.reply(
+                "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" %
+                (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter),
+            )
+        elif len(messageParts) > 2:
+            await message.reply("Du darfst nur die Zeit anfragen!")
+        else:
+            await message.reply(time.getStringForTime(dcUserDb))
