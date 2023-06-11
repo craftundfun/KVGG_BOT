@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-import string
+import json
 
-import discord
-from discord import Message, Client
-import mysql.connector
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
-from src.Id import ChannelId
 from src.Helper import WriteSaveQuery
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
+from src.Helper import ReadParameters as rp
+from src.Helper.ReadParameters import Parameters as parameters
+from discord import Message, Client
+
+import string
+import discord
+import mysql.connector
+import requests
 
 
 class ProcessUserInput:
@@ -68,7 +70,7 @@ class ProcessUserInput:
         command = self.getCommand(command)
 
         if ChatCommand.JOKE == command:
-            self.answerJoke()
+            await self.answerJoke(message)
         elif ChatCommand.MOVE == command:
             await self.moveUsers(message)
 
@@ -93,11 +95,28 @@ class ProcessUserInput:
 
         return False
 
+    async def answerJoke(self, message: Message):
+        payload = {
+            'language': 'de',
+            'category': 'programmierwitze'
+        }
 
+        answer = requests.get(
+            'https://witzapi.de/api/joke',
+            params=payload,
+        )
 
-    def answerJoke(self):
-        pass
+        if answer.status_code is 200:
+            await message.reply("Es gab Probleme beim Erreichen der API - kein Witz.")
 
+            return
+
+        answer = answer.content.decode('utf-8')
+        data = json.loads(answer)
+
+        await message.reply(data[0]['text'])
+
+    # moves all users in the authors voice channel to the given one
     async def moveUsers(self, message: Message):
         channelName = message.content[6:]
         channels = self.discord.get_all_channels()
@@ -142,6 +161,11 @@ class ProcessUserInput:
 
         if not channelStart:
             await message.reply("Du bist in keinem Voicechannel!")
+
+            return
+
+        if channelStart == channelDestination:
+            await message.reply("Alle sind bereits in diesem Channel!")
 
             return
 

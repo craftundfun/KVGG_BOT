@@ -20,9 +20,10 @@ class MyClient(discord.Client):
 
 
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
-print(token)
 intents = discord.Intents.default()
+
 intents.message_content = True
+
 client = MyClient(intents=intents)
-print(token)
+
 client.run(token)
