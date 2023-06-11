@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import array
-import json
-
+from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
 from src.Helper import WriteSaveQuery
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
@@ -14,8 +12,8 @@ import string
 import discord
 import mysql.connector
 import requests
-
-from src.InheritedCommands.Times import Time, OnlineTime
+import array
+import json
 
 
 class ProcessUserInput:
@@ -92,6 +90,8 @@ class ProcessUserInput:
             await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
         elif ChatCommand.HELP == command:
             await self.sendHelp(message)
+        elif ChatCommand.STREAM == command:
+            await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
 
     def getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
@@ -247,9 +247,9 @@ class ProcessUserInput:
             onlineBefore = time.getTime(dcUserDb)
 
             time.increaseTime(dcUserDb, correction)
-            self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
             onlineAfter = time.getTime(dcUserDb)
+            self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
             await message.reply(
                 "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" %
