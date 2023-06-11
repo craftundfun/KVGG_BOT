@@ -92,6 +92,8 @@ class ProcessUserInput:
         elif ChatCommand.WhatsApp == command:
             await self.manageWhatsAppSettings(message)
 
+        self.databaseConnection.close()
+
     def getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
 
@@ -307,8 +309,9 @@ class ProcessUserInput:
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT u.id, recieve_join_notification, receive_leave_notification, " \
-                    "receive_uni_join_notification, receive_uni_leave_notification FROM discord INNER JOIN user u " \
-                    "on discord.id = u.discord_user_id " \
+                    "receive_uni_join_notification, receive_uni_leave_notification " \
+                    "FROM discord INNER JOIN user u " \
+                    "ON discord.id = u.discord_user_id " \
                     "WHERE discord.user_id = %s"
 
             cursor.execute(query, (message.author.id,))
@@ -411,15 +414,13 @@ class ProcessUserInput:
             return
 
         with self.databaseConnection.cursor() as cursor:
-            query = WriteSaveQuery.writeSaveQuery(
+            query, noneTuple = WriteSaveQuery.writeSaveQuery(
                 rp.getParameter(rp.Parameters.NAME) + ".user",
                 user['id'],
                 user
             )
 
-            print(query)
+            cursor.execute(query, noneTuple)
+            self.databaseConnection.commit()
 
-            #cursor.execute(query[0], query[1])
-            #self.databaseConnection.commit()
-
-
+        await message.reply("Deine Einstellung wurde übernommen!")
