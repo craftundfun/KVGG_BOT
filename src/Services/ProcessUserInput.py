@@ -31,15 +31,16 @@ class ProcessUserInput:
         if message.channel.guild.id is None or message.author.id is None:
             return
 
-        # dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
+        dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
 
-        # if not dcUserDb:
-        #    return
+        if not dcUserDb:
+            # TODO create
+            return
 
         # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
         # TODO addExperience
 
-        # self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
         await self.processCommand(message)
 
