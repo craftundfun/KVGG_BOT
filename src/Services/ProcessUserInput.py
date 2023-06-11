@@ -1,6 +1,6 @@
 from __future__ import annotations
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
-from src.Helper import WriteSaveQuery
+from src.Helper import WriteSaveQuery, ExperienceService
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
@@ -95,7 +95,11 @@ class ProcessUserInput:
             await self.manageWhatsAppSettings(message)
         elif ChatCommand.LEADERBOARD == command:
             await self.sendLeaderboard(message)
+        elif ChatCommand.XP == command:
+            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            xpService.getExperience(message.author.id)
 
+        # close the connection to the database at the end
         self.databaseConnection.close()
 
     def getCommand(self, command: string) -> ChatCommand | None:
