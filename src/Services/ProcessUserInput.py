@@ -1,6 +1,7 @@
 from __future__ import annotations
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
-from src.Helper import WriteSaveQuery, ExperienceService
+from src.Helper import WriteSaveQuery
+from src.Services import ExperienceService
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
@@ -60,7 +61,7 @@ class ProcessUserInput:
     def saveDiscordUserToDatabase(self, userId: string, data):
         with self.databaseConnection.cursor() as cursor:
             query = WriteSaveQuery.writeSaveQuery(
-                rp.getParameter(rp.Parameters.NAME) + ".discord",
+                "discord",
                 userId,
                 data
             )
@@ -98,6 +99,9 @@ class ProcessUserInput:
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             print(xpService.getExperience(message.author.id))
+        elif ChatCommand.XP_BOOST_SPIN == command:
+            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            await xpService.spinForXpBoost(message)
 
         # close the connection to the database at the end
         self.databaseConnection.close()
