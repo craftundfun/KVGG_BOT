@@ -97,7 +97,7 @@ class ProcessUserInput:
             await self.sendLeaderboard(message)
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
-            xpService.getExperience(message.author.id)
+            print(xpService.getExperience(message.author.id))
 
         # close the connection to the database at the end
         self.databaseConnection.close()
