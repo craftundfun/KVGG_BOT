@@ -17,6 +17,11 @@ import array
 import json
 
 
+def getMessageParts(content: string) -> array:
+    messageParts = content.split(' ')
+    return [part for part in messageParts if part.strip() != ""]
+
+
 class ProcessUserInput:
 
     def __init__(self, client: Client):
@@ -98,7 +103,7 @@ class ProcessUserInput:
             await self.sendLeaderboard(message)
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
-            print(xpService.getExperience(message.author.id))
+            await xpService.handleXpRequest(message)
         elif ChatCommand.XP_BOOST_SPIN == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.spinForXpBoost(message)
@@ -217,15 +222,11 @@ class ProcessUserInput:
 
         await message.reply("Alle Mitglieder wurden verschoben!")
 
-    def getMessageparts(self, message: string) -> array:
-        messageParts = message.split(' ')
-        return [part for part in messageParts if part.strip() != ""]
-
     def getUserIdByTag(self, tag: string) -> string:
         return tag[2:len(tag) - 1]
 
     async def accessTimeAndEdit(self, time: Time, message: Message):
-        messageParts = self.getMessageparts(message.content)
+        messageParts = getMessageParts(message.content)
 
         if len(messageParts) == 1:
             dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
@@ -274,7 +275,7 @@ class ProcessUserInput:
             await message.reply(time.getStringForTime(dcUserDb))
 
     async def sendHelp(self, message: Message):
-        messageParts = self.getMessageparts(message.content)
+        messageParts = getMessageParts(message.content)
 
         if len(messageParts) < 2:
             output = ""
@@ -316,7 +317,7 @@ class ProcessUserInput:
                 await message.reply("'%s'" % commandExplanation[0])
 
     async def manageWhatsAppSettings(self, message: Message):
-        messageParts = self.getMessageparts(message.content)
+        messageParts = getMessageParts(message.content)
 
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
@@ -438,7 +439,7 @@ class ProcessUserInput:
         await message.reply("Deine Einstellung wurde übernommen!")
 
     async def sendLeaderboard(self, message: Message):
-        messageParts = self.getMessageparts(message.content)
+        messageParts = getMessageParts(message.content)
 
         if len(messageParts) > 1 and messageParts[1] == 'xp':
             # TODO

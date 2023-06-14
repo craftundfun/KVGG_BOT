@@ -3,12 +3,34 @@ from __future__ import annotations
 import json
 import math
 import random
+
 from datetime import datetime, timedelta
 from src.Helper import WriteSaveQuery
 from discord import Message
 from mysql.connector import MySQLConnection
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Id.ChatCommand import ChatCommand
+
+
+def isDoubleWeekend(date: datetime = datetime.now()) -> bool:
+    return date.isocalendar()[1] % 2 == 0 and (date.weekday() == 5 or date.weekday() == 6)
+
+
+def getDiffUntilNextDoubleXpWeekend() -> timedelta:
+    now = datetime.now()  # get current time
+    weekday = now.weekday()  # get current weekday
+    daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
+    nextSaturday = now + timedelta(days=daysUntilSaturday)  # get date of next saturday
+    nextSaturday = nextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)  # set to midnight
+
+    if isDoubleWeekend(nextSaturday):
+        return nextSaturday - now
+    else:
+        nextNextSaturday = now + timedelta(days=daysUntilSaturday + 7)  # get next weeks saturday
+        nextNextSaturday = nextNextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        return nextNextSaturday - now
 
 
 class ExperienceService:
@@ -210,3 +232,41 @@ class ExperienceService:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+    async def handleXpRequest(self, message: Message):
+        from src.Services.ProcessUserInput import getMessageParts  # lazy import to avoid circular import
+
+        messageParts = getMessageParts(message.content)
+
+        if len(messageParts) == 1:
+            dcUserDb = getDiscordUser(self.databaseConnection, message)
+
+            if dcUserDb is None:
+                await message.reply("Das hat leider nicht geklappt!")
+
+                return None
+
+            xp = self.getExperience(dcUserDb['user_id'])
+
+            if xp is None:
+                await message.reply("Das hat leider nicht geklappt!")
+
+                return None
+
+            commandName = ChatCommand.XP_INVENTORY.value
+            xpAmount = xp['xp_amount']
+
+            reply = "Du hast bereits %d XP gefarmt. Weiter so! - Du kannst mit '%s' mal in dein XP-Boost " \
+                    "Inventar schauen, vielleicht hast du welche dazu bekommen!\n\n" % (xpAmount, commandName)
+            reply += self.getDoubleXpWeekendInformation()
+
+            await message.reply(reply)
+
+    def getDoubleXpWeekendInformation(self):
+        if isDoubleWeekend():
+            return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
+        else:
+            diff: timedelta = getDiffUntilNextDoubleXpWeekend()
+
+            return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
+                (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
