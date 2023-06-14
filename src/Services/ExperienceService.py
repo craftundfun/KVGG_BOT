@@ -331,23 +331,176 @@ class ExperienceService:
 
                     return
 
-                with self.databaseConnection.cursor() as cursor:
-                    query = "SELECT xp_amount " \
-                            "FROM experience " \
-                            "WHERE discord_user_id = %s"
+                xp = self.getExperience(dcUserDb['user_id'])
 
-                    cursor.execute(query, (dcUserDb['id'], ))
-
-                    data = cursor.fetchone()
-
-                if not data:
-                    await message.reply("Dieser Benutzer hat noch keine XP gefarmt!")
+                if xp is None:
+                    await message.reply("Es ist ein Fehler aufgetreten!")
 
                     return
 
-                data = dict(zip(cursor.column_names, data))
-
-                reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(userId), data['xp_amount'])
+                reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(userId), xp['xp_amount'])
                 reply += getDoubleXpWeekendInformation()
 
                 await message.reply(reply)
+
+    async def handleXpInventory(self, message: Message):
+        # avoid circular import
+        from src.Services.ProcessUserInput import getMessageParts
+
+        messageParts = getMessageParts(message.content)
+        dcUserDb: dict | None = getDiscordUser(self.databaseConnection, message=message)
+
+        if dcUserDb is None:
+            await message.reply("Es ist ein Fehler aufgetreten!")
+
+            return
+
+        xp = self.getExperience(dcUserDb['user_id'])
+
+        if xp is None:
+            await message.reply("Es ist ein Fehler aufgetreten!")
+
+            return
+
+        if len(messageParts) == 1:
+            if xp['xp_boosts_inventory'] is None:
+                await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
+
+                return
+
+            reply = "Du hast folgende XP-Boosts in deinem Inventar:\n\n"
+            inventory = json.loads(xp['xp_boosts_inventory'])
+
+            for index, item in enumerate(inventory, start=1):
+                reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
+                         (index, item['description'], item['remaining'], item['multiplier'])
+
+            reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
+
+            await message.reply(reply)
+        # !inventory use 2 OR !inventory use all
+        elif messageParts[1] == 'use' and len(messageParts) >= 3:
+            # no xp boosts available
+            if xp['xp_boosts_inventory'] is None:
+                await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
+
+                return
+
+            # too many xp boosts are active, cant activate another one
+            if xp['active_xp_boosts'] is not None and len(
+                    json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                await message.reply("Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere "
+                                    "es erneut!")
+
+                return
+
+            # inventory use all
+            if messageParts[2] == 'all':
+                # empty active boosts => can use all boosts at once
+                if xp['active_xp_boosts'] is None:
+                    xp['active_xp_boosts'] = xp['xp_boosts_inventory']
+                    xp['xp_boosts_inventory'] = None
+                # xp boosts can fit into active
+                elif (len(json.loads(xp['active_xp_boosts'])) + len(
+                        json.loads(xp['xp_boosts_inventory']))) <= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+
+                    inventory = json.loads(xp['xp_boosts_inventory'])
+                    activeBoosts = json.loads(xp['active_xp_boosts'])
+                    xp['active_xp_boosts'] = json.dumps(activeBoosts + inventory)
+                    xp['xp_boosts_inventory'] = None
+                # not all xp-boosts fit into active ones
+                else:
+                    numXpBoosts = len(json.loads(xp['active_xp_boosts']))
+                    currentPosInInventory = 0
+                    xpBoostsInventory: list = json.loads(xp['xp_boosts_inventory'])
+                    activeXpBoosts: list = json.loads(xp['active_xp_boosts'])
+                    inventoryAfter: list = json.loads(xp['xp_boosts_inventory'])
+
+                    while numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value and currentPosInInventory < len(
+                            xpBoostsInventory):
+                        currentBoost = xpBoostsInventory[currentPosInInventory]
+
+                        activeXpBoosts.append(currentBoost)
+                        inventoryAfter.remove(currentBoost)
+
+                        currentPosInInventory += 1
+                        numXpBoosts += 1
+
+                    xp['xp_boosts_inventory'] = json.dumps(inventoryAfter)
+                    xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
+
+                await message.reply("Alle deine XP-Boosts wurden eingesetzt!")
+            # !inventory use 1
+            else:
+                # inventory empty
+                if xp['xp_boosts_inventory'] is None:
+                    await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
+
+                    return
+                # active inventory full
+                elif xp['active_xp_boosts'] is not None and len(
+                        json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                    await message.reply("Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und "
+                                        "probiere es erneut!")
+
+                    return
+
+                try:
+                    row = int(messageParts[2])
+                except ValueError:
+                    await message.reply("Bitte gib eine Zeilennummer ein!")
+
+                    return
+
+                inventory: list = json.loads(xp['xp_boosts_inventory'])
+
+                if len(inventory) >= row > 0:
+                    chosenXpBoost = inventory[row - 1]
+
+                    if xp['active_xp_boosts'] is None:
+                        activeXpBoosts = []
+                    else:
+                        activeXpBoosts: list = json.loads(xp['active_xp_boosts'])
+
+                    inventory.remove(chosenXpBoost)
+                    activeXpBoosts.append(chosenXpBoost)
+
+                    if not inventory:
+                        xp['xp_boosts_inventory'] = None
+                    else:
+                        xp['xp_boosts_inventory'] = json.dumps(inventory)
+
+                    xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
+
+                    await message.reply("Dein XP-Boost wurde eingesetzt! Für die nächsten %s Minuten bekommst du "
+                                        "%s-Fach XP!" % (chosenXpBoost['remaining'], chosenXpBoost['multiplier']))
+                else:
+                    await message.reply("Deine Eingabe war unültig!")
+
+                    return
+        elif messageParts[1] == 'active':
+            if xp['active_xp_boosts'] is None:
+                await message.reply("Du hast keine aktiven XP-Boosts!")
+
+                return
+
+            reply = "Du hast folgende aktive XP-Boosts:\n\n"
+            activeBoosts: list = json.loads(xp['active_xp_boosts'])
+
+            for index, item in enumerate(activeBoosts, start=1):
+                reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+                    index, item['description'], item['remaining'], item['multiplier'])
+
+            await message.reply(reply)
+
+            return  # return here to avoid straining the database with an unnecessary save
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'experience',
+                xp['id'],
+                xp,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()

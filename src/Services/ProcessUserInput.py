@@ -116,6 +116,9 @@ class ProcessUserInput:
         elif ChatCommand.XP_BOOST_SPIN == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.spinForXpBoost(message)
+        elif ChatCommand.XP_INVENTORY == command:
+            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            await xpService.handleXpInventory(message)
 
         # close the connection to the database at the end
         self.databaseConnection.close()
