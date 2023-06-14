@@ -33,6 +33,16 @@ def getDiffUntilNextDoubleXpWeekend() -> timedelta:
         return nextNextSaturday - now
 
 
+def getDoubleXpWeekendInformation():
+    if isDoubleWeekend():
+        return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
+    else:
+        diff: timedelta = getDiffUntilNextDoubleXpWeekend()
+
+        return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
+            (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
+
+
 class ExperienceService:
 
     def __init__(self, databaseConnection: MySQLConnection):
@@ -156,7 +166,7 @@ class ExperienceService:
         pass  # only necessary for cronjob
 
     async def spinForXpBoost(self, message: Message):
-        if (dcUserDb := getDiscordUser(self.databaseConnection, message)) is None:
+        if (dcUserDb := getDiscordUser(self.databaseConnection, message=message)) is None:
             await message.reply("Es ist etwas schief gelaufen!")
 
             return
@@ -233,13 +243,15 @@ class ExperienceService:
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
+    # returns xp for given user or changes settings for double-xp-notification
     async def handleXpRequest(self, message: Message):
-        from src.Services.ProcessUserInput import getMessageParts  # lazy import to avoid circular import
+        # lazy import to avoid circular import
+        from src.Services.ProcessUserInput import getMessageParts, getUserIdByTag, getTagStringFromId
 
         messageParts = getMessageParts(message.content)
 
         if len(messageParts) == 1:
-            dcUserDb = getDiscordUser(self.databaseConnection, message)
+            dcUserDb = getDiscordUser(self.databaseConnection, message=message)
 
             if dcUserDb is None:
                 await message.reply("Das hat leider nicht geklappt!")
@@ -258,15 +270,84 @@ class ExperienceService:
 
             reply = "Du hast bereits %d XP gefarmt. Weiter so! - Du kannst mit '%s' mal in dein XP-Boost " \
                     "Inventar schauen, vielleicht hast du welche dazu bekommen!\n\n" % (xpAmount, commandName)
-            reply += self.getDoubleXpWeekendInformation()
+            reply += getDoubleXpWeekendInformation()
 
             await message.reply(reply)
 
-    def getDoubleXpWeekendInformation(self):
-        if isDoubleWeekend():
-            return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
-        else:
-            diff: timedelta = getDiffUntilNextDoubleXpWeekend()
+        elif len(messageParts) == 2:
+            # TODO improve
+            if messageParts[1] == 'on':
+                dcUserDb = getDiscordUser(self.databaseConnection, message=message)
 
-            return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
-                (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
+                if dcUserDb is None:
+                    await message.reply("Es ist ein Fehler aufgetreten!")
+
+                    return
+
+                dcUserDb['double_xp_notification'] = 1
+
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'discord',
+                    dcUserDb['id'],
+                    dcUserDb
+                )
+
+                with self.databaseConnection.cursor() as cursor:
+                    cursor.execute(query, nones)
+                    self.databaseConnection.commit()
+
+                await message.reply("Deine Einstellungen wurden gespeichert!")
+
+                return
+            elif messageParts[1] == 'off':
+                dcUserDb = getDiscordUser(self.databaseConnection, message=message)
+
+                if dcUserDb is None:
+                    await message.reply("Es ist ein Fehler aufgetreten!")
+
+                    return
+
+                dcUserDb['double_xp_notification'] = 0
+
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'discord',
+                    dcUserDb['id'],
+                    dcUserDb
+                )
+
+                with self.databaseConnection.cursor() as cursor:
+                    cursor.execute(query, nones)
+                    self.databaseConnection.commit()
+
+                await message.reply("Deine Einstellungen wurden gespeichert!")
+
+                return
+            else:
+                userId = getUserIdByTag(messageParts[1])
+                dcUserDb = getDiscordUser(self.databaseConnection, userId=userId)
+
+                if dcUserDb is None:
+                    await message.reply("Es ist ein Fehler aufgetreten!")
+
+                    return
+
+                with self.databaseConnection.cursor() as cursor:
+                    query = "SELECT xp_amount " \
+                            "FROM experience " \
+                            "WHERE discord_user_id = %s"
+
+                    cursor.execute(query, (dcUserDb['id'], ))
+
+                    data = cursor.fetchone()
+
+                if not data:
+                    await message.reply("Dieser Benutzer hat noch keine XP gefarmt!")
+
+                    return
+
+                data = dict(zip(cursor.column_names, data))
+
+                reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(userId), data['xp_amount'])
+                reply += getDoubleXpWeekendInformation()
+
+                await message.reply(reply)

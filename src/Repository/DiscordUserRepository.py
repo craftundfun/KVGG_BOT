@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import string
 from datetime import datetime, date
 
 from mysql.connector import MySQLConnection
@@ -24,18 +25,28 @@ def createDiscordUser(message: Message) -> None | dict:
 
 
 # TODO accept voice things too
-def getDiscordUser(databaseConnection: MySQLConnection, message: Message) -> dict | None:
+def getDiscordUser(databaseConnection: MySQLConnection, message: Message = None, userId: string = None) -> dict | None:
+    if message is None and userId is None:
+        raise ValueError
+
+    # if userId is not set get id from message, otherwise userId already holds id
+    if userId is None:
+        userId = message.author.id
+
     with databaseConnection.cursor() as cursor:
         query = "SELECT * " \
                 "FROM discord " \
                 "WHERE user_id = %s"
 
-        cursor.execute(query, (message.author.id,))
+        cursor.execute(query, (userId,))
 
         data = cursor.fetchone()
 
         if not data:
             # create new DiscordUser
+            if not message:
+                return None  # cant create user without message
+
             data = createDiscordUser(message)
 
             if not data:

@@ -7,7 +7,8 @@ from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
 from src.Helper.ReadParameters import Parameters as parameters
 from discord import Message, Client
-from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, OlegCounter, JjCounter, CookieCounter, CarlCounter
+from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
+    OlegCounter, JjCounter, CookieCounter, CarlCounter
 
 import string
 import discord
@@ -20,6 +21,14 @@ import json
 def getMessageParts(content: string) -> array:
     messageParts = content.split(' ')
     return [part for part in messageParts if part.strip() != ""]
+
+
+def getUserIdByTag(tag: string) -> string:
+    return tag[2:len(tag) - 1]
+
+
+def getTagStringFromId(tag: string) -> string:
+    return "<@%s>" % tag
 
 
 class ProcessUserInput:
@@ -222,9 +231,6 @@ class ProcessUserInput:
 
         await message.reply("Alle Mitglieder wurden verschoben!")
 
-    def getUserIdByTag(self, tag: string) -> string:
-        return tag[2:len(tag) - 1]
-
     async def accessTimeAndEdit(self, time: Time, message: Message):
         messageParts = getMessageParts(message.content)
 
@@ -240,7 +246,7 @@ class ProcessUserInput:
 
             return
 
-        tag = self.getUserIdByTag(messageParts[1])
+        tag = getUserIdByTag(messageParts[1])
         dcUserDb = self.getDiscordUserFromDatabase(tag)
 
         # TODO all
