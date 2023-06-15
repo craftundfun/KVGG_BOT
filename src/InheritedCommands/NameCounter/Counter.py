@@ -26,5 +26,5 @@ class Counter(ABC):
     def getCounterValueByDifferentDiscordUser(self, dcUserDb) -> int:
         pass
 
-    def setDiscordUser(self, dcUserDb):
+    def setDiscordUser(self, dcUserDb: dict):
         self.dcUserDb = dcUserDb

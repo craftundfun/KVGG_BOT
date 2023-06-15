@@ -25,6 +25,7 @@ def createDiscordUser(message: Message) -> None | dict:
 
 
 # TODO accept voice things too
+# TODO test creation of new DiscordUser
 def getDiscordUser(databaseConnection: MySQLConnection, message: Message = None, userId: string = None) -> dict | None:
     if message is None and userId is None:
         raise ValueError
