@@ -63,7 +63,7 @@ class QuotesManager:
                 authorId = message.data['author']['id']
 
                 if authorId:
-                    author = await client.get_guild(438689788585967616).fetch_member(416967436617777163)
+                    author = await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
 
                     if not author.dm_channel:
                         await author.create_dm()
