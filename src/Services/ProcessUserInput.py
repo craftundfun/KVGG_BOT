@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from src.Id.GuildId import GuildId
-from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
+from src.InheritedCommands.Times import Time, OnlineTime, StreamTime, UniversityTime
 from src.Helper import WriteSaveQuery
 from src.Services import ExperienceService, QuotesManager
 from src.Id.ChatCommand import ChatCommand
@@ -150,6 +150,9 @@ class ProcessUserInput:
 
         elif ChatCommand.CARL_COUNTER == command:
             counter = CarlCounter.CarlCounter()
+
+        elif ChatCommand.UNIVERSITY == command:
+            await self.accessTimeAndEdit(UniversityTime.UniversityTime(), message)
 
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
@@ -300,7 +303,7 @@ class ProcessUserInput:
         tag = getUserIdByTag(messageParts[1])
         dcUserDb = self.getDiscordUserFromDatabase(tag)
 
-        # TODO all
+        # TODO increase all
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             await message.reply("Dieser Benutzer war noch nie online!")

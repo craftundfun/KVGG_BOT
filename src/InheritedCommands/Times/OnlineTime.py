@@ -27,4 +27,4 @@ class OnlineTime(Time):
         return "<@%s> war bereits %s Stunden online!" % (dcUserDb['user_id'], dcUserDb['formated_time'])
 
     def setFormattedTime(self, dcUserDb, time: string):
-        dcUserDb['formated_time'] = string
+        dcUserDb['formated_time'] = time
