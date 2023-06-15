@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 class Time(ABC):
 
     def __init__(self, name: string):
-         self.name = name
+        self.name = name
 
     @abstractmethod
     def increaseTime(self, dcUserDb, value: int, updateFormattedTime: bool = True):
