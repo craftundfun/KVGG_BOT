@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime, UniversityTime
 from src.Helper import WriteSaveQuery
-from src.Services import ExperienceService, QuotesManager
+from src.Services import ExperienceService, QuotesManager, LogHelper
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
@@ -46,6 +46,7 @@ class ProcessUserInput:
             database=rp.getParameter(parameters.NAME),
         )
         self.client = client
+        self.logHelper = LogHelper.LogHelper(self.databaseConnection)
 
     async def processMessage(self, message: Message):
         if message.channel.guild.id is None or message.author.id is None:
@@ -101,78 +102,101 @@ class ProcessUserInput:
 
         if ChatCommand.JOKE == command:
             await self.answerJoke(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.MOVE == command:
             await self.moveUsers(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.QUOTE == command:
             qm = QuotesManager.QuotesManager(self.databaseConnection)
             await qm.answerQuote(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.TIME == command:
             await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.HELP == command:
             await self.sendHelp(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.STREAM == command:
             await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.WhatsApp == command:
             await self.manageWhatsAppSettings(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.LEADERBOARD == command:
             await self.sendLeaderboard(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.REGISTRATION == command:
             await self.sendRegistrationLink(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.FELIX_COUNTER == command:
             counter = FelixCounter.FelixCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.PAUL_COUNTER == command:
             counter = PaulCounter.PaulCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.RENE_COUNTER == command:
             counter = ReneCounter.ReneCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.BJARNE_COUNTER == command:
             counter = BjarneCounter.BjarneCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.OLEG_COUNTER == command:
             counter = OlegCounter.OlegCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.JJ_COUNTER == command:
             counter = JjCounter.JjCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.COOKIE_COUNTER == command:
             counter = CookieCounter.CookieCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.CARL_COUNTER == command:
             counter = CarlCounter.CarlCounter()
+            self.logHelper.addLog(message)
 
         elif ChatCommand.UNIVERSITY == command:
             await self.accessTimeAndEdit(UniversityTime.UniversityTime(), message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.LOGS == command:
             await self.sendLogs(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpRequest(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.XP_BOOST_SPIN == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.spinForXpBoost(message)
+            self.logHelper.addLog(message)
 
         elif ChatCommand.XP_INVENTORY == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpInventory(message)
+            self.logHelper.addLog(message)
 
         try:
             await self.accessNameCounterAndEdit(message, counter)
         except NameError:
             pass
+
 
         # close the connection to the database at the end
         self.databaseConnection.close()
