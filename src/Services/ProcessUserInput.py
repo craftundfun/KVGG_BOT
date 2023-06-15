@@ -177,11 +177,6 @@ class ProcessUserInput:
             await self.sendLogs(message)
             self.logHelper.addLog(message)
 
-        elif ChatCommand.XP == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection)
-            await xpService.handleXpRequest(message)
-            self.logHelper.addLog(message)
-
         elif ChatCommand.XP_BOOST_SPIN == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.spinForXpBoost(message)
@@ -192,11 +187,15 @@ class ProcessUserInput:
             await xpService.handleXpInventory(message)
             self.logHelper.addLog(message)
 
+        elif ChatCommand.XP == command:
+            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            await xpService.handleXpRequest(message)
+            self.logHelper.addLog(message)
+
         try:
             await self.accessNameCounterAndEdit(message, counter)
         except NameError:
             pass
-
 
         # close the connection to the database at the end
         self.databaseConnection.close()
