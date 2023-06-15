@@ -13,6 +13,12 @@ class MyClient(discord.Client):
     async def on_ready(self):
         print('Logged on as', self.user)
 
+        # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
+        await client.change_presence(
+            activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
+        )
+        print('Activity set!')
+
     async def on_message(self, message):
 
         # don't respond to ourselves
