@@ -24,7 +24,15 @@ class MyClient(discord.Client):
             await pui.processMessage(message)
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
-        print("delete: " + str(message.cached_message.content))
+        qm = QuotesManager.QuotesManager(
+            mysql.connector.connect(
+                user=rp.getParameter(parameters.USER),
+                password=rp.getParameter(parameters.PASSWORD),
+                host=rp.getParameter(parameters.HOST),
+                database=rp.getParameter(parameters.NAME),
+            )
+        )
+        qm.deleteQuote(message, self)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
         qm = QuotesManager.QuotesManager(

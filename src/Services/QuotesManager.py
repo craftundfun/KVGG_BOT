@@ -1,12 +1,16 @@
 import random
 
 import discord
-from discord import Message, RawMessageUpdateEvent
+from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent
 from mysql.connector import MySQLConnection
 
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Id.ChannelId import ChannelId
+
+
+def getQuotesChannel(client: discord.Client):
+    return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
 
 
 class QuotesManager:
@@ -27,7 +31,7 @@ class QuotesManager:
         await message.reply(quotes[random.randint(0, len(quotes) - 1)])
 
     def checkForNewQuote(self, message: Message, client: discord.Client):
-        channel = self.getQuotesChannel(client)
+        channel = getQuotesChannel(client)
 
         if channel is not None and (channel.id == message.channel.id):
             with self.databaseConnection.cursor() as cursor:
@@ -36,7 +40,7 @@ class QuotesManager:
                 self.databaseConnection.commit()
 
     async def updateQuote(self, message: RawMessageUpdateEvent, client: discord.Client):
-        channel = self.getQuotesChannel(client)
+        channel = getQuotesChannel(client)
 
         if channel is not None and channel.id == message.channel_id:
             with self.databaseConnection.cursor() as cursor:
@@ -74,5 +78,14 @@ class QuotesManager:
 
                     await author.dm_channel.send("Dein überarbeitetes Zitat wurde gespeichert!")
 
-    def getQuotesChannel(self, client: discord.Client):
-        return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
+    def deleteQuote(self, message: RawMessageDeleteEvent, client: discord):
+        channel = getQuotesChannel(client)
+
+        if channel is not None and channel.id == message.channel_id:
+            with self.databaseConnection.cursor() as cursor:
+                query = "DELETE FROM quotes WHERE message_external_id = %s"
+
+                cursor.execute(query, (message.message_id,))
+                self.databaseConnection.commit()
+
+                # cant send message to user, we don't have any data about the userId
