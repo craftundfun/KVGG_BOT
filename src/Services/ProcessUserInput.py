@@ -1,7 +1,7 @@
 from __future__ import annotations
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime
 from src.Helper import WriteSaveQuery
-from src.Services import ExperienceService
+from src.Services import ExperienceService, QuotesManager
 from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
@@ -87,7 +87,8 @@ class ProcessUserInput:
         command = message.content
 
         if not command.startswith('!'):
-            pass  # TODO checkForNewQuote
+            qm = QuotesManager.QuotesManager(self.databaseConnection)
+            qm.checkForNewQuote(message, self.client)
 
             return
 
@@ -95,30 +96,41 @@ class ProcessUserInput:
 
         if ChatCommand.JOKE == command:
             await self.answerJoke(message)
+
         elif ChatCommand.MOVE == command:
             await self.moveUsers(message)
+
         elif ChatCommand.QUOTE == command:
-            # TODO quotesManager.answerQuote()
-            pass
+            qm = QuotesManager.QuotesManager(self.databaseConnection)
+            await qm.answerQuote(message)
+
         elif ChatCommand.TIME == command:
             await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
+
         elif ChatCommand.HELP == command:
             await self.sendHelp(message)
+
         elif ChatCommand.STREAM == command:
             await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
+
         elif ChatCommand.WhatsApp == command:
             await self.manageWhatsAppSettings(message)
+
         elif ChatCommand.LEADERBOARD == command:
             await self.sendLeaderboard(message)
+
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpRequest(message)
+
         elif ChatCommand.XP_BOOST_SPIN == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.spinForXpBoost(message)
+
         elif ChatCommand.XP_INVENTORY == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpInventory(message)
+
 
         # close the connection to the database at the end
         self.databaseConnection.close()
