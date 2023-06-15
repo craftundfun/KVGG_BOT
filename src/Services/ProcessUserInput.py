@@ -119,6 +119,9 @@ class ProcessUserInput:
         elif ChatCommand.LEADERBOARD == command:
             await self.sendLeaderboard(message)
 
+        elif ChatCommand.REGISTRATION == command:
+            await self.sendRegistrationLink(message)
+
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpRequest(message)
@@ -629,3 +632,18 @@ class ProcessUserInput:
             answer += "\t%d: %s - %d\n" % (index + 1, user[0], user[1])
 
         return answer
+
+    async def sendRegistrationLink(self, message: Message):
+        link = "https://axellotl.de/register/"
+        link += str(message.author.id)
+
+        if not message.author.dm_channel:
+            await message.author.create_dm()
+
+            if not message.author.dm_channel:
+                await message.reply("Es gab Probleme dir eine Nachricht zu schreiben!")
+
+                return
+
+        await message.reply("Dir wurde das Formular privat gesendet!")
+        await message.author.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
