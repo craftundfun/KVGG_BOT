@@ -154,6 +154,9 @@ class ProcessUserInput:
         elif ChatCommand.UNIVERSITY == command:
             await self.accessTimeAndEdit(UniversityTime.UniversityTime(), message)
 
+        elif ChatCommand.LOGS == command:
+            await self.sendLogs(message)
+
         elif ChatCommand.XP == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection)
             await xpService.handleXpRequest(message)
@@ -876,3 +879,61 @@ class ProcessUserInput:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+    async def sendLogs(self, message: Message):
+        messageParts = getMessageParts(message.content)
+
+        if self.hasUserWantedRoles(message.author, RoleId.ADMIN, RoleId.MOD):
+            if len(messageParts) > 1:
+                try:
+                    count = int(messageParts[1])
+                except ValueError:
+                    await message.reply("Deine Eingabe war inkorrekt!")
+
+                    return
+            else:
+                await message.reply("Zu wenige Argumente. Gib eine Menge an Logs an!")
+
+                return
+
+            if count > 100:
+                await message.reply("Das waren zu viele Anfragen! Versuche es mit weniger!")
+
+                return
+            elif count <= 0:
+                await message.reply("Ich kann dir nicht weniger als einen Log bieten!")
+
+                return
+
+            with self.databaseConnection.cursor() as cursor:
+                query = "SELECT discord.user_id, logs.command, logs.created_at " \
+                        "FROM logs " \
+                        "INNER JOIN discord "\
+                        "WHERE discord_user_id = discord.id " \
+                        "LIMIT %s"
+
+                cursor.execute(query, (count,))
+
+                logs = cursor.fetchall()
+
+                if not logs:
+                    await message.reply("Es ist ein Fehler aufgetreten!")
+
+                    return
+
+            answer = "Die letzten %d Logs:\n\n" % count
+
+            for index, log in enumerate(logs):
+                date: datetime = log[2]
+                command = log[1]
+                user = log[0]
+
+                answer += "%d. \"**%s**\" von %s am %s\n" % (index, command, getTagStringFromId(user), date.strftime("%Y-%m-%d %H:%M:%S"))
+
+            try:
+                await message.reply(answer)
+            except discord.errors.HTTPException:
+                await message.reply("Das waren zu viele Anfragen! Versuche es mit weniger!")
+
+        else:
+            await message.reply("Du darfst diese Aktion nicht ausführen!")
