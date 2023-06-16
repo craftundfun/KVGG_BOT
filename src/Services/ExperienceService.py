@@ -5,9 +5,14 @@ import math
 import random
 
 from datetime import datetime, timedelta
+
+import discord
+
 from src.Helper import WriteSaveQuery
 from discord import Message
 from mysql.connector import MySQLConnection
+
+from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Id.ChatCommand import ChatCommand
@@ -41,6 +46,24 @@ def getDoubleXpWeekendInformation():
 
         return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
             (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
+
+
+async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
+    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend():
+        return
+
+    await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
+    member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+
+    if not member.dm_channel:
+        await member.create_dm()
+
+        if not member.dm_channel:
+            return
+
+    await member.dm_channel.send("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
+                                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
+                                 "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
 
 
 class ExperienceService:

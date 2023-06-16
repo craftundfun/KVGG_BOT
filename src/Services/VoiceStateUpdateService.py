@@ -1,20 +1,24 @@
 from datetime import datetime
 
+import discord
 from discord import Member, VoiceState
 from mysql.connector import MySQLConnection
 
 from src.Helper import WriteSaveQuery
+from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services import ExperienceService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 
 class VoiceStateUpdateService:
 
-    def __init__(self, databaseConnection: MySQLConnection):
+    def __init__(self, databaseConnection: MySQLConnection, client: discord.Client):
         self.databaseConnection = databaseConnection
+        self.client = client
         self.waHelper = WhatsAppHelper(self.databaseConnection)
 
-    def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
+    async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         if not member:
             return
         elif member.bot:
@@ -29,8 +33,6 @@ class VoiceStateUpdateService:
         # look for new avatar
         if dcUserDb['profile_picture_discord'] != member.display_avatar:
             dcUserDb['profile_picture_discord'] = member.display_avatar
-
-        # TODO checkStreamUpdates
 
         # only needed for console print
         if member.nick:
@@ -54,12 +56,12 @@ class VoiceStateUpdateService:
             elif not voiceStateAfter.self_deaf:
                 dcUserDb['full_muted_at'] = None
 
+            # must run before saving user
+            await self.__checkFelixCounterAndSendStopMessage(dcUserDb)
             # save user so a whatsapp message can be sent properly
-            self.saveDiscordUser(dcUserDb)
-            # TODO checkFelixCounterAndSendStopMessage
-            # TODO sendOnlineNotification
+            self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
-            # TODO informAboutDoubleXpWeekend
+            await ExperienceService.informAboutDoubleXpWeekend(dcUserDb, self.client)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -94,7 +96,7 @@ class VoiceStateUpdateService:
             else:
                 dcUserDb['channel_id'] = voiceStateAfter.channel
 
-                self.saveDiscordUser(dcUserDb)
+                self.__saveDiscordUser(dcUserDb)
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
 
         # user left channel
@@ -107,11 +109,10 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
             dcUserDb['last_online'] = datetime.now()
 
-            self.saveDiscordUser(dcUserDb)
+            self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore)
 
-
-    def saveDiscordUser(self, dcUserDb: dict):
+    def __saveDiscordUser(self, dcUserDb: dict):
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
                 'discord',
@@ -121,3 +122,18 @@ class VoiceStateUpdateService:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+    async def __checkFelixCounterAndSendStopMessage(self, dcUserDb: dict):
+        if dcUserDb['felix_counter_start'] is not None:
+            dcUserDb['felix_counter_start'] = None
+
+        await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
+        member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+
+        if not member.dm_channel:
+            await member.create_dm()
+
+            if not member.dm_channel:
+                return
+
+        await member.dm_channel.send("Dein Felix-Counter wurde beendet!")

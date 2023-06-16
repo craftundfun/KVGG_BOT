@@ -60,9 +60,10 @@ class MyClient(discord.Client):
                 password=rp.getParameter(parameters.PASSWORD),
                 host=rp.getParameter(parameters.HOST),
                 database=rp.getParameter(parameters.NAME),
-            )
+            ),
+            self,
         )
-        vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
