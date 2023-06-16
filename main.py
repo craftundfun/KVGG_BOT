@@ -2,11 +2,12 @@ from signal import SIGINT, signal
 
 import discord
 import mysql.connector
-from discord import Message, RawMessageDeleteEvent, RawMessageUpdateEvent
+from discord import Message, RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, User
 from src.Helper import ReadParameters as rp
 from src.Helper import ReadParameters
-from src.Services import ProcessUserInput, QuotesManager
+from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService
 from src.Helper.ReadParameters import Parameters as parameters
+from src.Repository.DiscordUserRepository import getDiscordUser
 
 
 class MyClient(discord.Client):
@@ -29,6 +30,7 @@ class MyClient(discord.Client):
             pui = ProcessUserInput.ProcessUserInput(self)
             await pui.processMessage(message)
 
+    # TODO close Connector
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         qm = QuotesManager.QuotesManager(
             mysql.connector.connect(
@@ -51,9 +53,17 @@ class MyClient(discord.Client):
         )
         await qm.updateQuote(message, self)
 
-    async def on_bulk_message_delete(self, message):
-        print("bulk: " + str(message.content))
-
+    async def on_voice_state_update(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
+        vsus = VoiceStateUpdateService.VoiceStateUpdateService(
+            mysql.connector.connect(
+                user=rp.getParameter(parameters.USER),
+                password=rp.getParameter(parameters.PASSWORD),
+                host=rp.getParameter(parameters.HOST),
+                database=rp.getParameter(parameters.NAME),
+            )
+        )
+        vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        print("update")
 
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
 intents = discord.Intents.default()
