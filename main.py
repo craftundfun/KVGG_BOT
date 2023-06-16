@@ -1,3 +1,4 @@
+import traceback
 from signal import SIGINT, signal
 
 import discord
@@ -28,7 +29,12 @@ class MyClient(discord.Client):
 
         if message.content:
             pui = ProcessUserInput.ProcessUserInput(self)
-            await pui.processMessage(message)
+            try:
+                await pui.processMessage(message)
+            # TODO do something useful
+            except Exception as e:
+                var = traceback.format_exc()
+                print(var)
 
     # TODO close Connector
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
