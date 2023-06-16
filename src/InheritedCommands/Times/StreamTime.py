@@ -24,6 +24,8 @@ class StreamTime(Time):
         return dcUserDb['formatted_stream_time']
 
     def getStringForTime(self, dcUserDb) -> string:
+        if dcUserDb['formatted_stream_time'] is None:
+            return "Es gab einen Fehler!"
         return "<@%s> hat bereits %s Stunden gestreamt!" % (dcUserDb['user_id'], dcUserDb['formatted_stream_time'])
 
     def setFormattedTime(self, dcUserDb, time: string):
