@@ -1,0 +1,7 @@
+from enum import Enum
+
+
+class WhatsAppParameter(Enum):
+    WAIT_UNTIL_SEND_LEAVE = 1
+    WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE = 5
+    DELAY_JOIN_MESSAGE = 1

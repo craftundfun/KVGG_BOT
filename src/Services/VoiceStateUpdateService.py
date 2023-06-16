@@ -5,12 +5,14 @@ from mysql.connector import MySQLConnection
 
 from src.Helper import WriteSaveQuery
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.WhatsAppHelper import WhatsAppHelper
 
 
 class VoiceStateUpdateService:
 
     def __init__(self, databaseConnection: MySQLConnection):
         self.databaseConnection = databaseConnection
+        self.waHelper = WhatsAppHelper(self.databaseConnection)
 
     def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         if not member:
@@ -38,7 +40,6 @@ class VoiceStateUpdateService:
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
-            print("join")
             dcUserDb['channel_id'] = voiceStateAfter.channel.id
             dcUserDb['joined_at'] = datetime.now()
 
@@ -53,8 +54,11 @@ class VoiceStateUpdateService:
             elif not voiceStateAfter.self_deaf:
                 dcUserDb['full_muted_at'] = None
 
+            # save user so a whatsapp message can be sent properly
+            self.saveDiscordUser(dcUserDb)
             # TODO checkFelixCounterAndSendStopMessage
             # TODO sendOnlineNotification
+            self.waHelper.sendOnlineNotification(member, voiceStateAfter)
             # TODO informAboutDoubleXpWeekend
 
         # user changed channel or changed status
@@ -68,7 +72,7 @@ class VoiceStateUpdateService:
                 elif not voiceStateAfter.self_mute:
                     dcUserDb['muted_at'] = None
 
-                # if user is full mute
+                # if a user is full mute
                 if voiceStateAfter.self_deaf:
                     dcUserDb['full_muted_at'] = datetime.now()
                 elif not voiceStateAfter.self_deaf:
@@ -89,7 +93,9 @@ class VoiceStateUpdateService:
             # channel changed
             else:
                 dcUserDb['channel_id'] = voiceStateAfter.channel
-                # TODO sendOnlineNotification, decide between WhatsApp-Channel or not
+
+                self.saveDiscordUser(dcUserDb)
+                self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
@@ -101,7 +107,9 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
             dcUserDb['last_online'] = datetime.now()
 
-        self.saveDiscordUser(dcUserDb)
+            self.saveDiscordUser(dcUserDb)
+            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore)
+
 
     def saveDiscordUser(self, dcUserDb: dict):
         with self.databaseConnection.cursor() as cursor:

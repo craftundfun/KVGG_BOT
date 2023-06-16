@@ -63,7 +63,7 @@ class MyClient(discord.Client):
             )
         )
         vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
-        print("update")
+
 
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
 intents = discord.Intents.default()

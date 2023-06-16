@@ -46,7 +46,7 @@ def getDiscordUser(databaseConnection: MySQLConnection, message: Message = None,
         if not data:
             # create new DiscordUser
             if not message:
-                return None  # cant create user without message
+                return None  # cant create user without message # TODO maybe try
 
             data = createDiscordUser(message)
 
