@@ -1,7 +1,6 @@
 import random
 
-import discord
-from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent
+from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client
 from mysql.connector import MySQLConnection
 
 from src.Helper import WriteSaveQuery
@@ -9,15 +8,14 @@ from src.Id.GuildId import GuildId
 from src.Id.ChannelId import ChannelId
 
 
-def getQuotesChannel(client: discord.Client):
+def getQuotesChannel(client: Client):
     return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
 
 
 class QuotesManager:
-
-    # TODO get discord client in constructor
-    def __init__(self, databaseConnection: MySQLConnection):
+    def __init__(self, databaseConnection: MySQLConnection, client: Client):
         self.databaseConnection = databaseConnection
+        self.client = client
 
     async def answerQuote(self, message: Message):
         with self.databaseConnection.cursor() as cursor:
@@ -30,17 +28,26 @@ class QuotesManager:
 
         await message.reply(quotes[random.randint(0, len(quotes) - 1)])
 
-    def checkForNewQuote(self, message: Message, client: discord.Client):
-        channel = getQuotesChannel(client)
+    async def checkForNewQuote(self, message: Message):
+        channel = getQuotesChannel(self.client)
 
         if channel is not None and (channel.id == message.channel.id):
             with self.databaseConnection.cursor() as cursor:
                 query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
+
                 cursor.execute(query, (message.content, message.id,))
                 self.databaseConnection.commit()
 
-    async def updateQuote(self, message: RawMessageUpdateEvent, client: discord.Client):
-        channel = getQuotesChannel(client)
+            # TODO write dm in own helper
+            member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(message.author.id)
+
+            if member.dm_channel is None:
+                await member.create_dm()
+
+            await member.dm_channel.send("Dein Zitat wurde in unserer Datenbank gespeichert!")
+
+    async def updateQuote(self, message: RawMessageUpdateEvent):
+        channel = getQuotesChannel(self.client)
 
         if channel is not None and channel.id == message.channel_id:
             with self.databaseConnection.cursor() as cursor:
@@ -67,7 +74,7 @@ class QuotesManager:
                 authorId = message.data['author']['id']
 
                 if authorId:
-                    author = await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+                    author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
 
                     if not author.dm_channel:
                         await author.create_dm()
@@ -78,8 +85,8 @@ class QuotesManager:
 
                     await author.dm_channel.send("Dein überarbeitetes Zitat wurde gespeichert!")
 
-    def deleteQuote(self, message: RawMessageDeleteEvent, client: discord):
-        channel = getQuotesChannel(client)
+    async def deleteQuote(self, message: RawMessageDeleteEvent):
+        channel = getQuotesChannel(self.client)
 
         if channel is not None and channel.id == message.channel_id:
             with self.databaseConnection.cursor() as cursor:
@@ -87,5 +94,3 @@ class QuotesManager:
 
                 cursor.execute(query, (message.message_id,))
                 self.databaseConnection.commit()
-
-                # cant send message to user, we don't have any data about the userId

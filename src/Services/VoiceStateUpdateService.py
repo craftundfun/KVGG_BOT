@@ -25,7 +25,7 @@ class VoiceStateUpdateService:
             return
 
         # TODO insert VoiceState
-        dcUserDb = getDiscordUser(self.databaseConnection, userId=member.id)
+        dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
             return

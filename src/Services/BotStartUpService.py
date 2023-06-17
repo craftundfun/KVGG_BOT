@@ -44,7 +44,6 @@ class BotStartUpService:
                         user['joined_at'] = datetime.now()
                         voiceState = channel.voice_states[member.id]
 
-                        # TODO check how statuses were before and dont overwrite them
                         if voiceState.self_mute:
                             user['muted_at'] = datetime.now()
                         else:

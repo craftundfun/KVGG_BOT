@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import string
-from datetime import datetime, date
+from datetime import datetime
 
 from mysql.connector import MySQLConnection
-from discord import Message
+from discord import Message, Member, User
 from src.Helper import WriteSaveQuery
+from src.Id.GuildId import GuildId
 
 
-def createDiscordUser(message: Message) -> None | dict:
+def __createDiscordUser(message: Message) -> None | dict:
     if message.author.bot:
         return None
 
@@ -17,50 +18,41 @@ def createDiscordUser(message: Message) -> None | dict:
 
     return {
         'guild_id': message.guild.id,
-        'user_id:': message.author.id,
+        'user_id': message.author.id,
         'username': username,
         'created_at': datetime.now().date(),
-        'time_online': None
+        'time_streamed': 0
     }
 
 
-# TODO accept voice things too
 # TODO test creation of new DiscordUser
-def getDiscordUser(databaseConnection: MySQLConnection, message: Message = None, userId: string = None) -> dict | None:
-    if message is None and userId is None:
-        raise ValueError
-
-    # if userId is not set get id from message, otherwise userId already holds id
-    if userId is None:
-        userId = message.author.id
+def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict | None:
+    if member is None or isinstance(member, User):  # TODO treat User
+        return None
+    elif member.bot:
+        return None
 
     with databaseConnection.cursor() as cursor:
         query = "SELECT * " \
                 "FROM discord " \
                 "WHERE user_id = %s"
 
-        cursor.execute(query, (userId,))
+        cursor.execute(query, (member.id, ))
 
         data = cursor.fetchone()
 
         if not data:
-            # create new DiscordUser
-            if not message:
-                return None  # cant create user without message # TODO maybe try
+            query = "INSERT INTO discord (guild_id, user_id, username, created_at, time_streamed) " \
+                    "VALUES (%s, %s, %s, %s, %s)"
 
-            data = createDiscordUser(message)
+            if member.nick:
+                username = member.nick
+            else:
+                username = member.name
 
-            if not data:
-                return None
-
-            # save new DiscordUser
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                "discord",
-                message.author.id,
-                data
-            )
-
-            cursor.execute(query, nones)
+            cursor.execute(query, (
+                member.guild.id, member.id, username, datetime.now(), 0)
+                           )
             databaseConnection.commit()
 
             # fetch the newly added DiscordUser
@@ -68,8 +60,8 @@ def getDiscordUser(databaseConnection: MySQLConnection, message: Message = None,
                     "FROM discord " \
                     "WHERE user_id = %s"
 
-            cursor.execute(query, (message.author.id,))
+            cursor.execute(query, (member.id, ))
 
             data = cursor.fetchone()
-
+    # TODO update nickname here (and maybe avatar)
     return dict(zip(cursor.column_names, data))

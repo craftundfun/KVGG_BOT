@@ -26,7 +26,7 @@ class WhatsAppHelper:
         if member.bot:
             return
 
-        dcUserDb = getDiscordUser(self.databaseConnection, userId=member.id)
+        dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
             return

@@ -15,7 +15,7 @@ class LogHelper:
         if not message.channel.id == int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value):
             return
 
-        dcUserDb = getDiscordUser(databaseConnection=self.databaseConnection, message=message)
+        dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
         if not dcUserDb:
             return

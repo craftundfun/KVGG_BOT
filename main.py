@@ -33,19 +33,18 @@ class MyClient(discord.Client):
         print('Activity set!')
 
     async def on_message(self, message):
-
         # don't respond to ourselves
         if message.author == self.user:
             return
 
         if message.content:
             pui = ProcessUserInput.ProcessUserInput(self)
-            try:
-                await pui.processMessage(message)
+            #try:
+            await pui.processMessage(message)
             # TODO do something useful
-            except Exception as e:
-                var = traceback.format_exc()
-                print(var)
+            #except Exception as e:
+            #    var = traceback.format_exc()
+            #   print(var)
 
     # TODO close Connector
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
@@ -55,9 +54,10 @@ class MyClient(discord.Client):
                 password=rp.getParameter(parameters.PASSWORD),
                 host=rp.getParameter(parameters.HOST),
                 database=rp.getParameter(parameters.NAME),
-            )
+            ),
+            self,
         )
-        qm.deleteQuote(message, self)
+        await qm.deleteQuote(message)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
         qm = QuotesManager.QuotesManager(
@@ -66,9 +66,10 @@ class MyClient(discord.Client):
                 password=rp.getParameter(parameters.PASSWORD),
                 host=rp.getParameter(parameters.HOST),
                 database=rp.getParameter(parameters.NAME),
-            )
+            ),
+            self,
         )
-        await qm.updateQuote(message, self)
+        await qm.updateQuote(message)
 
     async def on_voice_state_update(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         vsus = VoiceStateUpdateService.VoiceStateUpdateService(

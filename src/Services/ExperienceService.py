@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import discord
 
 from src.Helper import WriteSaveQuery
-from discord import Message
+from discord import Message, Client
 from mysql.connector import MySQLConnection
 
 from src.Id.GuildId import GuildId
@@ -68,8 +68,9 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 
 class ExperienceService:
 
-    def __init__(self, databaseConnection: MySQLConnection):
+    def __init__(self, databaseConnection: MySQLConnection, client: Client):
         self.databaseConnection = databaseConnection
+        self.client = client
 
     def getExperience(self, userId: int) -> dict | None:
         with self.databaseConnection.cursor() as cursor:
@@ -189,7 +190,7 @@ class ExperienceService:
         pass  # only necessary for cronjob
 
     async def spinForXpBoost(self, message: Message):
-        if (dcUserDb := getDiscordUser(self.databaseConnection, message=message)) is None:
+        if (dcUserDb := getDiscordUser(self.databaseConnection, message.author)) is None:
             await message.reply("Es ist etwas schief gelaufen!")
 
             return
@@ -274,7 +275,7 @@ class ExperienceService:
         messageParts = getMessageParts(message.content)
 
         if len(messageParts) == 1:
-            dcUserDb = getDiscordUser(self.databaseConnection, message=message)
+            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
             if dcUserDb is None:
                 await message.reply("Das hat leider nicht geklappt!")
@@ -300,7 +301,7 @@ class ExperienceService:
         elif len(messageParts) == 2:
             # TODO improve
             if messageParts[1] == 'on':
-                dcUserDb = getDiscordUser(self.databaseConnection, message=message)
+                dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
                 if dcUserDb is None:
                     await message.reply("Es ist ein Fehler aufgetreten!")
@@ -323,7 +324,7 @@ class ExperienceService:
 
                 return
             elif messageParts[1] == 'off':
-                dcUserDb = getDiscordUser(self.databaseConnection, message=message)
+                dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
                 if dcUserDb is None:
                     await message.reply("Es ist ein Fehler aufgetreten!")
@@ -347,7 +348,8 @@ class ExperienceService:
                 return
             else:
                 userId = getUserIdByTag(messageParts[1])
-                dcUserDb = getDiscordUser(self.databaseConnection, userId=userId)
+                member = await self.client.get_guild(GuildId.GUILD_KVGG.value).fetch_member(userId)
+                dcUserDb = getDiscordUser(self.databaseConnection, member)
 
                 if dcUserDb is None:
                     await message.reply("Es ist ein Fehler aufgetreten!")
@@ -371,7 +373,7 @@ class ExperienceService:
         from src.Services.ProcessUserInput import getMessageParts
 
         messageParts = getMessageParts(message.content)
-        dcUserDb: dict | None = getDiscordUser(self.databaseConnection, message=message)
+        dcUserDb: dict | None = getDiscordUser(self.databaseConnection, message.author)
 
         if dcUserDb is None:
             await message.reply("Es ist ein Fehler aufgetreten!")
@@ -526,4 +528,40 @@ class ExperienceService:
             )
 
             cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+    def addExperience(self, dcUserDb: dict, experienceParameter: int):
+        xp = self.getExperience(dcUserDb['user_id'])
+
+        if xp is None:
+            return
+
+        currentXpAmount = xp['xp_amount']
+        toBeAddedXpAmount = 0
+
+        if xp['active_xp_boosts']:
+            for boost in json.loads(xp['active_xp_boosts']):
+                toBeAddedXpAmount += experienceParameter * boost['multiplier']
+
+        if toBeAddedXpAmount == 0:
+            if isDoubleWeekend():
+                xp['xp_amount'] = currentXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+            else:
+                xp['xp_amount'] = currentXpAmount + experienceParameter
+        else:
+            if isDoubleWeekend():
+                xp[
+                    'xp_amount'] = currentXpAmount + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+            else:
+                xp['xp_amount'] = currentXpAmount + toBeAddedXpAmount
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'experience',
+                xp['id'],
+                xp
+            )
+
+            cursor.execute(query, nones)
+
             self.databaseConnection.commit()

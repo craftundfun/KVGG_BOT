@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.Times import Time, OnlineTime, StreamTime, UniversityTime
 from src.Helper import WriteSaveQuery
@@ -28,8 +29,11 @@ def getMessageParts(content: string) -> array:
     return [part for part in messageParts if part.strip() != ""]
 
 
-def getUserIdByTag(tag: string) -> string:
-    return tag[2:len(tag) - 1]
+def getUserIdByTag(tag: string) -> int | None:  # TODO change in all usages
+    try:
+        return int(tag[2:len(tag) - 1])
+    except ValueError:
+        return None
 
 
 def getTagStringFromId(tag: string) -> string:
@@ -52,14 +56,18 @@ class ProcessUserInput:
         if message.channel.guild.id is None or message.author.id is None:
             return
 
-        dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
+        dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
         if not dcUserDb:
-            # TODO create
             return
 
         # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
-        # TODO addExperience
+        if dcUserDb['message_count_all_time']:
+            dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
+        else:
+            dcUserDb['message_count_all_time'] = 1
+        es = ExperienceService.ExperienceService(self.databaseConnection, self.client)
+        es.addExperience(dcUserDb, ExperienceParameter.XP_FOR_MESSAGE.value)
 
         self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
@@ -93,8 +101,8 @@ class ProcessUserInput:
         command = message.content
 
         if not command.startswith('!'):
-            qm = QuotesManager.QuotesManager(self.databaseConnection)
-            qm.checkForNewQuote(message, self.client)
+            qm = QuotesManager.QuotesManager(self.databaseConnection, self.client)
+            await qm.checkForNewQuote(message)
 
             return
 
@@ -109,7 +117,7 @@ class ProcessUserInput:
             self.logHelper.addLog(message)
 
         elif ChatCommand.QUOTE == command:
-            qm = QuotesManager.QuotesManager(self.databaseConnection)
+            qm = QuotesManager.QuotesManager(self.databaseConnection, self.client)
             await qm.answerQuote(message)
             self.logHelper.addLog(message)
 
@@ -178,17 +186,17 @@ class ProcessUserInput:
             self.logHelper.addLog(message)
 
         elif ChatCommand.XP_BOOST_SPIN == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
             await xpService.spinForXpBoost(message)
             self.logHelper.addLog(message)
 
         elif ChatCommand.XP_INVENTORY == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
             await xpService.handleXpInventory(message)
             self.logHelper.addLog(message)
 
         elif ChatCommand.XP == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection)
+            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
             await xpService.handleXpRequest(message)
             self.logHelper.addLog(message)
 
@@ -264,7 +272,7 @@ class ProcessUserInput:
         if channelDestination is None:
             await message.reply("Der angegebene Channel existiert nicht!")
 
-            # return
+            return
 
         authorId = message.author.id
 
@@ -716,7 +724,7 @@ class ProcessUserInput:
         messageLength = len(messageParts)
 
         if messageLength < 2:
-            dcUserDb = getDiscordUser(self.databaseConnection, message=message)
+            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
             if not dcUserDb:
                 await message.reply("Es ist ein Fehler aufgetreten!")
@@ -730,7 +738,8 @@ class ProcessUserInput:
             return
 
         tag = getUserIdByTag(messageParts[1])
-        dcUserDb = getDiscordUser(self.databaseConnection, userId=tag)
+        member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
+        dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
             await message.reply("Dieser Benutzer existiert (noch) nicht!")
@@ -797,6 +806,7 @@ class ProcessUserInput:
                     authorId = message.author.id
                     author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
 
+                    # TODO change to Felix-Counter receiver and not author
                     if not author.dm_channel:
                         await author.create_dm()
 
@@ -853,6 +863,7 @@ class ProcessUserInput:
                         if not author.dm_channel:
                             return
 
+                    # TODO send to receiver and not author
                     await author.dm_channel.send("Dein %s-Timer wurde von %s beendet!"
                                                  % (counter.getNameOfCounter(), username))
 
@@ -863,7 +874,7 @@ class ProcessUserInput:
             try:
                 value = int(messageParts[2])
             except ValueError:
-                await message.reply("Deine Eingabe war unültig!")
+                await message.reply("Deine Eingabe war ungültig!")
 
                 return
 
