@@ -13,6 +13,7 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 
 class MyClient(discord.Client):
     async def on_ready(self):
+        # TODO manage connections better
         botStartUpService = BotStartUpService.BotStartUpService(
             mysql.connector.connect(
                 user=rp.getParameter(parameters.USER),
