@@ -6,13 +6,23 @@ import mysql.connector
 from discord import Message, RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, User
 from src.Helper import ReadParameters as rp
 from src.Helper import ReadParameters
-from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService
+from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Helper.ReadParameters import Parameters as parameters
 from src.Repository.DiscordUserRepository import getDiscordUser
 
 
 class MyClient(discord.Client):
     async def on_ready(self):
+        botStartUpService = BotStartUpService.BotStartUpService(
+            mysql.connector.connect(
+                user=rp.getParameter(parameters.USER),
+                password=rp.getParameter(parameters.PASSWORD),
+                host=rp.getParameter(parameters.HOST),
+                database=rp.getParameter(parameters.NAME),
+            )
+        )
+        await botStartUpService.startUp(self)
+
         print('Logged on as', self.user)
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot

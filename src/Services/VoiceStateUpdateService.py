@@ -92,6 +92,7 @@ class VoiceStateUpdateService:
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
 
+                self.__saveDiscordUser(dcUserDb)
             # channel changed
             else:
                 dcUserDb['channel_id'] = voiceStateAfter.channel
@@ -121,11 +122,13 @@ class VoiceStateUpdateService:
             )
 
             cursor.execute(query, nones)
-            self.databaseConnection.commit()
+        self.databaseConnection.commit()
 
     async def __checkFelixCounterAndSendStopMessage(self, dcUserDb: dict):
         if dcUserDb['felix_counter_start'] is not None:
             dcUserDb['felix_counter_start'] = None
+        else:
+            return
 
         await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
         member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
