@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import random
+import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client
 from mysql.connector import MySQLConnection
@@ -17,16 +20,20 @@ class QuotesManager:
         self.databaseConnection = databaseConnection
         self.client = client
 
-    async def answerQuote(self, message: Message):
+    async def answerQuote(self) -> string | None:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT quote FROM quotes"
 
             cursor.execute(query)
 
             data = cursor.fetchall()
+
+            if not data:
+                return None
+
             quotes = [quote[0] for quote in data]
 
-        await message.reply(quotes[random.randint(0, len(quotes) - 1)])
+        return quotes[random.randint(0, len(quotes) - 1)]
 
     async def checkForNewQuote(self, message: Message):
         channel = getQuotesChannel(self.client)

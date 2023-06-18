@@ -25,7 +25,7 @@ class UniversityTime(Time):
 
     def getStringForTime(self, dcUserDb) -> string:
         if dcUserDb['formated_university_time'] is None:
-            return "Es gab einen Fehler!"
+            return "Es liegt keine formatierte Zeit vor!"
         return "<@%s> hat bereits %s Stunden studiert!" % (dcUserDb['user_id'], dcUserDb['formated_university_time'])
 
     def setFormattedTime(self, dcUserDb, time: string):

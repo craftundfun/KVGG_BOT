@@ -11,7 +11,7 @@ from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.Helper import ReadParameters as rp
 from src.Helper.ReadParameters import Parameters as parameters
-from discord import Message, Client
+from discord import Message, Client, Member
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -108,29 +108,8 @@ class ProcessUserInput:
 
         command = self.getCommand(command)
 
-        if ChatCommand.JOKE == command:
-            await self.answerJoke(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.MOVE == command:
-            await self.moveUsers(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.QUOTE == command:
-            qm = QuotesManager.QuotesManager(self.databaseConnection, self.client)
-            await qm.answerQuote(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.TIME == command:
-            await self.accessTimeAndEdit(OnlineTime.OnlineTime(), message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.HELP == command:
+        if ChatCommand.HELP == command:
             await self.sendHelp(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.STREAM == command:
-            await self.accessTimeAndEdit(StreamTime.StreamTime(), message)
             self.logHelper.addLog(message)
 
         elif ChatCommand.WhatsApp == command:
@@ -143,42 +122,6 @@ class ProcessUserInput:
 
         elif ChatCommand.REGISTRATION == command:
             await self.sendRegistrationLink(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.FELIX_COUNTER == command:
-            counter = FelixCounter.FelixCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.PAUL_COUNTER == command:
-            counter = PaulCounter.PaulCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.RENE_COUNTER == command:
-            counter = ReneCounter.ReneCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.BJARNE_COUNTER == command:
-            counter = BjarneCounter.BjarneCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.OLEG_COUNTER == command:
-            counter = OlegCounter.OlegCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.JJ_COUNTER == command:
-            counter = JjCounter.JjCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.COOKIE_COUNTER == command:
-            counter = CookieCounter.CookieCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.CARL_COUNTER == command:
-            counter = CarlCounter.CarlCounter()
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.UNIVERSITY == command:
-            await self.accessTimeAndEdit(UniversityTime.UniversityTime(), message)
             self.logHelper.addLog(message)
 
         elif ChatCommand.LOGS == command:
@@ -199,11 +142,6 @@ class ProcessUserInput:
             xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
             await xpService.handleXpRequest(message)
             self.logHelper.addLog(message)
-
-        try:
-            await self.accessNameCounterAndEdit(message, counter)
-        except NameError:
-            pass
 
         # close the connection to the database at the end
         self.databaseConnection.close()
@@ -229,10 +167,10 @@ class ProcessUserInput:
 
         return False
 
-    async def answerJoke(self, message: Message):
+    async def answerJoke(self, category: str):
         payload = {
             'language': 'de',
-            'category': 'programmierwitze'
+            'category': category,
         }
 
         answer = requests.get(
@@ -241,27 +179,23 @@ class ProcessUserInput:
         )
 
         if answer.status_code != 200:
-            await message.reply("Es gab Probleme beim Erreichen der API - kein Witz.")
-
-            return
+            return "Es gab Probleme beim Erreichen der API - kein Witz."
 
         answer = answer.content.decode('utf-8')
         data = json.loads(answer)
 
-        await message.reply(data[0]['text'])
+        return data[0]['text']
 
     # moves all users in the authors voice channel to the given one
-    async def moveUsers(self, message: Message):
-        channelName = message.content[6:]
+    async def moveUsers(self, channelName: string, member: Member) -> string:
+        channelDestination = None
+
         channels = self.client.get_all_channels()
-        author = message.author
         voiceChannels = []
 
         for channel in channels:
             if isinstance(channel, discord.VoiceChannel):
                 voiceChannels.append(channel)
-
-        channelDestination = None
 
         for channel in voiceChannels:
             if channel.name.lower() == channelName.lower():
@@ -270,22 +204,18 @@ class ProcessUserInput:
                 break
 
         if channelDestination is None:
-            await message.reply("Der angegebene Channel existiert nicht!")
+            return "Channel konnte nicht gefunden werden!"
 
-            return
+        authorId = member.id
 
-        authorId = message.author.id
-
-        if not self.hasUserWantedRoles(author, RoleId.ADMIN, RoleId.MOD):
-            await message.reply("Du hast keine Berechtigung für diesen Befehl!")
-
-            return
+        if not self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+            return "Du hast dazu keine Berechtigung!"
 
         channelStart = None
 
         for channel in voiceChannels:
-            for member in channel.members:
-                if member.id == author.id:
+            for channelMember in channel.members:
+                if channelMember.id == authorId:
                     channelStart = channel
 
                     break
@@ -294,63 +224,37 @@ class ProcessUserInput:
                 break
 
         if not channelStart:
-            await message.reply("Du bist in keinem Voicechannel!")
-
-            return
+            return "Du bist mit keinem Voicechannel verbunden!"
 
         if channelStart == channelDestination:
-            await message.reply("Alle sind bereits in diesem Channel!")
-
-            return
+            return "Alle befinden sich bereits in diesem Channel!"
 
         membersInStartVc = channelStart.members
 
         try:
             for member in membersInStartVc:
-                await member.move_to(channelDestination, reason="Command von " + str(author.id))
+                await member.move_to(channelDestination, reason="Command von " + str(authorId))
+
+            return "Alle User wurden erfolgreich verschoben!"
         except discord.Forbidden:
-            await message.reply("Der Bot hat keine Rechte dies zutun!")
-
-            return
+            return "Ich habe dazu leider keine Berechtigung!"
         except discord.HTTPException:
-            await message.reply("Something went wrong!")
+            return "Irgendetwas ist schief gelaufen!"
 
-            return
-
-        await message.reply("Alle Mitglieder wurden verschoben!")
-
-    async def accessTimeAndEdit(self, time: Time, message: Message):
-        messageParts = getMessageParts(message.content)
-
-        if len(messageParts) == 1:
-            dcUserDb = self.getDiscordUserFromDatabase(message.author.id)
-
-            if not dcUserDb:
-                await message.reply("Du warst noch nie online!")
-
-                return
-
-            await message.reply(time.getStringForTime(dcUserDb))
-
-            return
-
-        tag = getUserIdByTag(messageParts[1])
+    async def accessTimeAndEdit(self, time: Time, userTag: string, member: Member, param: string | None) -> string:
+        tag = getUserIdByTag(userTag)
         dcUserDb = self.getDiscordUserFromDatabase(tag)
 
         # TODO increase all
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
-            await message.reply("Dieser Benutzer war noch nie online!")
+            return "Dieser Benutzer war noch nie online!"
 
-            return
-
-        if len(messageParts) > 2 and self.hasUserWantedRoles(message.author, RoleId.ADMIN, RoleId.MOD):
+        if param and self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             try:
-                correction = int(messageParts[2])
+                correction = int(param)
             except ValueError:
-                await message.reply("Deine Korrektur war keine Zahl!")
-
-                return
+                return "Deine Korrektur war keine Zahl!"
 
             onlineBefore = time.getTime(dcUserDb)
 
@@ -359,14 +263,11 @@ class ProcessUserInput:
             onlineAfter = time.getTime(dcUserDb)
             self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
-            await message.reply(
-                "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" %
-                (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter),
+            return "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" % (
+                time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter
             )
-        elif len(messageParts) > 2:
-            await message.reply("Du darfst nur die Zeit anfragen!")
         else:
-            await message.reply(time.getStringForTime(dcUserDb))
+            return time.getStringForTime(dcUserDb)
 
     async def sendHelp(self, message: Message):
         messageParts = getMessageParts(message.content)
@@ -533,11 +434,11 @@ class ProcessUserInput:
         await message.reply("Deine Einstellung wurde übernommen!")
 
     async def sendLeaderboard(self, message: Message):
-        messageParts = getMessageParts(message.content)
+        # messageParts = getMessageParts(message.content)
 
-        if len(messageParts) > 1 and messageParts[1] == 'xp':
-            # TODO
-            return
+        # if len(messageParts) > 1 and messageParts[1] == 'xp':
+        # TODO
+        # return
 
         with self.databaseConnection.cursor() as cursor:
             # online time
@@ -690,7 +591,8 @@ class ProcessUserInput:
         answer += self.leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
         answer += self.leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
 
-        await message.reply(answer)
+        # await message.reply(answer)
+        return answer
 
     def leaderboardHelperCounter(self, users, counter: Counter) -> string:
         if len(users) < 1:
@@ -719,35 +621,57 @@ class ProcessUserInput:
         await message.author.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
 
     # TODO improve sending DMs
-    async def accessNameCounterAndEdit(self, message: Message, counter: Counter):
-        messageParts = getMessageParts(message.content)
-        messageLength = len(messageParts)
-
-        if messageLength < 2:
-            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
-
-            if not dcUserDb:
-                await message.reply("Es ist ein Fehler aufgetreten!")
-
-            counter.setDiscordUser(dcUserDb)
-
-            await message.reply(
-                "Du hast einen %s-Counter von %d!" % (counter.getNameOfCounter(), counter.getCounterValue())
-            )
-
-            return
-
-        tag = getUserIdByTag(messageParts[1])
+    async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
+        tag = getUserIdByTag(userTag)
         member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
-            await message.reply("Dieser Benutzer existiert (noch) nicht!")
-
-            return
+            return "Dieser Benutzer existiert (noch) nicht!"
 
         counter.setDiscordUser(dcUserDb)
 
+        if param and self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+            try:
+                value = int(param)
+            except ValueError:
+                return "Dein eingegebener Parameter war ungültig!"
+
+            if int(dcUserDb['user_id']) == member.id and value < 0:
+                return "Du darfst deinen eigenen Counter nicht verringern!"
+
+            if counter.getCounterValue() + value < 0:
+                counter.setCounterValue(0)
+            else:
+                counter.setCounterValue(counter.getCounterValue() + value)
+
+                with self.databaseConnection.cursor() as cursor:
+                    query, nones = WriteSaveQuery.writeSaveQuery(
+                        'discord',
+                        dcUserDb['id'],
+                        dcUserDb
+                    )
+
+                    cursor.execute(query, nones)
+                    self.databaseConnection.commit()
+
+            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+                counter.getNameOfCounter(), getTagStringFromId(tag), value)
+        else:
+            with self.databaseConnection.cursor() as cursor:
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'discord',
+                    dcUserDb['id'],
+                    dcUserDb
+                )
+
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "%s hat einen %s-Counter von %d!" % (
+                getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
+
+        """
         # !NAME @Bjarne
         if messageLength == 2:
             await message.reply("%s hat einen %s-Counter von %d!" % (
@@ -913,61 +837,35 @@ class ProcessUserInput:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+        """
 
-    async def sendLogs(self, message: Message):
-        messageParts = getMessageParts(message.content)
-
-        if self.hasUserWantedRoles(message.author, RoleId.ADMIN, RoleId.MOD):
-            if len(messageParts) > 1:
-                try:
-                    count = int(messageParts[1])
-                except ValueError:
-                    await message.reply("Deine Eingabe war inkorrekt!")
-
-                    return
-            else:
-                await message.reply("Zu wenige Argumente. Gib eine Menge an Logs an!")
-
-                return
-
-            if count > 100:
-                await message.reply("Das waren zu viele Anfragen! Versuche es mit weniger!")
-
-                return
-            elif count <= 0:
-                await message.reply("Ich kann dir nicht weniger als einen Log bieten!")
-
-                return
-
+    async def sendLogs(self, member: Member, amount: int):
+        if self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             with self.databaseConnection.cursor() as cursor:
                 query = "SELECT discord.user_id, logs.command, logs.created_at " \
                         "FROM logs " \
-                        "INNER JOIN discord "\
+                        "INNER JOIN discord " \
                         "WHERE discord_user_id = discord.id " \
                         "LIMIT %s"
 
-                cursor.execute(query, (count,))
+                cursor.execute(query, (amount,))
 
                 logs = cursor.fetchall()
 
                 if not logs:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
+                    return "Es ist ein Fehler aufgetreten!"
 
-                    return
-
-            answer = "Die letzten %d Logs:\n\n" % count
+            answer = "Die letzten %d Logs:\n\n" % amount
 
             for index, log in enumerate(logs):
                 date: datetime = log[2]
                 command = log[1]
                 user = log[0]
 
-                answer += "%d. \"**%s**\" von %s am %s\n" % (index, command, getTagStringFromId(user), date.strftime("%Y-%m-%d %H:%M:%S"))
+                answer += "%d. \"**%s**\" von %s am %s\n" % (
+                    index, command, getTagStringFromId(user), date.strftime("%Y-%m-%d %H:%M:%S"))
 
-            try:
-                await message.reply(answer)
-            except discord.errors.HTTPException:
-                await message.reply("Das waren zu viele Anfragen! Versuche es mit weniger!")
+            return answer
 
         else:
-            await message.reply("Du darfst diese Aktion nicht ausführen!")
+            return "Du darfst diese Aktion nicht ausführen!"

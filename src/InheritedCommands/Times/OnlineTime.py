@@ -25,7 +25,7 @@ class OnlineTime(Time):
 
     def getStringForTime(self, dcUserDb) -> string:
         if dcUserDb['formated_time'] is None:
-            return "Es gab einen Fehler!"
+            return "Es liegt keine formatierte Zeit vor!"
         return "<@%s> war bereits %s Stunden online!" % (dcUserDb['user_id'], dcUserDb['formated_time'])
 
     def setFormattedTime(self, dcUserDb, time: string):
