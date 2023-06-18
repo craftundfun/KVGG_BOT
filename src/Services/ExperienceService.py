@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 import math
 import random
+import string
 
 from datetime import datetime, timedelta
 
 import discord
 
 from src.Helper import WriteSaveQuery
-from discord import Message, Client
+from discord import Message, Client, Member
 from mysql.connector import MySQLConnection
 
 from src.Id.GuildId import GuildId
@@ -189,16 +190,14 @@ class ExperienceService:
     def checkAndGrantXpBoost(self):
         pass  # only necessary for cronjob
 
-    async def spinForXpBoost(self, message: Message):
-        if (dcUserDb := getDiscordUser(self.databaseConnection, message.author)) is None:
-            await message.reply("Es ist etwas schief gelaufen!")
-
-            return
+    async def spinForXpBoost(self, member: Member) -> string:
+        if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
+            return "Es ist etwas schief gelaufen!"
 
         xp = self.getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            await message.reply("Es ist etwas schief gelaufen!")
+            return "Es ist etwas schief gelaufen!"
 
         inventoryJson = xp['xp_boosts_inventory']
 
@@ -208,9 +207,7 @@ class ExperienceService:
             inventory = json.loads(inventoryJson)
 
         if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
-            await message.reply("Dein Inventar ist voll! Benutze erst einen oder mehrere XP-Boosts!")
-
-            return
+            return "Dein Inventar ist voll! Benutze erst einen oder mehrere XP-Boosts!"
 
         lastXpSpinTime = xp['last_spin_for_boost']
 
@@ -226,12 +223,8 @@ class ExperienceService:
                 remainingHours = 23 - hours
                 remainingMinutes = 59 - minutes
 
-                await message.reply("Du darfst nocht nicht wieder drehen! "
-                                    "Versuche es in %d Tag(en), %d Stunde(n) und %d Minute(n) wieder!"
-                                    % (remainingDays, remainingHours, remainingMinutes)
-                                    )
-
-                return
+                return "Du darfst nocht nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
+                       "%d Minute(n) wieder!" % (remainingDays, remainingHours, remainingMinutes)
 
         # win
         if random.randint(0, (100 / ExperienceParameter.SPIN_WIN_PERCENTAGE.value)) == 1:
@@ -245,27 +238,36 @@ class ExperienceService:
             xp['xp_boosts_inventory'] = json.dumps(inventory)
             xp['last_spin_for_boost'] = datetime.now()
 
-            await message.reply("Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du "
-                                "%d-Fach XP! Setze ihn über dein Inventar ein!"
-                                % (ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60,
-                                   ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value
-                                   )
-                                )
+            with self.databaseConnection.cursor() as cursor:
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'experience',
+                    xp['id'],
+                    xp,
+                )
+
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du %d-Fach XP! Setze ihn über dein " \
+                   "Inventar ein!" % (ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60,
+                                      ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value
+                                      )
+
         else:
             days = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value
             xp['last_spin_for_boost'] = datetime.now()
 
-            await message.reply("Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days)
+            with self.databaseConnection.cursor() as cursor:
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'experience',
+                    xp['id'],
+                    xp,
+                )
 
-        with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'experience',
-                xp['id'],
-                xp,
-            )
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
+            return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
 
     # returns xp for given user or changes settings for double-xp-notification
     async def handleXpRequest(self, message: Message):

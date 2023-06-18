@@ -112,27 +112,6 @@ class ProcessUserInput:
             await self.sendHelp(message)
             self.logHelper.addLog(message)
 
-        elif ChatCommand.WhatsApp == command:
-            await self.manageWhatsAppSettings(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.LEADERBOARD == command:
-            await self.sendLeaderboard(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.REGISTRATION == command:
-            await self.sendRegistrationLink(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.LOGS == command:
-            await self.sendLogs(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.XP_BOOST_SPIN == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
-            await xpService.spinForXpBoost(message)
-            self.logHelper.addLog(message)
-
         elif ChatCommand.XP_INVENTORY == command:
             xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
             await xpService.handleXpInventory(message)
@@ -311,9 +290,7 @@ class ProcessUserInput:
             else:
                 await message.reply("'%s'" % commandExplanation[0])
 
-    async def manageWhatsAppSettings(self, message: Message):
-        messageParts = getMessageParts(message.content)
-
+    async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str):
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT u.id, recieve_join_notification, receive_leave_notification, " \
@@ -322,104 +299,46 @@ class ProcessUserInput:
                     "ON discord.id = u.discord_user_id " \
                     "WHERE discord.user_id = %s"
 
-            cursor.execute(query, (message.author.id,))
+            cursor.execute(query, (member.id, ))
             user = dict(zip(cursor.column_names, list(cursor.fetchone())))
 
         if not user:
-            await message.reply("Es ist ein Fehler aufgetreten!")
+            return "Du bist nicht als User bei uns registriert!"
 
-            return
-        elif len(messageParts) < 2:
-            await message.reply("Zu wenige Argumente!")
+        if type == 'Gaming':
+            # !whatsapp join
+            if action == 'join':
+                # !whatsapp join on
+                if switch == 'on':
+                    user['recieve_join_notification'] = 1
 
-            return
+                # !whatsapp join off
+                elif switch == 'off':
+                    user['recieve_join_notification'] = 0
 
-        # !whatsapp join
-        if messageParts[1] == 'join':
-            # !whatsapp join []
-            if len(messageParts) < 3:
-                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
+            # !whatsapp leave
+            elif action == 'leave':
+                # !whatsapp leave on
+                if switch == 'on':
+                    user['receive_leave_notification'] = 1
 
-                return
-
-            # !whatsapp join on
-            if messageParts[2] == 'on':
-                user['recieve_join_notification'] = 1
-
-            # !whatsapp join off
-            elif messageParts[2] == 'off':
-                user['recieve_join_notification'] = 0
-
-            # !whatsapp join aisugd
-            else:
-                await message.reply("Falsches Argument nach '%s'!" % messageParts[1])
-
-                return
-
-        # !whatsapp leave
-        elif messageParts[1] == 'leave':
-            # !whatsapp leave []
-            if len(messageParts) < 3:
-                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
-
-                return
-
-            # !whatsapp leave on
-            if messageParts[2] == 'on':
-                user['receive_leave_notification'] = 1
-
-            # !whatsapp leave off
-            elif messageParts[2] == 'off':
-                user['receive_leave_notification'] = 0
-
-            # !whatsapp leave aisugd
-            else:
-                await message.reply("Falsches Argument nach '%s'!" % messageParts[1])
-
-                return
+                # !whatsapp leave off
+                elif switch == 'off':
+                    user['receive_leave_notification'] = 0
 
         # !whatsapp uni
-        elif messageParts[1] == 'uni':
-            if len(messageParts) == 2:
-                await message.reply("Fehlendes Argument nach '%s'!" % messageParts[1])
-
-                return
-
-            if messageParts[2] == 'join':
-                if len(messageParts) == 3:
-                    await message.reply("Fehlendes Argument nach '%s'!" % messageParts[2])
-
-                    return
-
-                if messageParts[3] == 'on':
+        elif type == 'Uni':
+            if action == 'join':
+                if switch == 'on':
                     user['receive_uni_join_notification'] = 1
-                elif messageParts[3] == 'off':
+                elif switch == 'off':
                     user['receive_uni_join_notification'] = 0
-                else:
-                    await message.reply("Falsches Argument nach '%s'!" % messageParts[2])
 
-            elif messageParts[2] == 'leave':
-                if len(messageParts) == 3:
-                    await message.reply("Fehlendes Argument nach '%s'!" % messageParts[2])
-
-                    return
-
-                if messageParts[3] == 'on':
+            elif action == 'leave':
+                if switch == 'on':
                     user['receive_uni_leave_notification'] = 1
-                elif messageParts[3] == 'off':
+                elif switch == 'off':
                     user['receive_uni_leave_notification'] = 0
-                else:
-                    await message.reply("Falsches Argument nach '%s'!" % messageParts[2])
-
-            else:
-                await message.reply("Dies ist keine Möglichkeit!")
-
-                return
-
-        else:
-            await message.reply("Dies ist keine Möglichkeit!")
-
-            return
 
         with self.databaseConnection.cursor() as cursor:
             query, noneTuple = WriteSaveQuery.writeSaveQuery(
@@ -431,15 +350,9 @@ class ProcessUserInput:
             cursor.execute(query, noneTuple)
             self.databaseConnection.commit()
 
-        await message.reply("Deine Einstellung wurde übernommen!")
+        return "Deine Einstellung wurde übernommen!"
 
-    async def sendLeaderboard(self, message: Message):
-        # messageParts = getMessageParts(message.content)
-
-        # if len(messageParts) > 1 and messageParts[1] == 'xp':
-        # TODO
-        # return
-
+    async def sendLeaderboard(self):
         with self.databaseConnection.cursor() as cursor:
             # online time
             query = "SELECT username, formated_time " \
@@ -605,20 +518,19 @@ class ProcessUserInput:
 
         return answer
 
-    async def sendRegistrationLink(self, message: Message):
+    async def sendRegistrationLink(self, member: Member):
         link = "https://axellotl.de/register/"
-        link += str(message.author.id)
+        link += str(member.id)
 
-        if not message.author.dm_channel:
-            await message.author.create_dm()
+        if not member.dm_channel:
+            await member.create_dm()
 
-            if not message.author.dm_channel:
-                await message.reply("Es gab Probleme dir eine Nachricht zu schreiben!")
+            if not member.dm_channel:
+                return "Es gab Probleme dir eine Nachricht zu schreiben!"
 
-                return
+        await member.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
+        return "Dir wurde das Formular privat gesendet!"
 
-        await message.reply("Dir wurde das Formular privat gesendet!")
-        await message.author.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
 
     # TODO improve sending DMs
     async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:

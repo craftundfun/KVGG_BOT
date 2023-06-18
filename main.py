@@ -15,6 +15,8 @@ from src.Id.GuildId import GuildId
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
+from src.Services import ExperienceService
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 
 
 class MyClient(discord.Client):
@@ -162,7 +164,7 @@ async def channel_choices(_: discord.Interaction, current: str) -> List[Choice[s
 
 @tree.command(name="move", description="Moved alle User aus deinem Channel in den von dir angegebenen.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(channel=channel_choices)
+@app_commands.autocomplete(channel=channel_choices)  # TODO maybe change to choise instead
 async def moveUsers(interaction: discord.Interaction, channel: str):
     answer = await ProcessUserInput.ProcessUserInput(client).moveUsers(channel, interaction.user)
     await interaction.response.send_message(answer)
@@ -243,7 +245,7 @@ async def counter(interaction: discord.Interaction, counter: str, user: str, par
     elif "Cookie" == counter:
         nameCounter = CookieCounter.CookieCounter()
     elif "Felix" == counter:
-        nameCounter = FelixCounter.FelixCounter()
+        nameCounter = FelixCounter.FelixCounter()  # TODO felix timer
     elif "JJ" == counter:
         nameCounter = JjCounter.JjCounter()
     elif "Oleg" == counter:
@@ -255,6 +257,94 @@ async def counter(interaction: discord.Interaction, counter: str, user: str, par
 
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.accessNameCounterAndEdit(nameCounter, user, interaction.user, param)
+    await interaction.response.send_message(answer)
+
+
+"""MANAGE WHATSAPP SETTINGS"""
+
+
+async def autocompleteWhatsAppType(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    types = ['Gaming', 'Uni']
+
+    return [Choice(name=type, value=type) for type in types if current.lower() in type.lower()]
+
+
+async def autocompleteWhatsAppAction(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    actions = ['join', 'leave']
+
+    return [Choice(name=action, value=action) for action in actions if current.lower() in action.lower()]
+
+
+async def autocompleteWhatsAppSwitch(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    switches = ['on', 'off']
+
+    return [Choice(name=switch, value=switch) for switch in switches if current.lower() in switch.lower()]
+
+
+@tree.command(name="whatsapp", description="Lässt dich deine Benachrichtigunseinstellungen ändern.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(type=[
+    Choice(name="Gaming", value="Gaming"),
+    Choice(name="Uni", value="Uni"),
+])
+@app_commands.describe(type="Kategorie der Nachrichten")
+@app_commands.choices(action=[
+    Choice(name="join", value="join"),
+    Choice(name="leave", value="leave"),
+])
+@app_commands.describe(action="Benachrichtigungskategorie")
+@app_commands.choices(switch=[
+    Choice(name="on", value="on"),
+    Choice(name="off", value="off"),
+])
+@app_commands.describe(switch="Einstellung")
+async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[str], action: Choice[str],
+                                 switch: Choice[str]):
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.manageWhatsAppSettings(interaction.user, type.value, action.value, switch.value)
+    await interaction.response.send_message(answer)
+
+
+"""SEND LEADERBOARD"""
+
+
+@tree.command(name="leaderboard", description="Listet dir unsere Bestenliste auf.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def sendLeaderboard(interaction: discord.Interaction):
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.sendLeaderboard()
+    await interaction.response.send_message(answer)
+
+
+"""SEND REGISTRATION"""
+
+
+@tree.command(name="registration",
+              description="Sendet dir einen Link um einen Account auf unserer Website erstellen zu können.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def sendRegistration(interaction: discord.Interaction):
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.sendRegistrationLink(interaction.user)
+    await interaction.response.send_message(answer)
+
+
+"""XP SPIN"""
+
+
+@tree.command(name="xp_spin", description="XP-Spin alle " + str(
+    ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN) + " Tage.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def spinForXpBoost(interaction: discord.Interaction):
+    xpService = ExperienceService.ExperienceService(
+        mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        ),
+        client,
+    )
+    answer = await xpService.spinForXpBoost(interaction.user)
     await interaction.response.send_message(answer)
 
 
