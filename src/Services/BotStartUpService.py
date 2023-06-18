@@ -1,13 +1,22 @@
+import mysql
+
 from datetime import datetime
 from discord import Client, ChannelType
 from mysql.connector import MySQLConnection
 from src.Helper import WriteSaveQuery
+from src.Helper import ReadParameters as rp
+from src.Helper.ReadParameters import Parameters as parameters
 
 
 class BotStartUpService:
 
-    def __init__(self, databaseConnection: MySQLConnection):
-        self.databaseConnection = databaseConnection
+    def __init__(self):
+        self.databaseConnection = mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        )
 
     async def startUp(self, client: Client):
         with self.databaseConnection.cursor() as cursor:
@@ -89,3 +98,6 @@ class BotStartUpService:
                 cursor.execute(query, nones)
 
         self.databaseConnection.commit()
+
+    def __del__(self):
+        self.databaseConnection.close()

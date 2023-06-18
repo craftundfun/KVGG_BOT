@@ -102,7 +102,7 @@ class ProcessUserInput:
         command = message.content
 
         if not command.startswith('!'):
-            qm = QuotesManager.QuotesManager(self.databaseConnection, self.client)
+            qm = QuotesManager.QuotesManager(self.client)
             await qm.checkForNewQuote(message)
 
             return
@@ -192,7 +192,7 @@ class ProcessUserInput:
         if not channelStart:
             return "Du bist mit keinem Voicechannel verbunden!"
 
-        if channelStart == channelDestination:
+        if channelStart.id == channelDestination.id:
             return "Alle befinden sich bereits in diesem Channel!"
 
         membersInStartVc = channelStart.members
@@ -286,7 +286,7 @@ class ProcessUserInput:
                     "ON discord.id = u.discord_user_id " \
                     "WHERE discord.user_id = %s"
 
-            cursor.execute(query, (member.id, ))
+            cursor.execute(query, (member.id,))
             user = dict(zip(cursor.column_names, list(cursor.fetchone())))
 
         if not user:
@@ -518,11 +518,15 @@ class ProcessUserInput:
         await member.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
         return "Dir wurde das Formular privat gesendet!"
 
-
     # TODO improve sending DMs
     async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
         tag = getUserIdByTag(userTag)
-        member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
+
+        try:
+            member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
+        except discord.errors.HTTPException:
+            return "Kein gültiger Benutzer!"
+
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:

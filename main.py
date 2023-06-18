@@ -1,15 +1,10 @@
-from asyncio import sleep
-
 import discord
-import mysql.connector
 
-from typing import List
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice
+from typing import List
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
 from src.Id import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
@@ -21,28 +16,38 @@ from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateServic
 
 class MyClient(discord.Client):
     async def on_ready(self):
-        # TODO manage connections better
-        botStartUpService = BotStartUpService.BotStartUpService(
-            mysql.connector.connect(
-                user=rp.getParameter(parameters.USER),
-                password=rp.getParameter(parameters.PASSWORD),
-                host=rp.getParameter(parameters.HOST),
-                database=rp.getParameter(parameters.NAME),
-            )
-        )
-        await botStartUpService.startUp(self)
-        await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
+        """
+        NOT THE FIRST THING TO BE EXECUTED
+
+        Runs all (important) start scripts, such as the BotStartUpService or syncing the commands
+        to the guild.
+
+        :return:
+        """
         print('Logged on as', self.user)
+
+        botStartUpService = BotStartUpService.BotStartUpService()
+
+        await botStartUpService.startUp(self)
+        print("Users fetched and updated")
+
+        await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
+        print("Commands updated and uploaded")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         await client.change_presence(
             activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
         )
-        print('Activity set!')
+        print('Activity set')
 
     async def on_message(self, message):
-        return
-        print("message")
+        """
+        TO BE FILLED # TODO
+
+        :param message:
+        :return:
+        """
+        return  # TODO
         # don't respond to ourselves
         if message.author == self.user:
             return
@@ -56,50 +61,53 @@ class MyClient(discord.Client):
             #    var = traceback.format_exc()
             #   print(var)
 
-    # TODO close Connector
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
-        qm = QuotesManager.QuotesManager(
-            mysql.connector.connect(
-                user=rp.getParameter(parameters.USER),
-                password=rp.getParameter(parameters.PASSWORD),
-                host=rp.getParameter(parameters.HOST),
-                database=rp.getParameter(parameters.NAME),
-            ),
-            self,
-        )
+        """
+        Calls the QuotesManager to check if a quote was deleted
+
+        :param message: RawMessageDeleteEvent
+        :return:
+        """
+        qm = QuotesManager.QuotesManager(self)
+
         await qm.deleteQuote(message)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
-        qm = QuotesManager.QuotesManager(
-            mysql.connector.connect(
-                user=rp.getParameter(parameters.USER),
-                password=rp.getParameter(parameters.PASSWORD),
-                host=rp.getParameter(parameters.HOST),
-                database=rp.getParameter(parameters.NAME),
-            ),
-            self,
-        )
+        """
+        Calls the QuotesManager to check if a quote was edited
+
+        :param message: RawMessageUpdateEvent
+        :return:
+        """
+        qm = QuotesManager.QuotesManager(self)
+
         await qm.updateQuote(message)
 
     async def on_voice_state_update(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
-        vsus = VoiceStateUpdateService.VoiceStateUpdateService(
-            mysql.connector.connect(
-                user=rp.getParameter(parameters.USER),
-                password=rp.getParameter(parameters.PASSWORD),
-                host=rp.getParameter(parameters.HOST),
-                database=rp.getParameter(parameters.NAME),
-            ),
-            self,
-        )
+        """
+        Calls the VoiceStateUpdateService on a voice event
+
+        :param member: Member that caused the event
+        :param voiceStateBefore: VoiceState before the member triggered the event
+        :param voiceStateAfter: VoiceState after the member triggered the event
+        :return:
+        """
+        vsus = VoiceStateUpdateService.VoiceStateUpdateService(self)
+
         await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
+# reads the token
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
+# sets the intents of the client to the default ones
 intents = discord.Intents.default()
 
+# enables the client to read messages
 intents.message_content = True
 
+# instantiates the client
 client = MyClient(intents=intents)
+# creates the command tree
 tree = app_commands.CommandTree(client)
 
 """SEND LOGS"""
@@ -109,8 +117,16 @@ tree = app_commands.CommandTree(client)
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(amount=[Choice(name="1", value=1), Choice(name="5", value=5), Choice(name="10", value=10)])
 async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice[int]):
+    """
+    Calls the send logs function from ProcessUserInput from this interaction
+
+    :param interaction: Interaction object from this call
+    :param amount: Number of logs to be returned
+    :return:
+    """
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendLogs(interaction.user, amount.value)
+
     await interaction.response.send_message(answer)
 
 
@@ -130,6 +146,14 @@ async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice
     Choice(name="Schulwitze", value="schulwitze"),
 ])
 async def answerJoke(interaction: discord.interactions.Interaction, kategorie: Choice[str] = None):
+    """
+    Calls the answer joke function in ProcessUserInput from this interaction
+
+    :param interaction: Interaction object from this call
+    :param kategorie: Optional choice of the category
+    :return:
+    """
+
     pui = ProcessUserInput.ProcessUserInput(client)
     if kategorie is None:
         category = "flachwitze"
@@ -143,6 +167,13 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
 
 
 async def channel_choices(_: discord.Interaction, current: str) -> List[Choice[str]]:
+    """
+    Returns the matching autocomplete results
+
+    :param _: Interaction, but gets ignored
+    :param current: Current input from the user to filter autocomplete
+    :return: List of Choices excluding forbidden channels  # TODO maybe change
+    """
     channels = client.get_all_channels()
     voiceChannels: List[str] = []
 
@@ -164,8 +195,15 @@ async def channel_choices(_: discord.Interaction, current: str) -> List[Choice[s
 
 @tree.command(name="move", description="Moved alle User aus deinem Channel in den von dir angegebenen.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(channel=channel_choices)  # TODO maybe change to choise instead
+@app_commands.autocomplete(channel=channel_choices)
 async def moveUsers(interaction: discord.Interaction, channel: str):
+    """
+    Calls the move users from ProcessUserInput from this function
+
+    :param interaction: Interaction object of the call
+    :param channel: Destination channel
+    :return:
+    """
     answer = await ProcessUserInput.ProcessUserInput(client).moveUsers(channel, interaction.user)
     await interaction.response.send_message(answer)
 
@@ -176,15 +214,13 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
 @tree.command(name="zitat", description="Antwortet die ein zufälliges Zitat aus unserem Zitat-Channel.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def answerQuote(interaction: discord.Interaction):
-    answer = await QuotesManager.QuotesManager(
-        mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        ),
-        client,
-    ).answerQuote()
+    """
+    Calls the answer quote fuction from QuotesManager from this interaction
+
+    :param interaction: Interaction object of the call
+    :return:
+    """
+    answer = await QuotesManager.QuotesManager(client).answerQuote()
 
     if answer:
         await interaction.response.send_message(answer)
@@ -195,69 +231,92 @@ async def answerQuote(interaction: discord.Interaction):
 """ANSWER TIME / STREAMTIME / UNITIME"""
 
 
-async def timeAutocomplete(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    times = ['online', 'stream', 'uni']
-
-    return [
-        Choice(name=time, value=time) for time in times if current.lower() in time.lower()
-    ]
-
-
 @tree.command(name="zeit", description="Frage die Online-, Stream- oder Uni-Zeit an!",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(zeit=timeAutocomplete)  # TODO choices # TODO user description # TODO param description
-async def answerTimes(interaction: discord.Interaction, zeit: str, user: str, param: str = None):
+@app_commands.choices(zeit=[
+    Choice(name="Online-Zeit", value="online"),
+    Choice(name="Stream-Zeit", value="stream"),
+    Choice(name="Uni-Zeit", value="uni"),
+])
+@app_commands.describe(zeit="Wähle die Zeit aus!")
+@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+@app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
+async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: str, param: str = None):
+    """
+    Calls the access time function in ProcessUserInput from this interaction
+
+    :param interaction: Interaction object of the call
+    :param zeit: Chosen time to look / edit
+    :param user: Tagged user to access time from
+    :param param: Optional parameter for Admins and Mods
+    :return:
+    """
+
     time = None
 
-    if zeit == "online":
+    if zeit.value == "online":
         time = OnlineTime.OnlineTime()
-    elif zeit == "stream":
+    elif zeit.value == "stream":
         time = StreamTime.StreamTime()
-    elif zeit == "uni":
+    elif zeit.value == "uni":
         time = UniversityTime.UniversityTime()
 
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.accessTimeAndEdit(time, user, interaction.user, param)
+
     await interaction.response.send_message(answer)
 
 
 """NAME COUNTER"""
 
 
-async def counterAutocomplete(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    counters = ['Bjarne', 'Carl', 'Cookie', 'Felix', 'JJ', 'Oleg', 'Paul', 'Rene']
-
-    return [
-        Choice(name=counter, value=counter) for counter in counters if current.lower() in counter.lower()
-    ]
-
-
 @tree.command(name='counter', description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(
-    counter=counterAutocomplete)  # TODO choices, # TODO description user, # TODO param description
-async def counter(interaction: discord.Interaction, counter: str, user: str, param: str = None):
+@app_commands.choices(counter=[
+    Choice(name="Bjarne", value="Bjarne"),
+    Choice(name="Carl", value="Carl"),
+    Choice(name="Cookie", value="Cookie"),
+    Choice(name="Felix", value="Felix"),
+    Choice(name="JJ", value="JJ"),
+    Choice(name="Oleg", value="Oleg"),
+    Choice(name="Paul", value="Paul"),
+    Choice(name="Rene", value="Rene"),
+])
+@app_commands.describe(counter="Wähle den Name-Counter aus!")
+@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+@app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
+async def counter(interaction: discord.Interaction, counter: Choice[str], user: str, param: str = None):
+    """
+    Calls the access name counter with the correct counter
+
+    :param interaction: Interaction object of the call
+    :param counter: Name of the chosen counter
+    :param user: Tagged user to get information from
+    :param param: Optional parameter for Admins and Mods
+    :return:
+    """
     nameCounter = None
 
-    if "Bjarne" == counter:
+    if "Bjarne" == counter.value:
         nameCounter = BjarneCounter.BjarneCounter()
-    elif "Carl" == counter:
+    elif "Carl" == counter.value:
         nameCounter = CarlCounter.CarlCounter()
-    elif "Cookie" == counter:
+    elif "Cookie" == counter.value:
         nameCounter = CookieCounter.CookieCounter()
-    elif "Felix" == counter:
+    elif "Felix" == counter.value:
         nameCounter = FelixCounter.FelixCounter()  # TODO felix timer
-    elif "JJ" == counter:
+    elif "JJ" == counter.value:
         nameCounter = JjCounter.JjCounter()
-    elif "Oleg" == counter:
+    elif "Oleg" == counter.value:
         nameCounter = OlegCounter.OlegCounter()
-    elif "Paul" == counter:
+    elif "Paul" == counter.value:
         nameCounter = PaulCounter.PaulCounter()
-    elif "Rene" == counter:
+    elif "Rene" == counter.value:
         nameCounter = ReneCounter.ReneCounter()
 
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.accessNameCounterAndEdit(nameCounter, user, interaction.user, param)
+
     await interaction.response.send_message(answer)
 
 
@@ -265,18 +324,39 @@ async def counter(interaction: discord.Interaction, counter: str, user: str, par
 
 
 async def autocompleteWhatsAppType(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    """
+    Returns the matching autocomplete results
+
+    :param interaction: Interaction object of the call
+    :param current: Current entered string by the user in this field
+    :return:
+    """
     types = ['Gaming', 'Uni']
 
     return [Choice(name=type, value=type) for type in types if current.lower() in type.lower()]
 
 
 async def autocompleteWhatsAppAction(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    """
+    Returns the matching autocomplete results
+
+    :param interaction: Interaction object of the call
+    :param current: Current entered string by the user in this field
+    :return:
+    """
     actions = ['join', 'leave']
 
     return [Choice(name=action, value=action) for action in actions if current.lower() in action.lower()]
 
 
 async def autocompleteWhatsAppSwitch(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
+    """
+    Returns the matching autocomplete results
+
+    :param interaction: Interaction object of the call
+    :param current: Current entered string by the user in this field
+    :return:
+    """
     switches = ['on', 'off']
 
     return [Choice(name=switch, value=switch) for switch in switches if current.lower() in switch.lower()]
@@ -301,8 +381,18 @@ async def autocompleteWhatsAppSwitch(interaction: discord.Interaction, current: 
 @app_commands.describe(switch="Einstellung")
 async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[str], action: Choice[str],
                                  switch: Choice[str]):
+    """
+    Calls the manage whatsapp settings from ProcessUserInput from this interaction
+
+    :param interaction: Interaction object of the call
+    :param type: Type of the whatsapp messages
+    :param action: Action for the type of messages
+    :param switch: Switch on or off
+    :return:
+    """
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.manageWhatsAppSettings(interaction.user, type.value, action.value, switch.value)
+
     await interaction.response.send_message(answer)
 
 
@@ -312,8 +402,15 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
 @tree.command(name="leaderboard", description="Listet dir unsere Bestenliste auf.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def sendLeaderboard(interaction: discord.Interaction):
+    """
+    Calls the send leaderboard from ProcessUserInput from this interaction
+
+    :param interaction: Interaction object of the call
+    :return:
+    """
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendLeaderboard()
+
     await interaction.response.send_message(answer)
 
 
@@ -324,8 +421,15 @@ async def sendLeaderboard(interaction: discord.Interaction):
               description="Sendet dir einen Link um einen Account auf unserer Website erstellen zu können.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def sendRegistration(interaction: discord.Interaction):
+    """
+    Calls the send registration from ProcessUserInput from this interaction
+
+    :param interaction: Interaction object of the call
+    :return:
+    """
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendRegistrationLink(interaction.user)
+
     await interaction.response.send_message(answer)
 
 
@@ -336,16 +440,15 @@ async def sendRegistration(interaction: discord.Interaction):
     ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value) + " Tage.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def spinForXpBoost(interaction: discord.Interaction):
-    xpService = ExperienceService.ExperienceService(
-        mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        ),
-        client,
-    )
+    """
+    Calls the Xp-Boost spin from ExperienceService from this interaction
+
+    :param interaction: Interaction object of the call
+    :return:
+    """
+    xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.spinForXpBoost(interaction.user)
+
     await interaction.response.send_message(answer)
 
 
@@ -361,16 +464,17 @@ async def spinForXpBoost(interaction: discord.Interaction):
 @app_commands.describe(action="Wähle die Aktion die du ausführen möchtest!")
 @app_commands.describe(zeile="Wähle einen XP-Boost in Zeile x oder mit 'all' alle!")
 async def handleXpInventory(interaction: discord.Interaction, action: Choice[str], zeile: str = None):
-    xpService = ExperienceService.ExperienceService(
-        mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        ),
-        client,
-    )
+    """
+    Calls the handle inventory from ExperienceService from this interaction
+
+    :param interaction: Interaction object of the call
+    :param action: Action that will be performed which is listing all boosts or use some
+    :param zeile: Optional row number to choose an Xp-Boost
+    :return:
+    """
+    xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
+
     await interaction.response.send_message(answer)
 
 
@@ -381,18 +485,18 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
 async def handleXpRequest(interaction: discord.Interaction, user: str):
-    xpService = ExperienceService.ExperienceService(
-        mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        ),
-        client,
-    )
+    """
+    Calls the XP request from ExperienceService from this interaction
+
+    :param interaction: Interaction object of the call
+    :param user: Entered user to read XP from
+    :return:
+    """
+    xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpRequest(userTag=user)
 
     await interaction.response.send_message(answer)
 
 
+# starts the client
 client.run(token)

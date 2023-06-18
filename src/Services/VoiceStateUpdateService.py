@@ -1,22 +1,29 @@
-from datetime import datetime
-
 import discord
+import mysql
+
+from datetime import datetime
 from discord import Member, VoiceState
 from mysql.connector import MySQLConnection
-
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import ExperienceService
 from src.Services.WhatsAppHelper import WhatsAppHelper
+from src.Helper import ReadParameters as rp
+from src.Helper.ReadParameters import Parameters as parameters
 
 
 class VoiceStateUpdateService:
 
-    def __init__(self, databaseConnection: MySQLConnection, client: discord.Client):
-        self.databaseConnection = databaseConnection
+    def __init__(self, client: discord.Client):
+        self.databaseConnection = mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        )
         self.client = client
-        self.waHelper = WhatsAppHelper(self.databaseConnection)
+        self.waHelper = WhatsAppHelper()
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         if not member:
@@ -140,3 +147,6 @@ class VoiceStateUpdateService:
                 return
 
         await member.dm_channel.send("Dein Felix-Counter wurde beendet!")
+
+    def __del__(self):
+        self.databaseConnection.close()

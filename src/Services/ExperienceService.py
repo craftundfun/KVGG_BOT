@@ -4,13 +4,15 @@ import json
 import math
 import random
 import string
-from datetime import datetime, timedelta
-
 import discord
+import mysql
+
 from discord import Client, Member
 from mysql.connector import MySQLConnection
-
+from src.Helper import ReadParameters as rp
+from datetime import datetime, timedelta
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Helper.ReadParameters import Parameters as parameters
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -66,8 +68,13 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 
 class ExperienceService:
 
-    def __init__(self, databaseConnection: MySQLConnection, client: Client):
-        self.databaseConnection = databaseConnection
+    def __init__(self, client: Client):
+        self.databaseConnection = mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        )
         self.client = client
 
     def getExperience(self, userId: int) -> dict | None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import string
 from datetime import datetime, timedelta
 
+import mysql
 from discord import VoiceState, Member
 from mysql.connector import MySQLConnection
 
@@ -11,11 +12,18 @@ from src.Helper import WriteSaveQuery
 from src.Id import ChannelIdWhatsAppAndTracking, ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
+from src.Helper import ReadParameters as rp
+from src.Helper.ReadParameters import Parameters as parameters
 
 
 class WhatsAppHelper:
-    def __init__(self, databaseConnection: MySQLConnection):
-        self.databaseConnection = databaseConnection
+    def __init__(self):
+        self.databaseConnection = mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        )
 
     def sendOnlineNotification(self, member: Member, update: VoiceState):
         # if channel does not count time
@@ -82,10 +90,10 @@ class WhatsAppHelper:
 
             # use a channel id here, dcUserDb no longer holds channel id in this method
             if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues() and user[
-              'recieve_join_notification']:
+                'recieve_join_notification']:
                 self.__queueWhatsAppMessage(dcUserDb, None, user)
             elif str(update.channel.id) in ChannelIdUniversityTracking.getValues() and user[
-              'receive_uni_join_notification']:
+                'receive_uni_join_notification']:
                 self.__queueWhatsAppMessage(dcUserDb, None, user)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
@@ -173,3 +181,6 @@ class WhatsAppHelper:
 
             cursor.execute(query, (text, user['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
+
+    def __del__(self):
+        self.databaseConnection.close()

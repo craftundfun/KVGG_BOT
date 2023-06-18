@@ -3,21 +3,27 @@ from __future__ import annotations
 import random
 import string
 
+import mysql
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client
 from mysql.connector import MySQLConnection
-
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Id.ChannelId import ChannelId
-
+from src.Helper import ReadParameters as rp
+from src.Helper.ReadParameters import Parameters as parameters
 
 def getQuotesChannel(client: Client):
     return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
 
 
 class QuotesManager:
-    def __init__(self, databaseConnection: MySQLConnection, client: Client):
-        self.databaseConnection = databaseConnection
+    def __init__(self, client: Client):
+        self.databaseConnection = mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        )
         self.client = client
 
     async def answerQuote(self) -> string | None:
@@ -101,3 +107,11 @@ class QuotesManager:
 
                 cursor.execute(query, (message.message_id,))
                 self.databaseConnection.commit()
+
+    def __del__(self):
+        """
+        Destructor of the class, closes the databaseConnection of this instance
+
+        :return:
+        """
+        self.databaseConnection.close()
