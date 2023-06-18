@@ -1,22 +1,22 @@
-from datetime import datetime
-from typing import List
+from asyncio import sleep
 
 import discord
 import mysql.connector
-import requests
+
+from typing import List
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice
-from src.InheritedCommands.Times import Time, OnlineTime, StreamTime, UniversityTime
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
 from src.Helper import ReadParameters as rp
 from src.Helper.ReadParameters import Parameters as parameters
 from src.Id import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
-from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
-from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
+from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
+from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
-from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 
 
 class MyClient(discord.Client):
@@ -205,7 +205,7 @@ async def timeAutocomplete(interaction: discord.Interaction, current: str) -> Li
 
 @tree.command(name="zeit", description="Frage die Online-, Stream- oder Uni-Zeit an!",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(zeit=timeAutocomplete)
+@app_commands.autocomplete(zeit=timeAutocomplete)  # TODO choices # TODO user description # TODO param description
 async def answerTimes(interaction: discord.Interaction, zeit: str, user: str, param: str = None):
     time = None
 
@@ -234,7 +234,8 @@ async def counterAutocomplete(interaction: discord.Interaction, current: str) ->
 
 @tree.command(name='counter', description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(counter=counterAutocomplete)
+@app_commands.autocomplete(
+    counter=counterAutocomplete)  # TODO choices, # TODO description user, # TODO param description
 async def counter(interaction: discord.Interaction, counter: str, user: str, param: str = None):
     nameCounter = None
 
@@ -332,7 +333,7 @@ async def sendRegistration(interaction: discord.Interaction):
 
 
 @tree.command(name="xp_spin", description="XP-Spin alle " + str(
-    ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN) + " Tage.",
+    ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value) + " Tage.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def spinForXpBoost(interaction: discord.Interaction):
     xpService = ExperienceService.ExperienceService(
@@ -345,6 +346,52 @@ async def spinForXpBoost(interaction: discord.Interaction):
         client,
     )
     answer = await xpService.spinForXpBoost(interaction.user)
+    await interaction.response.send_message(answer)
+
+
+"""XP INVENTORY"""
+
+
+@tree.command(name="xp_inventory", description="Listet dir dein XP-Boost Inventory auf oder wähle welche zum Benutzen.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(action=[
+    Choice(name="list", value="list"),
+    Choice(name="use", value="use"),
+])
+@app_commands.describe(action="Wähle die Aktion die du ausführen möchtest!")
+@app_commands.describe(zeile="Wähle einen XP-Boost in Zeile x oder mit 'all' alle!")
+async def handleXpInventory(interaction: discord.Interaction, action: Choice[str], zeile: str = None):
+    xpService = ExperienceService.ExperienceService(
+        mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        ),
+        client,
+    )
+    answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
+    await interaction.response.send_message(answer)
+
+
+"""HANDLE XP REQUEST"""
+
+
+@tree.command(name="xp", description="Gibt dir die XP eines Benutzers wieder.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+async def handleXpRequest(interaction: discord.Interaction, user: str):
+    xpService = ExperienceService.ExperienceService(
+        mysql.connector.connect(
+            user=rp.getParameter(parameters.USER),
+            password=rp.getParameter(parameters.PASSWORD),
+            host=rp.getParameter(parameters.HOST),
+            database=rp.getParameter(parameters.NAME),
+        ),
+        client,
+    )
+    answer = await xpService.handleXpRequest(userTag=user)
+
     await interaction.response.send_message(answer)
 
 

@@ -4,19 +4,16 @@ import json
 import math
 import random
 import string
-
 from datetime import datetime, timedelta
 
 import discord
-
-from src.Helper import WriteSaveQuery
-from discord import Message, Client, Member
+from discord import Client, Member
 from mysql.connector import MySQLConnection
 
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Id.ChatCommand import ChatCommand
 
 
 def isDoubleWeekend(date: datetime = datetime.now()) -> bool:
@@ -270,130 +267,93 @@ class ExperienceService:
             return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
 
     # returns xp for given user or changes settings for double-xp-notification
-    async def handleXpRequest(self, message: Message):
+    async def handleXpRequest(self, userTag: str) -> string:
         # lazy import to avoid circular import
-        from src.Services.ProcessUserInput import getMessageParts, getUserIdByTag, getTagStringFromId
+        from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
 
-        messageParts = getMessageParts(message.content)
-
-        if len(messageParts) == 1:
+        # TODO improve
+        """
+        if messageParts[1] == 'on':
             dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
             if dcUserDb is None:
-                await message.reply("Das hat leider nicht geklappt!")
-
-                return None
-
-            xp = self.getExperience(dcUserDb['user_id'])
-
-            if xp is None:
-                await message.reply("Das hat leider nicht geklappt!")
-
-                return None
-
-            commandName = ChatCommand.XP_INVENTORY.value
-            xpAmount = xp['xp_amount']
-
-            reply = "Du hast bereits %d XP gefarmt. Weiter so! - Du kannst mit '%s' mal in dein XP-Boost " \
-                    "Inventar schauen, vielleicht hast du welche dazu bekommen!\n\n" % (xpAmount, commandName)
-            reply += getDoubleXpWeekendInformation()
-
-            await message.reply(reply)
-
-        elif len(messageParts) == 2:
-            # TODO improve
-            if messageParts[1] == 'on':
-                dcUserDb = getDiscordUser(self.databaseConnection, message.author)
-
-                if dcUserDb is None:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
-
-                    return
-
-                dcUserDb['double_xp_notification'] = 1
-
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'discord',
-                    dcUserDb['id'],
-                    dcUserDb
-                )
-
-                with self.databaseConnection.cursor() as cursor:
-                    cursor.execute(query, nones)
-                    self.databaseConnection.commit()
-
-                await message.reply("Deine Einstellungen wurden gespeichert!")
+                await message.reply("Es ist ein Fehler aufgetreten!")
 
                 return
-            elif messageParts[1] == 'off':
-                dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
-                if dcUserDb is None:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
+            dcUserDb['double_xp_notification'] = 1
 
-                    return
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
 
-                dcUserDb['double_xp_notification'] = 0
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
 
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'discord',
-                    dcUserDb['id'],
-                    dcUserDb
-                )
-
-                with self.databaseConnection.cursor() as cursor:
-                    cursor.execute(query, nones)
-                    self.databaseConnection.commit()
-
-                await message.reply("Deine Einstellungen wurden gespeichert!")
-
-                return
-            else:
-                userId = getUserIdByTag(messageParts[1])
-                member = await self.client.get_guild(GuildId.GUILD_KVGG.value).fetch_member(userId)
-                dcUserDb = getDiscordUser(self.databaseConnection, member)
-
-                if dcUserDb is None:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
-
-                    return
-
-                xp = self.getExperience(dcUserDb['user_id'])
-
-                if xp is None:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
-
-                    return
-
-                reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(userId), xp['xp_amount'])
-                reply += getDoubleXpWeekendInformation()
-
-                await message.reply(reply)
-
-    async def handleXpInventory(self, message: Message):
-        # avoid circular import
-        from src.Services.ProcessUserInput import getMessageParts
-
-        messageParts = getMessageParts(message.content)
-        dcUserDb: dict | None = getDiscordUser(self.databaseConnection, message.author)
-
-        if dcUserDb is None:
-            await message.reply("Es ist ein Fehler aufgetreten!")
+            await message.reply("Deine Einstellungen wurden gespeichert!")
 
             return
+        elif messageParts[1] == 'off':
+            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
+
+            if dcUserDb is None:
+                await message.reply("Es ist ein Fehler aufgetreten!")
+
+                return
+
+            dcUserDb['double_xp_notification'] = 0
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            await message.reply("Deine Einstellungen wurden gespeichert!")
+
+            return
+        """
+        # else:
+        if (userId := getUserIdByTag(userTag)) is None:
+            return "Bitte tagge einen User korrekt!"
+
+        taggedMember = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(userId)
+        dcUserDb = getDiscordUser(self.databaseConnection, taggedMember)
+
+        if dcUserDb is None:
+            return "Es ist ein Fehler aufgetreten!"
 
         xp = self.getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            await message.reply("Es ist ein Fehler aufgetreten!")
+            return "Es ist ein Fehler aufgetreten!"
 
-            return
+        reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
+        reply += getDoubleXpWeekendInformation()
 
-        if len(messageParts) == 1:
+        return reply
+
+    async def handleXpInventory(self, member: Member, action: str, row: str = None):
+        dcUserDb: dict | None = getDiscordUser(self.databaseConnection, member)
+
+        if dcUserDb is None:
+            return "Es ist ein Fehler aufgetreten!"
+
+        xp = self.getExperience(dcUserDb['user_id'])
+
+        if xp is None:
+            return "Es ist ein Fehler aufgetreten!"
+
+        if action == 'list':
             if xp['xp_boosts_inventory'] is None:
-                await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
-
-                return
+                return "Du hast keine XP-Boosts in deinem Inventar!"
 
             reply = "Du hast folgende XP-Boosts in deinem Inventar:\n\n"
             inventory = json.loads(xp['xp_boosts_inventory'])
@@ -404,25 +364,21 @@ class ExperienceService:
 
             reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
 
-            await message.reply(reply)
-        # !inventory use 2 OR !inventory use all
-        elif messageParts[1] == 'use' and len(messageParts) >= 3:
+            return reply
+        # !inventory use
+        else:
             # no xp boosts available
             if xp['xp_boosts_inventory'] is None:
-                await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
-
-                return
+                return "Du hast keine XP-Boosts in deinem Inventar!"
 
             # too many xp boosts are active, cant activate another one
             if xp['active_xp_boosts'] is not None and len(
                     json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
-                await message.reply("Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere "
-                                    "es erneut!")
-
-                return
+                return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere " \
+                       "es erneut!"
 
             # inventory use all
-            if messageParts[2] == 'all':
+            if row == 'all':
                 # empty active boosts => can use all boosts at once
                 if xp['active_xp_boosts'] is None:
                     xp['active_xp_boosts'] = xp['xp_boosts_inventory']
@@ -456,28 +412,23 @@ class ExperienceService:
                     xp['xp_boosts_inventory'] = json.dumps(inventoryAfter)
                     xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
 
-                await message.reply("Alle deine XP-Boosts wurden eingesetzt!")
+                answer = "Alle deine XP-Boosts wurden eingesetzt!"
             # !inventory use 1
             else:
                 # inventory empty
                 if xp['xp_boosts_inventory'] is None:
-                    await message.reply("Du hast keine XP-Boosts in deinem Inventar!")
-
-                    return
+                    return "Du hast keine XP-Boosts in deinem Inventar!"
                 # active inventory full
                 elif xp['active_xp_boosts'] is not None and len(
                         json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
-                    await message.reply("Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und "
-                                        "probiere es erneut!")
-
-                    return
+                    return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere es erneut!"
 
                 try:
-                    row = int(messageParts[2])
+                    if row is None:
+                        raise ValueError
+                    row = int(row)
                 except ValueError:
-                    await message.reply("Bitte gib eine Zeilennummer ein!")
-
-                    return
+                    return "Bitte gib eine korrekte Zeilennummer ein!"
 
                 inventory: list = json.loads(xp['xp_boosts_inventory'])
 
@@ -499,28 +450,27 @@ class ExperienceService:
 
                     xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
 
-                    await message.reply("Dein XP-Boost wurde eingesetzt! Für die nächsten %s Minuten bekommst du "
-                                        "%s-Fach XP!" % (chosenXpBoost['remaining'], chosenXpBoost['multiplier']))
+                    answer = "Dein XP-Boost wurde eingesetzt! Für die nächsten %s Minuten bekommst du %s-Fach XP!" % (
+                        chosenXpBoost['remaining'], chosenXpBoost['multiplier'])
                 else:
-                    await message.reply("Deine Eingabe war unültig!")
+                    return "Deine Eingabe war unültig!"
+        # TODO list active ones with leaderboard simultaneous
+        # elif messageParts[1] == 'active':
+        #    if xp['active_xp_boosts'] is None:
+        #        await message.reply("Du hast keine aktiven XP-Boosts!")
 
-                    return
-        elif messageParts[1] == 'active':
-            if xp['active_xp_boosts'] is None:
-                await message.reply("Du hast keine aktiven XP-Boosts!")
+        #        return
 
-                return
+        #    reply = "Du hast folgende aktive XP-Boosts:\n\n"
+        #    activeBoosts: list = json.loads(xp['active_xp_boosts'])
 
-            reply = "Du hast folgende aktive XP-Boosts:\n\n"
-            activeBoosts: list = json.loads(xp['active_xp_boosts'])
+        #    for index, item in enumerate(activeBoosts, start=1):
+        #        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+        #            index, item['description'], item['remaining'], item['multiplier'])
 
-            for index, item in enumerate(activeBoosts, start=1):
-                reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
-                    index, item['description'], item['remaining'], item['multiplier'])
+        #    await message.reply(reply)
 
-            await message.reply(reply)
-
-            return  # return here to avoid straining the database with an unnecessary save
+        #    return  # return here to avoid straining the database with an unnecessary save
 
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
@@ -531,6 +481,8 @@ class ExperienceService:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+        return answer
 
     def addExperience(self, dcUserDb: dict, experienceParameter: int):
         xp = self.getExperience(dcUserDb['user_id'])

@@ -98,6 +98,7 @@ class ProcessUserInput:
             self.databaseConnection.commit()
 
     async def processCommand(self, message: Message):
+        # TODO count messeage up even with interaction, maybe in fuction that gets called at every command
         command = message.content
 
         if not command.startswith('!'):
@@ -107,20 +108,6 @@ class ProcessUserInput:
             return
 
         command = self.getCommand(command)
-
-        if ChatCommand.HELP == command:
-            await self.sendHelp(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.XP_INVENTORY == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
-            await xpService.handleXpInventory(message)
-            self.logHelper.addLog(message)
-
-        elif ChatCommand.XP == command:
-            xpService = ExperienceService.ExperienceService(self.databaseConnection, self.client)
-            await xpService.handleXpRequest(message)
-            self.logHelper.addLog(message)
 
         # close the connection to the database at the end
         self.databaseConnection.close()
