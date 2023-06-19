@@ -9,7 +9,7 @@ def writeSaveQuery(table_name: string, primary_key: string, data: dict) -> strin
 
     # for every column
     for column, value in data.items():
-        # dont touch the primary key
+        # don't touch the primary key
         if column == 'id':
             continue
 

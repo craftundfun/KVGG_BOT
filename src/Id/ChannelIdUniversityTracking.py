@@ -1,10 +1,6 @@
 from enum import Enum
 
 
-def getValues() -> set:
-    return set(channel.value for channel in ChannelIdUniversityTracking)
-
-
 class ChannelIdUniversityTracking(Enum):
     UNI_1 = '803322264056496158'
 
@@ -17,3 +13,7 @@ class ChannelIdUniversityTracking(Enum):
     UNI_5 = '927763854266601492'
 
     UNI_6_AMERICA = '927763900643049583'
+
+    @classmethod
+    def getValues(cls) -> set:
+        return set(channel.value for channel in ChannelIdUniversityTracking)

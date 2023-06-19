@@ -5,15 +5,12 @@ import math
 import random
 import string
 import discord
-import mysql
 
 from discord import Client, Member
-from mysql.connector import MySQLConnection
-from src.Helper import ReadParameters as rp
 from datetime import datetime, timedelta
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper.ReadParameters import Parameters as parameters
 from src.Helper import WriteSaveQuery
+from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 
@@ -69,12 +66,7 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 class ExperienceService:
 
     def __init__(self, client: Client):
-        self.databaseConnection = mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        )
+        self.databaseConnection = getDatabaseConnection()
         self.client = client
 
     def getExperience(self, userId: int) -> dict | None:
@@ -461,7 +453,7 @@ class ExperienceService:
                         chosenXpBoost['remaining'], chosenXpBoost['multiplier'])
                 else:
                     return "Deine Eingabe war unültig!"
-        # TODO list active ones with leaderboard simultaneous
+            # TODO list active ones with leaderboard simultaneous
         # elif messageParts[1] == 'active':
         #    if xp['active_xp_boosts'] is None:
         #        await message.reply("Du hast keine aktiven XP-Boosts!")
@@ -526,3 +518,31 @@ class ExperienceService:
             cursor.execute(query, nones)
 
             self.databaseConnection.commit()
+
+    def sendXpLeaderboard(self) -> string:
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT d.username, e.xp_amount " \
+                    "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
+                    "WHERE e.xp_amount != 0 " \
+                    "ORDER BY e.xp_amount DESC " \
+                    "LIMIT 10"
+
+            cursor.execute(query)
+
+            data = cursor.fetchall()
+
+            if data is None:
+                return "Es ist ein Fehler aufgetreten!"
+
+        users = [dict(zip(cursor.column_names, date)) for date in data]
+        reply = "Folgende User haben die meisten XP:\n\n"
+
+        for index, user in enumerate(users):
+            reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
+
+        return reply
+
+
+
+    def __del__(self):
+        self.databaseConnection.close()

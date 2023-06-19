@@ -1,32 +1,24 @@
 from __future__ import annotations
 
 import string
+
 from datetime import datetime, timedelta
-
-import mysql
 from discord import VoiceState, Member
-from mysql.connector import MySQLConnection
-
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper import WriteSaveQuery
-from src.Id import ChannelIdWhatsAppAndTracking, ChannelIdUniversityTracking
+from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
+from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
 
 class WhatsAppHelper:
     def __init__(self):
-        self.databaseConnection = mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        )
+        self.databaseConnection = getDatabaseConnection()
 
     def sendOnlineNotification(self, member: Member, update: VoiceState):
-        # if channel does not count time
+        # if a channel does not count time
         if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
                 update.channel.id) not in ChannelIdUniversityTracking.getValues():
             return
@@ -88,7 +80,7 @@ class WhatsAppHelper:
             if user['discord_user_id'] == dcUserDb['id']:
                 continue
 
-            # use a channel id here, dcUserDb no longer holds channel id in this method
+            # use a channel id here, dcUserDb no longer holds a channel id in this method
             if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues() and user[
                 'recieve_join_notification']:
                 self.__queueWhatsAppMessage(dcUserDb, None, user)
@@ -166,7 +158,7 @@ class WhatsAppHelper:
                 if joinMessages is None or len(joinMessages) == 0:
                     text = triggerDcUserDb['username'] + " hat seinen Channel verlassen."
                     isJoinMessage = False
-                # if there are join message delete them and don't send leave
+                # if there is a join message, delete them and don't send leave
                 else:
                     self.__retractMessagesFromMessageQueue(triggerDcUserDb, True)
 

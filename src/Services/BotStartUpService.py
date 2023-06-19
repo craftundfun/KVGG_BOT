@@ -2,21 +2,14 @@ import mysql
 
 from datetime import datetime
 from discord import Client, ChannelType
-from mysql.connector import MySQLConnection
 from src.Helper import WriteSaveQuery
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
+from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
 
 class BotStartUpService:
 
     def __init__(self):
-        self.databaseConnection = mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        )
+        self.databaseConnection = getDatabaseConnection()
 
     async def startUp(self, client: Client):
         with self.databaseConnection.cursor() as cursor:
@@ -68,7 +61,7 @@ class BotStartUpService:
                         else:
                             user['started_stream_at'] = None
 
-                        if voiceState.self_stream:
+                        if voiceState.self_video:
                             user['started_webcam_at'] = datetime.now()
                         else:
                             user['started_webcam_at'] = None

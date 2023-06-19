@@ -1,10 +1,6 @@
 from enum import Enum
 
 
-def getValues() -> set:
-    return set(channel.value for channel in ChannelIdWhatsAppAndTracking)
-
-
 class ChannelIdWhatsAppAndTracking(Enum):
     CHANNEL_QUATSCHEN = '745373345746518066'
 
@@ -39,3 +35,7 @@ class ChannelIdWhatsAppAndTracking(Enum):
     CHANNEL_EVENT_VIER = '915289914097164348'
 
     CHANNEL_STAFF = '502845911773216768'
+
+    @classmethod
+    def getValues(cls) -> set:
+        return set(channel.value for channel in ChannelIdWhatsAppAndTracking)

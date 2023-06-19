@@ -1,3 +1,5 @@
+import logging
+
 import discord
 
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
@@ -5,13 +7,15 @@ from discord.app_commands import Choice
 from typing import List
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
-from src.Id import ChannelIdWhatsAppAndTracking
+from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
+from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
+from src.Services.ProcessUserInput import hasUserWantedRoles
 
 
 class MyClient(discord.Client):
@@ -166,27 +170,37 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
 """MOVE ALL USERS"""
 
 
-async def channel_choices(_: discord.Interaction, current: str) -> List[Choice[str]]:
+async def channel_choices(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
     """
     Returns the matching autocomplete results
 
-    :param _: Interaction, but gets ignored
+    :param interaction: Interaction, but gets ignored
     :param current: Current input from the user to filter autocomplete
     :return: List of Choices excluding forbidden channels  # TODO maybe change
     """
     channels = client.get_all_channels()
     voiceChannels: List[str] = []
+    exclusiveChannels = [
+        ChannelIdWhatsAppAndTracking.CHANNEL_STAFF.value,
+        ChannelIdWhatsAppAndTracking.CHANNEL_GOLF.value,
+        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_EINS.value,
+        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_ZWEI.value,
+        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_DREI.value,
+        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_VIER.value,
+    ]
 
+    # for every channel from the guild
     for channel in channels:
+        # if voice channel
         if isinstance(channel, discord.VoiceChannel):
-            if str(channel.id) in ChannelIdWhatsAppAndTracking.getValues() and str(channel.id) not in [
-                # ChannelIdWhatsAppAndTracking.ChannelIdWhatsAppAndTracking.CHANNEL_STAFF.value,  # TODO reinnehmen
-                ChannelIdWhatsAppAndTracking.ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_EINS.value,
-                ChannelIdWhatsAppAndTracking.ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_ZWEI.value,
-                ChannelIdWhatsAppAndTracking.ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_DREI.value,
-                ChannelIdWhatsAppAndTracking.ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_VIER.value,
-            ]:
-                voiceChannels.append(channel.name)
+            # if a voice channel is a "public" one
+            if str(channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+                # if a channel is restricted for normal users check if MOD or ADMIN uses the command
+                if str(channel.id) in exclusiveChannels:
+                    if hasUserWantedRoles(interaction.user, RoleId.ADMIN, RoleId.MOD):
+                        voiceChannels.append(channel.name)
+                else:
+                    voiceChannels.append(channel.name)
 
     return [
         Choice(name=name, value=name) for name in voiceChannels if current.lower() in name.lower()
@@ -323,45 +337,6 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
 """MANAGE WHATSAPP SETTINGS"""
 
 
-async def autocompleteWhatsAppType(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    """
-    Returns the matching autocomplete results
-
-    :param interaction: Interaction object of the call
-    :param current: Current entered string by the user in this field
-    :return:
-    """
-    types = ['Gaming', 'Uni']
-
-    return [Choice(name=type, value=type) for type in types if current.lower() in type.lower()]
-
-
-async def autocompleteWhatsAppAction(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    """
-    Returns the matching autocomplete results
-
-    :param interaction: Interaction object of the call
-    :param current: Current entered string by the user in this field
-    :return:
-    """
-    actions = ['join', 'leave']
-
-    return [Choice(name=action, value=action) for action in actions if current.lower() in action.lower()]
-
-
-async def autocompleteWhatsAppSwitch(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    """
-    Returns the matching autocomplete results
-
-    :param interaction: Interaction object of the call
-    :param current: Current entered string by the user in this field
-    :return:
-    """
-    switches = ['on', 'off']
-
-    return [Choice(name=switch, value=switch) for switch in switches if current.lower() in switch.lower()]
-
-
 @tree.command(name="whatsapp", description="Lässt dich deine Benachrichtigunseinstellungen ändern.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(type=[
@@ -495,6 +470,17 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
     xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpRequest(userTag=user)
 
+    await interaction.response.send_message(answer)
+
+
+"""XP LEADERBOARD"""
+
+
+@tree.command(name="xp_leaderboard", description="Listet dir unsere XP-Bestenliste auf.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def getXpLeaderboard(interaction: discord.Interaction):
+    exp = ExperienceService.ExperienceService(client)
+    answer = exp.sendXpLeaderboard()
     await interaction.response.send_message(answer)
 
 

@@ -1,27 +1,29 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
-from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Id.GuildId import GuildId
-from src.InheritedCommands.Times import Time, OnlineTime, StreamTime, UniversityTime
-from src.Helper import WriteSaveQuery
-from src.Services import ExperienceService, QuotesManager, LogHelper
-from src.Id.ChatCommand import ChatCommand
-from src.Id.RoleId import RoleId
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
-from discord import Message, Client, Member
-from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
-    OlegCounter, JjCounter, CookieCounter, CarlCounter
-from src.Repository.DiscordUserRepository import getDiscordUser
-
-import string
-import discord
-import mysql.connector
-import requests
 import array
 import json
+import string
+from datetime import datetime
+
+import discord
+import requests
+from discord import Message, Client, Member
+
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Helper import ReadParameters as rp
+from src.Helper import WriteSaveQuery
+from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Id.ChatCommand import ChatCommand
+from src.Id.GuildId import GuildId
+from src.Id.RoleId import RoleId
+from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
+    OlegCounter, JjCounter, CookieCounter, CarlCounter
+from src.InheritedCommands.Times import Time
+from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers
+from src.Services import ExperienceService, QuotesManager, LogHelper
+from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
+from src.Helper.getFormattedTime import getFormattedTime
 
 
 def getMessageParts(content: string) -> array:
@@ -40,17 +42,25 @@ def getTagStringFromId(tag: string) -> string:
     return "<@%s>" % tag
 
 
+# TODO maybe improve
+def hasUserWantedRoles(author: Message.author, *roles) -> bool:
+    for role in roles:
+        id = role.value
+        rolesFromAuthor = author.roles
+
+        for roleAuthor in rolesFromAuthor:
+            if id == roleAuthor.id:
+                return True
+
+    return False
+
+
 class ProcessUserInput:
 
     def __init__(self, client: Client):
-        self.databaseConnection = mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        )
+        self.databaseConnection = getDatabaseConnection()
         self.client = client
-        self.logHelper = LogHelper.LogHelper(self.databaseConnection)
+        self.logHelper = LogHelper.LogHelper()
 
     async def processMessage(self, message: Message):
         if message.channel.guild.id is None or message.author.id is None:
@@ -66,7 +76,7 @@ class ProcessUserInput:
             dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
         else:
             dcUserDb['message_count_all_time'] = 1
-        es = ExperienceService.ExperienceService(self.databaseConnection, self.client)
+        es = ExperienceService.ExperienceService(self.client)
         es.addExperience(dcUserDb, ExperienceParameter.XP_FOR_MESSAGE.value)
 
         self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
@@ -121,18 +131,6 @@ class ProcessUserInput:
 
         return None
 
-    # TODO maybe improve
-    def hasUserWantedRoles(self, author: Message.author, *roles) -> bool:
-        for role in roles:
-            id = role.value
-            rolesFromAuthor = author.roles
-
-            for roleAuthor in rolesFromAuthor:
-                if id == roleAuthor.id:
-                    return True
-
-        return False
-
     async def answerJoke(self, category: str):
         payload = {
             'language': 'de',
@@ -174,7 +172,7 @@ class ProcessUserInput:
 
         authorId = member.id
 
-        if not self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             return "Du hast dazu keine Berechtigung!"
 
         channelStart = None
@@ -208,15 +206,50 @@ class ProcessUserInput:
             return "Irgendetwas ist schief gelaufen!"
 
     async def accessTimeAndEdit(self, time: Time, userTag: string, member: Member, param: string | None) -> string:
+        # all users
+        if userTag == 'all' and param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+            try:
+                correction = int(param)
+            except ValueError:
+                return "Deine Korrektur war keine Zahl!"
+
+            users = getOnlineUsers(self.databaseConnection)
+
+            if users is None:
+                return "Es ist keiner online der Zeit dazu bekommen könnte!"
+
+            reply = ""
+
+            for user in users:
+                if user['channel_id'] in ChannelIdUniversityTracking.getValues():
+                    user['university_time_online'] += correction
+                    user['formated_university_time'] = getFormattedTime(user['university_time_online'])
+                    reply += "Die Uni-Zeit von %s wurde um %d erhöht!\n" % (
+                        getTagStringFromId(user['user_id']), correction)
+
+                elif user['channel_id'] in ChannelIdWhatsAppAndTracking.getValues():
+                    user['time_online'] += correction
+                    user['formated_time'] = getFormattedTime(user['time_online'])
+                    reply += "Die Online-Zeit von %s wurde um %d erhöht!\n" % (
+                        getTagStringFromId(user['user_id']), correction)
+
+                    if user['started_stream_at'] or user['started_webcam_at']:
+                        user['time_streamed'] += correction
+                        user['formatted_stream_time'] = getFormattedTime(user['time_streamed'])
+                        reply += "Die Stream-Zeit von %s wurde um %d erhöht!\n" % (
+                            getTagStringFromId(user['user_id']), correction)
+
+                self.saveDiscordUserToDatabase(user['id'], user)
+
+            return reply
+
         tag = getUserIdByTag(userTag)
         dcUserDb = self.getDiscordUserFromDatabase(tag)
-
-        # TODO increase all
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             return "Dieser Benutzer war noch nie online!"
 
-        if param and self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             try:
                 correction = int(param)
             except ValueError:
@@ -534,7 +567,7 @@ class ProcessUserInput:
 
         counter.setDiscordUser(dcUserDb)
 
-        if param and self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             try:
                 value = int(param)
             except ValueError:
@@ -743,7 +776,7 @@ class ProcessUserInput:
         """
 
     async def sendLogs(self, member: Member, amount: int):
-        if self.hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        if hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             with self.databaseConnection.cursor() as cursor:
                 query = "SELECT discord.user_id, logs.command, logs.created_at " \
                         "FROM logs " \
@@ -772,3 +805,6 @@ class ProcessUserInput:
 
         else:
             return "Du darfst diese Aktion nicht ausführen!"
+
+    def __del__(self):
+        self.databaseConnection.close()

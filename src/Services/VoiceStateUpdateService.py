@@ -1,27 +1,19 @@
 import discord
-import mysql
 
 from datetime import datetime
 from discord import Member, VoiceState
-from mysql.connector import MySQLConnection
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import ExperienceService
 from src.Services.WhatsAppHelper import WhatsAppHelper
-from src.Helper import ReadParameters as rp
-from src.Helper.ReadParameters import Parameters as parameters
+from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
 
 class VoiceStateUpdateService:
 
     def __init__(self, client: discord.Client):
-        self.databaseConnection = mysql.connector.connect(
-            user=rp.getParameter(parameters.USER),
-            password=rp.getParameter(parameters.PASSWORD),
-            host=rp.getParameter(parameters.HOST),
-            database=rp.getParameter(parameters.NAME),
-        )
+        self.databaseConnection = getDatabaseConnection()
         self.client = client
         self.waHelper = WhatsAppHelper()
 
@@ -74,28 +66,29 @@ class VoiceStateUpdateService:
         elif voiceStateBefore.channel and voiceStateAfter.channel:
             # status changed
             if voiceStateBefore.channel == voiceStateAfter.channel:
-                # TODO create one variable for now()
-                # if user is mute
+                now = datetime.now()
+
+                # if a user is mute
                 if voiceStateAfter.self_mute:
-                    dcUserDb['muted_at'] = datetime.now()
+                    dcUserDb['muted_at'] = now
                 elif not voiceStateAfter.self_mute:
                     dcUserDb['muted_at'] = None
 
                 # if a user is full mute
                 if voiceStateAfter.self_deaf:
-                    dcUserDb['full_muted_at'] = datetime.now()
+                    dcUserDb['full_muted_at'] = now
                 elif not voiceStateAfter.self_deaf:
                     dcUserDb['full_muted_at'] = None
 
                 # if user started stream
                 if not voiceStateBefore.self_stream and voiceStateAfter.self_stream:
-                    dcUserDb['started_stream_at'] = datetime.now()
+                    dcUserDb['started_stream_at'] = now
                 elif voiceStateBefore.self_stream and not voiceStateAfter.self_stream:
                     dcUserDb['started_stream_at'] = None
 
                 # if user started webcam
                 if not voiceStateBefore.self_video and voiceStateAfter.self_video:
-                    dcUserDb['started_webcam_at'] = datetime.now()
+                    dcUserDb['started_webcam_at'] = now
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
 

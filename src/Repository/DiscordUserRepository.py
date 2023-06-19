@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-import string
 from datetime import datetime
+from typing import List, Dict, Any
 
-from mysql.connector import MySQLConnection
 from discord import Message, Member, User
-from src.Helper import WriteSaveQuery
-from src.Id.GuildId import GuildId
+from mysql.connector import MySQLConnection
 
 
 def __createDiscordUser(message: Message) -> None | dict:
@@ -25,7 +23,7 @@ def __createDiscordUser(message: Message) -> None | dict:
     }
 
 
-# TODO test creation of new DiscordUser
+# TODO test creation of new DiscordUser and save him
 def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict | None:
     if member is None or isinstance(member, User):  # TODO treat User
         return None
@@ -37,7 +35,7 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
                 "FROM discord " \
                 "WHERE user_id = %s"
 
-        cursor.execute(query, (member.id, ))
+        cursor.execute(query, (member.id,))
 
         data = cursor.fetchone()
 
@@ -60,8 +58,24 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
                     "FROM discord " \
                     "WHERE user_id = %s"
 
-            cursor.execute(query, (member.id, ))
+            cursor.execute(query, (member.id,))
 
             data = cursor.fetchone()
     # TODO update nickname here (and maybe avatar)
     return dict(zip(cursor.column_names, data))
+
+
+def getOnlineUsers(databaseConnection: MySQLConnection) -> List[Dict[Any, Any]] | None:
+    with databaseConnection.cursor() as cursor:
+        query = "SELECT * " \
+                "FROM discord " \
+                "WHERE channel_id IS NOT NULL"
+
+        cursor.execute(query)
+
+        data = cursor.fetchall()
+
+        if not data:
+            return None
+
+        return [dict(zip(cursor.column_names, date)) for date in data]
