@@ -1,8 +1,13 @@
+from __future__ import unicode_literals
+
+import asyncio
 import logging
+import multiprocessing
 from asyncio import sleep
 
 import discord
-
+from pytube import YouTube
+import os
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice
 from typing import List
@@ -53,7 +58,7 @@ class MyClient(discord.Client):
         :param message:
         :return:
         """
-        print(message.attachments)
+
         return  # TODO
         # don't respond to ourselves
         if message.author == self.user:
@@ -487,24 +492,85 @@ async def getXpLeaderboard(interaction: discord.Interaction):
     await interaction.response.send_message(answer)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+out_file = None
+
+def down(video, destination):
+    global out_file
+
+    out_file = video.download(output_path=destination)
+
+    print(out_file)
+
 @tree.command(name="beta-feature", description="Just dont use it",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def beta(ctx: discord.interactions.Interaction):
-    channel: discord.VoiceChannel = ctx.guild.get_channel(int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_DREI.value))
+async def beta(ctx: discord.interactions.Interaction, src: str):
+    global out_file
+    yt = YouTube(src)
+    video = yt.streams.filter(only_audio=True).first()
+
+    destination = '.'
+    p = multiprocessing.Process(target=down, name="Down", args=(video, destination,))
+    p.start()
+
+    await asyncio.sleep(3)
+
+    p.terminate()
+    p.join()
+
+    print(type(out_file))
+
+    if not out_file:
+        await ctx.response.send_message("Nö")
+        return
+
+    print("bye")
+
+    base, ext = os.path.splitext(out_file)
+    new_file = base + '.mp3'
+    os.rename(out_file, new_file)
+    print(yt.title + " has been successfully downloaded.")
+
+    channel: discord.VoiceChannel = ctx.guild.get_channel(int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_EINS.value))
     await channel.connect()
     # await sleep(1)
     voice_client = ctx.guild.voice_client
     # await voice_client.connect(reconnect=False, timeout=5)
     if voice_client.is_playing():
         voice_client.stop()
-    audio = MP3('./NEVER.mp3')
-    voice_client.play(discord.FFmpegPCMAudio('./NEVER.mp3'))
+    audio = MP3(new_file)
+    voice_client.play(discord.FFmpegPCMAudio('%s' % new_file))
     # voice_client.stop()
-    await sleep(audio.info.length)
+    # await sleep(audio.info.length)
     if voice_client.is_connected():
-        await voice_client.disconnect()
+        #await voice_client.disconnect()
         print('disconnected')
         pass
+
+    out_file = None
+
+
+
+
+
+
+
+
+
 
 
 # starts the client
