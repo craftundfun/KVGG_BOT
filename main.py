@@ -1,4 +1,5 @@
 import logging
+from asyncio import sleep
 
 import discord
 
@@ -16,6 +17,7 @@ from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
+from mutagen.mp3 import MP3
 
 
 class MyClient(discord.Client):
@@ -44,13 +46,14 @@ class MyClient(discord.Client):
         )
         print('Activity set')
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         """
         TO BE FILLED # TODO
 
         :param message:
         :return:
         """
+        print(message.attachments)
         return  # TODO
         # don't respond to ourselves
         if message.author == self.user:
@@ -482,6 +485,26 @@ async def getXpLeaderboard(interaction: discord.Interaction):
     exp = ExperienceService.ExperienceService(client)
     answer = exp.sendXpLeaderboard()
     await interaction.response.send_message(answer)
+
+
+@tree.command(name="beta-feature", description="Just dont use it",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def beta(ctx: discord.interactions.Interaction):
+    channel: discord.VoiceChannel = ctx.guild.get_channel(int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_DREI.value))
+    await channel.connect()
+    # await sleep(1)
+    voice_client = ctx.guild.voice_client
+    # await voice_client.connect(reconnect=False, timeout=5)
+    if voice_client.is_playing():
+        voice_client.stop()
+    audio = MP3('./NEVER.mp3')
+    voice_client.play(discord.FFmpegPCMAudio('./NEVER.mp3'))
+    # voice_client.stop()
+    await sleep(audio.info.length)
+    if voice_client.is_connected():
+        await voice_client.disconnect()
+        print('disconnected')
+        pass
 
 
 # starts the client
