@@ -67,7 +67,7 @@ class MyClient(discord.Client):
         print('Activity set')
 
         _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
-        _thread.start()
+        # _thread.start()
 
     async def on_message(self, message: discord.Message):
         """

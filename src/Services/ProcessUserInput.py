@@ -320,7 +320,7 @@ class ProcessUserInput:
                     "WHERE discord.user_id = %s"
 
             cursor.execute(query, (member.id,))
-            user = dict(zip(cursor.column_names, list(cursor.fetchone())))
+            user = dict(zip(cursor.column_names, cursor.fetchone()))
 
         if not user:
             return "Du bist nicht als User bei uns registriert!"
@@ -359,6 +359,8 @@ class ProcessUserInput:
                     user['receive_uni_leave_notification'] = 1
                 elif switch == 'off':
                     user['receive_uni_leave_notification'] = 0
+
+        print(user)
 
         with self.databaseConnection.cursor() as cursor:
             query, noneTuple = WriteSaveQuery.writeSaveQuery(
