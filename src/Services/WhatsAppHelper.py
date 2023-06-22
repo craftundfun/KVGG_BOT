@@ -58,12 +58,12 @@ class WhatsAppHelper:
             if dcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
                 'recieve_join_notification']:
                 # works correctly
-                self.__queueWhatsAppMessage(dcUserDb, update.channel, user)
+                self.__queueWhatsAppMessage(dcUserDb, update.channel, user, member.name)
             elif dcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
                 'receive_uni_join_notification']:
-                self.__queueWhatsAppMessage(dcUserDb, update.channel, user)
+                self.__queueWhatsAppMessage(dcUserDb, update.channel, user, member.name)
 
-    def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState):
+    def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM user WHERE phone_number IS NOT NULL and api_key_whats_app IS NOT NULL"
 
@@ -83,10 +83,10 @@ class WhatsAppHelper:
             # use a channel id here, dcUserDb no longer holds a channel id in this method
             if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues() and user[
                 'recieve_join_notification']:
-                self.__queueWhatsAppMessage(dcUserDb, None, user)
+                self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
             elif str(update.channel.id) in ChannelIdUniversityTracking.getValues() and user[
                 'receive_uni_join_notification']:
-                self.__queueWhatsAppMessage(dcUserDb, None, user)
+                self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
         if (messages := getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:
@@ -132,7 +132,7 @@ class WhatsAppHelper:
 
             self.databaseConnection.commit()
 
-    def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, user: dict):
+    def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, user: dict, usernameFromTriggerUser: string):
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE id = %s"
 
@@ -156,7 +156,8 @@ class WhatsAppHelper:
 
                 # if there are no join message send leave
                 if joinMessages is None or len(joinMessages) == 0:
-                    text = triggerDcUserDb['username'] + " hat seinen Channel verlassen."
+                    text = triggerDcUserDb[
+                               'username'] + " (" + usernameFromTriggerUser + ") hat seinen Channel verlassen."
                     isJoinMessage = False
                 # if there is a join message, delete them and don't send leave
                 else:
@@ -164,7 +165,8 @@ class WhatsAppHelper:
 
                     return
             else:
-                text = triggerDcUserDb['username'] + " ist nun um Channel " + channel.name + "."
+                text = triggerDcUserDb[
+                           'username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel " + channel.name + "."
                 isJoinMessage = True
 
             query = "INSERT INTO message_queue (" \

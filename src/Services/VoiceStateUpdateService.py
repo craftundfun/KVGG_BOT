@@ -111,7 +111,7 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
-            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore)
+            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
 
     def __saveDiscordUser(self, dcUserDb: dict):
         with self.databaseConnection.cursor() as cursor:
