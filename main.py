@@ -1,12 +1,9 @@
 from __future__ import unicode_literals
 
 import asyncio
-import logging
-import multiprocessing
-from asyncio import sleep
-
+import threading
 import discord
-import os
+
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice
 from typing import List
@@ -21,7 +18,26 @@ from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
-from mutagen.mp3 import MP3
+
+
+def thread_wrapper(func, args):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(func(args))
+    loop.close()
+
+
+async def some_thread(client: discord.Client):
+    while True:
+        # await client.fetch_guild(int(GuildId.GUILD_KVGG.value))
+        # await client.fetch_user(555430341389844500)
+        for mem in client.get_all_members():
+            if mem.id == 555430341389844500:
+                member = mem
+                break
+
+        print(member.status)
+        await asyncio.sleep(2)
 
 
 class MyClient(discord.Client):
@@ -41,7 +57,7 @@ class MyClient(discord.Client):
         await botStartUpService.startUp(self)
         print("Users fetched and updated")
 
-        await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
+        # await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
         print("Commands updated and uploaded")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
@@ -49,6 +65,9 @@ class MyClient(discord.Client):
             activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
         )
         print('Activity set')
+
+        _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
+        _thread.start()
 
     async def on_message(self, message: discord.Message):
         """
