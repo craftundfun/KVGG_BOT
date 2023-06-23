@@ -2,12 +2,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import List, Dict, Any
-
 from discord import Message, Member, User
 from mysql.connector import MySQLConnection
 
 
+@DeprecationWarning
 def __createDiscordUser(message: Message) -> None | dict:
+    """
+    Returns a new DiscordUser Dict with the information given by the message
+
+    :param message:
+    :return:
+    """
     if message.author.bot:
         return None
 
@@ -23,9 +29,16 @@ def __createDiscordUser(message: Message) -> None | dict:
     }
 
 
-# TODO test creation of new DiscordUser and save him
 def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict | None:
-    if member is None or isinstance(member, User):  # TODO treat User
+    """
+    Returns the user from the database.
+    If he doesn't exist yet, a new entry is created (only if a member was given)
+
+    :param databaseConnection: DatabaseConnection to execute the query
+    :param member: Member to retrieve all data from
+    :return: None | Dict[Any, Any] DiscordUser
+    """
+    if member is None or isinstance(member, User):
         return None
     elif member.bot:
         return None
@@ -39,6 +52,7 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
 
         data = cursor.fetchone()
 
+        # user does not exist yet -> create new entry
         if not data:
             query = "INSERT INTO discord (guild_id, user_id, username, created_at, time_streamed) " \
                     "VALUES (%s, %s, %s, %s, %s)"
@@ -48,9 +62,7 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
             else:
                 username = member.name
 
-            cursor.execute(query, (
-                member.guild.id, member.id, username, datetime.now(), 0)
-                           )
+            cursor.execute(query, (member.guild.id, member.id, username, datetime.now(), 0))
             databaseConnection.commit()
 
             # fetch the newly added DiscordUser
@@ -61,11 +73,33 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
             cursor.execute(query, (member.id,))
 
             data = cursor.fetchone()
-    # TODO update nickname here (and maybe avatar)
-    return dict(zip(cursor.column_names, data))
+
+            if not data:
+                return None
+
+    dcUserDb = dict(zip(cursor.column_names, data))
+
+    # update profile picture
+    if member.display_avatar != dcUserDb['profile_picture_discord'] or dcUserDb['profile_picture_discord'] is None:
+        dcUserDb['profile_picture_discord'] = member.display_avatar
+
+    # update nick if a user has one, otherwise save name (everytime if user has no nick anymore)
+    if member.nick:
+        if member.nick != dcUserDb['username']:
+            dcUserDb['username'] = member.nick
+    else:
+        dcUserDb['username'] = member.name
+
+    return dcUserDb
 
 
 def getOnlineUsers(databaseConnection: MySQLConnection) -> List[Dict[Any, Any]] | None:
+    """
+    Retrieves all current users that are online (according to our database)
+
+    :param databaseConnection: DatabaseConnection to execute the query
+    :return: None | List[Dict[Any, Any]] List of all DiscordUsers
+    """
     with databaseConnection.cursor() as cursor:
         query = "SELECT * " \
                 "FROM discord " \

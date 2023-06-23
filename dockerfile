@@ -10,6 +10,5 @@ RUN pip install mutagen
 ADD main.py .
 ADD src ./src
 ADD parameters.yaml .
-ADD f.mp3 .
 
 CMD ["python3", "./main.py"]

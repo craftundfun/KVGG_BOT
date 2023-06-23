@@ -29,10 +29,6 @@ class VoiceStateUpdateService:
         if not dcUserDb:
             return
 
-        # look for new avatar
-        if dcUserDb['profile_picture_discord'] != member.display_avatar:
-            dcUserDb['profile_picture_discord'] = member.display_avatar
-
         # only needed for console print
         if member.nick:
             username = member.nick

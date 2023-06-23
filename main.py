@@ -1,14 +1,18 @@
 from __future__ import unicode_literals
 
 import asyncio
+import sys
 import threading
 import discord
+import logging.handlers
 
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice
 from typing import List
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
+from src.Helper.CustomFormatter import CustomFormatter
+from src.Helper.CustomFormatterFile import CustomFormatterFile
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
@@ -18,6 +22,22 @@ from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
+
+# configure Logger
+logger = logging.getLogger("KVGG_BOT")
+logger.setLevel(logging.INFO)
+
+# creates up to 10 log files, every day at midnight a new one is created - if 10 was reached logs will be overwritten
+fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=10)
+fileHandler.setLevel(logging.INFO)
+fileHandler.setFormatter(CustomFormatterFile())
+logger.addHandler(fileHandler)
+
+# set up Formatter for console
+ch = logging.StreamHandler(sys.stdout)
+ch.setLevel(logging.INFO)
+ch.setFormatter(CustomFormatter())
+logger.addHandler(ch)
 
 
 def thread_wrapper(func, args):
@@ -41,6 +61,26 @@ async def some_thread(client: discord.Client):
 
 
 class MyClient(discord.Client):
+
+    async def on_member_join(self, member: Member):
+        """
+        Automatically adds the roles Uni and Mitglieder to newly joined members of the guild.
+
+        :param member: Member that newly join
+        :return:
+        """
+        roleMitglied = member.guild.get_role(RoleId.UNI.value)
+        roleUni = member.guild.get_role(RoleId.MITGLIEDER.value)
+
+        await member.add_roles(roleMitglied, roleUni, reason="Automatic role by bot")
+
+        logger.info("%s received the following roles: %s, %s" % (
+            member.nick if member.nick else member.name, roleMitglied.name, roleUni.name)
+                    )
+
+    async def on_member_remove(self, member):
+        pass
+
     async def on_ready(self):
         """
         NOT THE FIRST THING TO BE EXECUTED
@@ -50,21 +90,29 @@ class MyClient(discord.Client):
 
         :return:
         """
-        print('Logged on as', self.user)
+        logger.info("Logged in as: " + str(self.user))
 
         botStartUpService = BotStartUpService.BotStartUpService()
 
         await botStartUpService.startUp(self)
-        print("Users fetched and updated")
+        logger.info("Users fetched and updated")
 
-        # await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
-        print("Commands updated and uploaded")
+        try:
+            await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
+        except Exception as e:
+            logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
+        else:
+            logger.info("Commands synced to Guild")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
-        await client.change_presence(
-            activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
-        )
-        print('Activity set')
+        try:
+            await client.change_presence(
+                activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
+            )
+        except Exception as e:
+            logger.warning("Activity couldn't be set!", exc_info=e)
+        else:
+            logger.info("Activity set")
 
         _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
         # _thread.start()
@@ -134,6 +182,7 @@ intents = discord.Intents.default()
 
 # enables the client to read messages
 intents.message_content = True
+intents.members = True
 
 # instantiates the client
 client = MyClient(intents=intents)
