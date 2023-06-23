@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 
 from discord import Message
@@ -5,19 +6,34 @@ from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
+logger = logging.getLogger("KVGG_BOT")
+
 
 class LogHelper:
+    """
+    Saves the given Logs, usually called by commands, into the database
+    """
 
     def __init__(self):
         self.databaseConnection = getDatabaseConnection()
 
     def addLog(self, message: Message):
+        """
+        Adds a log into the database
+
+        :param message: Whole Message that triggered the logging
+        :return:
+        """
+        logger.info("%s initiated saving a Log" % message.author.name)
+
         if not message.channel.id == int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value):
             return
 
         dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
         if not dcUserDb:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return
 
         with self.databaseConnection.cursor() as cursor:

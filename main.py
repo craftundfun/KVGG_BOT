@@ -543,7 +543,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
     :return:
     """
     xpService = ExperienceService.ExperienceService(client)
-    answer = await xpService.handleXpRequest(userTag=user)
+    answer = await xpService.handleXpRequest(member=interaction.user, userTag=user)
 
     await interaction.response.send_message(answer)
 
@@ -555,7 +555,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def getXpLeaderboard(interaction: discord.Interaction):
     exp = ExperienceService.ExperienceService(client)
-    answer = exp.sendXpLeaderboard()
+    answer = exp.sendXpLeaderboard(interaction.user)
     await interaction.response.send_message(answer)
 
 
@@ -584,5 +584,30 @@ async def beta(ctx: discord.interactions.Interaction, src: str):
 
 """
 
-# starts the client
-client.run(token)
+restartTrys = 5
+
+
+def run():
+    """
+    Starts the bot initially and restarts him 6 times if he crashes
+
+    :return:
+    """
+    global restartTrys
+
+    try:
+        client.run(token=token, reconnect=True)
+    except Exception as e:
+        logger.critical("DER BOT IST GECRASHT", exc_info=e)
+
+        if restartTrys > 0:
+            restartTrys -= 1
+
+            run()
+        else:
+            logger.critical("BOT STOPPING, 5 RESTARTS ENCOUNTERED")
+            sys.exit(1)
+
+
+if __name__ == '__main__':
+    run()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import random
 import string
@@ -12,14 +13,27 @@ from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
+
+logger = logging.getLogger("KVGG_BOT")
 
 
 def isDoubleWeekend(date: datetime = datetime.now()) -> bool:
+    """
+    Returns whether it is currently double-xp-weekend
+
+    :param date:
+    :return:
+    """
     return date.isocalendar()[1] % 2 == 0 and (date.weekday() == 5 or date.weekday() == 6)
 
 
 def getDiffUntilNextDoubleXpWeekend() -> timedelta:
+    """
+    Gets the time until the next double-xp-weekend
+
+    :return: Timedelta of duration
+    """
     now = datetime.now()  # get current time
     weekday = now.weekday()  # get current weekday
     daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
@@ -35,7 +49,12 @@ def getDiffUntilNextDoubleXpWeekend() -> timedelta:
         return nextNextSaturday - now
 
 
-def getDoubleXpWeekendInformation():
+def getDoubleXpWeekendInformation() -> string:
+    """
+    Returns a string with information about this or the upcoming double-xp-weekend
+
+    :return:
+    """
     if isDoubleWeekend():
         return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
     else:
@@ -46,6 +65,13 @@ def getDoubleXpWeekendInformation():
 
 
 async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
+    """
+    Sends a DM to the given user to inform him about the currently active double-xp-weekend
+
+    :param dcUserDb: DiscordUser, who will be informed
+    :param client: Bot
+    :return:
+    """
     if not dcUserDb['double_xp_notification'] or not isDoubleWeekend():
         return
 
@@ -69,7 +95,14 @@ class ExperienceService:
         self.databaseConnection = getDatabaseConnection()
         self.client = client
 
-    def getExperience(self, userId: int) -> dict | None:
+    def __getExperience(self, userId: int) -> dict | None:
+        """
+        Returns the Experience from the given user. If no entry exists, it will create one
+
+        :param userId: User of the Experience
+        :return:
+        """
+        logger.info("Fetching Experience")
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, last_spin_for_boost, " \
                     "active_xp_boosts " \
@@ -81,9 +114,11 @@ class ExperienceService:
 
             data = cursor.fetchone()
 
-            # data can be None here, not the value
             if not data:
-                self.createExperience(userId)
+                if not self.__createExperience(userId):
+                    logger.warning("Couldn't fetch Experience!")
+
+                    return None
 
                 query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, " \
                         "last_spin_for_boost, active_xp_boosts " \
@@ -96,47 +131,61 @@ class ExperienceService:
                 data = cursor.fetchone()
 
                 if not data:
+                    logger.warning("Couldn't fetch Experience!")
+
                     return None
 
         return dict(zip(cursor.column_names, data))
 
-    # TODO reduce database load - get information once and use them
-    def createExperience(self, userId: int):
-        xpAmount = self.calculateXpFromPreviousData(userId)
-        xpBoosts = self.calculateXpBoostsFromPreviousData(userId)
+    def __createExperience(self, userId: int) -> bool:
+        """
+        Creates an Experience for the given user
+
+        :param userId: User of the Experience
+        :return: bool - Whether creation of Experience was successful
+        """
+        logger.info("Creating Experience")
+
+        xpAmount = self.__calculateXpFromPreviousData(userId)
+        xpBoosts = self.__calculateXpBoostsFromPreviousData(userId)
+        dcUserDb = getDiscordUserById(self.databaseConnection, userId)
+
+        if dcUserDb is None:
+            logger.warning("Couldn't create Experience!")
+            return False
 
         with self.databaseConnection.cursor() as cursor:
-            query = "SELECT id FROM discord WHERE user_id = %s"
-
-            cursor.execute(query, (userId,))
-
-            dcUserDbId = cursor.fetchone()
-
-            if dcUserDbId:
-                # user in database
-                dcUserDbId = dcUserDbId[0]
-            else:
-                return None  # TODO create new DiscordUser, but look out if it's really necessary
-
             query = "INSERT INTO experience (xp_amount, discord_user_id, xp_boosts_inventory) " \
                     "VALUES (%s, %s, %s)"
 
-            cursor.execute(query, (xpAmount, dcUserDbId, xpBoosts))
+            cursor.execute(query, (xpAmount, dcUserDb['id'], xpBoosts))
             self.databaseConnection.commit()
 
-    def calculateXpBoostsFromPreviousData(self, dcUserDbId: int):
+        return True
+
+    def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> string | None:
+        """
+        Calculates the XP-Boosts that were earned until now
+
+        :param dcUserDbId: Id of the user
+        :return: None | string JSON of earned boots, otherwise None
+        """
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT time_online FROM discord WHERE user_id = %s"
 
             cursor.execute(query, (dcUserDbId,))
 
-            timeOnline = cursor.fetchone()
+            data = cursor.fetchone()
 
-        timeOnline = timeOnline[0]
+            if not data:
+                return None
+
+            timeOnline = dict(zip(cursor.column_names, data))['time_online']
 
         if not timeOnline:
             return None
 
+        # get a floored number of grant-able boosts
         numberAchievementBoosts = timeOnline / (ExperienceParameter.XP_BOOST_FOR_EVERY_X_HOURS.value * 60)
         flooredNumberAchievementBoosts = math.floor(numberAchievementBoosts)
         intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
@@ -160,7 +209,13 @@ class ExperienceService:
 
         return json.dumps(boosts)
 
-    def calculateXpFromPreviousData(self, userId: int):
+    def __calculateXpFromPreviousData(self, userId: int) -> int:
+        """
+        Calculates the XP that was earned until now
+
+        :param userId: User of the Experience
+        :return: int
+        """
         amount = 0
 
         with self.databaseConnection.cursor() as cursor:
@@ -170,7 +225,13 @@ class ExperienceService:
 
             cursor.execute(query, (userId,))
 
-            data = dict(zip(cursor.column_names, list(cursor.fetchone())))
+            data = cursor.fetchone()
+
+            if not data:
+                logger.warning("Couldn't calculate previously earned xp!")
+                return 0
+
+            data = dict(zip(cursor.column_names, data))
 
         if timeOnline := data['time_online']:
             amount += timeOnline * ExperienceParameter.XP_FOR_ONLINE.value
@@ -183,16 +244,29 @@ class ExperienceService:
 
         return amount
 
+    @DeprecationWarning
     def checkAndGrantXpBoost(self):
         pass  # only necessary for cronjob
 
     async def spinForXpBoost(self, member: Member) -> string:
+        """
+        Xp-Boost-Spin for member
+
+        :param member: Member, who started the spin
+        :return:
+        """
+        logger.info("%s requested XP-SPIN." % member.name)
+
         if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return "Es ist etwas schief gelaufen!"
 
-        xp = self.getExperience(dcUserDb['user_id'])
+        xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
+            logger.warning("Couldn't spin because of missing DiscordUser!")
+
             return "Es ist etwas schief gelaufen!"
 
         inventoryJson = xp['xp_boosts_inventory']
@@ -265,11 +339,18 @@ class ExperienceService:
 
             return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
 
-    # returns xp for given user or changes settings for double-xp-notification
-    async def handleXpRequest(self, userTag: str) -> string:
+    async def handleXpRequest(self, member: Member, userTag: str) -> string:
+        """
+        Handles the XP-Request of the given tag
+
+        :param member: Member, who called the command
+        :param userTag: Tag of the requested user
+        :return: string - answer
+        """
+
         # lazy import to avoid circular import
         from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
-
+        logger.info("%s requested XP" % member.name)
         # TODO improve
         """
         if messageParts[1] == 'on':
@@ -327,11 +408,15 @@ class ExperienceService:
         dcUserDb = getDiscordUser(self.databaseConnection, taggedMember)
 
         if dcUserDb is None:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return "Es ist ein Fehler aufgetreten!"
 
-        xp = self.getExperience(dcUserDb['user_id'])
+        xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
+            logger.warning("Couldn't fetch Experience!")
+
             return "Es ist ein Fehler aufgetreten!"
 
         reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
@@ -340,14 +425,28 @@ class ExperienceService:
         return reply
 
     async def handleXpInventory(self, member: Member, action: str, row: str = None):
+        """
+        Handles the XP-Inventory
+
+        :param member: Member, who the inventory belongs to
+        :param action: Action the user wants to perform with his inventory
+        :param row: Optional row to choose boost from
+        :return:
+        """
+        logger.info("%s requested Xp-Inventory" % member.name)
+
         dcUserDb: dict | None = getDiscordUser(self.databaseConnection, member)
 
         if dcUserDb is None:
+            logger.warning("Couldn't fetch DiscordUser")
+
             return "Es ist ein Fehler aufgetreten!"
 
-        xp = self.getExperience(dcUserDb['user_id'])
+        xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
+            logger.warning("Couldn't fetch Experience")
+
             return "Es ist ein Fehler aufgetreten!"
 
         if action == 'list':
@@ -484,9 +583,20 @@ class ExperienceService:
         return answer
 
     def addExperience(self, dcUserDb: dict, experienceParameter: int):
-        xp = self.getExperience(dcUserDb['user_id'])
+        """
+        Adds the given amount of xp to the given user
+
+        :param dcUserDb: DiscordUser, who receives the xp
+        :param experienceParameter: Amount of xp
+        :return:
+        """
+        logger.info("%s gets XP" % dcUserDb['username'])
+
+        xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
+            logger.warning("Couldn't fetch Experience")
+
             return
 
         currentXpAmount = xp['xp_amount']
@@ -519,7 +629,14 @@ class ExperienceService:
 
             self.databaseConnection.commit()
 
-    def sendXpLeaderboard(self) -> string:
+    def sendXpLeaderboard(self, member: Member) -> string:
+        """
+        Answers the Xp-Leaderboard
+
+        :param member: Member, who called the command
+        :return:
+        """
+        logger.info("%s requested XP-Leaderboard" % member.name)
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT d.username, e.xp_amount " \
                     "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
@@ -532,6 +649,8 @@ class ExperienceService:
             data = cursor.fetchall()
 
             if data is None:
+                logger.warning("Couldn't fetch leaderboard-data!")
+
                 return "Es ist ein Fehler aufgetreten!"
 
         users = [dict(zip(cursor.column_names, date)) for date in data]
@@ -541,8 +660,6 @@ class ExperienceService:
             reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
 
         return reply
-
-
 
     def __del__(self):
         self.databaseConnection.close()

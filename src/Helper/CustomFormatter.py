@@ -1,5 +1,9 @@
 import logging
 
+"""
+CUSTOM FORMATTER FOR LOGGING - DONT TOUCH
+"""
+
 
 class CustomFormatter(logging.Formatter):
     grey = "\x1b[38;20m"

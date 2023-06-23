@@ -93,6 +93,28 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
     return dcUserDb
 
 
+def getDiscordUserById(databaseConnection: MySQLConnection, userId: int) -> dict | None:
+    """
+    Returns a discord user from the database.
+    Doesn't create one if missing or else.
+
+    :param databaseConnection: DatabaseConnection to execute the query
+    :param userId: Id of the user
+    :return: dict | None
+    """
+    with databaseConnection.cursor() as cursor:
+        query = "SELECT * FROM discord WHERE user_id = %s"
+
+        cursor.execute(query, (userId,))
+
+        data = cursor.fetchone()
+
+        if not data:
+            return None
+
+        return dict(zip(cursor.column_names, data))
+
+
 def getOnlineUsers(databaseConnection: MySQLConnection) -> List[Dict[Any, Any]] | None:
     """
     Retrieves all current users that are online (according to our database)

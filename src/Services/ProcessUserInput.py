@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import array
 import json
+import logging
 import string
 from datetime import datetime
 
@@ -19,19 +20,33 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import Time
-from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers
+from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Helper.getFormattedTime import getFormattedTime
 
+logger = logging.getLogger("KVGG_BOT")
+
 
 def getMessageParts(content: string) -> array:
+    """
+    Splits the string at spaces, removes empty splits
+
+    :param content: String to split
+    :return:
+    """
     messageParts = content.split(' ')
     return [part for part in messageParts if part.strip() != ""]
 
 
-def getUserIdByTag(tag: string) -> int | None:  # TODO change in all usages
+def getUserIdByTag(tag: string) -> int | None:
+    """
+    Filters out the user id from a tag <@123> => 123
+
+    :param tag: tag from Discord
+    :return: int - user id
+    """
     try:
         return int(tag[2:len(tag) - 1])
     except ValueError:
@@ -39,11 +54,24 @@ def getUserIdByTag(tag: string) -> int | None:  # TODO change in all usages
 
 
 def getTagStringFromId(tag: string) -> string:
+    """
+    Builds a tag from the given user id 123 => <@123>
+
+    :param tag: Tag to be transformed
+    :return:
+    """
     return "<@%s>" % tag
 
 
 # TODO maybe improve
 def hasUserWantedRoles(author: Message.author, *roles) -> bool:
+    """
+    Compares the wanted roles with the ones the author has
+
+    :param author: Member, whose roles are checked
+    :param roles: Roles to be allowed
+    :return:
+    """
     for role in roles:
         id = role.value
         rolesFromAuthor = author.roles
@@ -56,6 +84,9 @@ def hasUserWantedRoles(author: Message.author, *roles) -> bool:
 
 
 class ProcessUserInput:
+    """
+    Handles almost all things regarding the chat and commands
+    """
 
     def __init__(self, client: Client):
         self.databaseConnection = getDatabaseConnection()
@@ -63,12 +94,18 @@ class ProcessUserInput:
         self.logHelper = LogHelper.LogHelper()
 
     async def processMessage(self, message: Message):
+        logger.info("%s initated the processing of his / her message" % message.author.name)
+
         if message.channel.guild.id is None or message.author.id is None:
+            logger.warning("GuildId of AuthorId were None")
+
             return
 
         dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
         if not dcUserDb:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return
 
         # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
@@ -76,6 +113,7 @@ class ProcessUserInput:
             dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
         else:
             dcUserDb['message_count_all_time'] = 1
+
         es = ExperienceService.ExperienceService(self.client)
         es.addExperience(dcUserDb, ExperienceParameter.XP_FOR_MESSAGE.value)
 
@@ -83,31 +121,45 @@ class ProcessUserInput:
 
         await self.processCommand(message)
 
+    @DeprecationWarning
     def getDiscordUserFromDatabase(self, userId: int) -> dict | None:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE user_id = %s"
 
             cursor.execute(query, ([userId]))
-            dcUserDb = cursor.fetchall()  # fetchone TODO
+            dcUserDb = cursor.fetchall()
 
             if not dcUserDb:
-                pass  # TODO create DiscordUser
+                pass
                 return None
 
             return dict(zip(cursor.column_names, dcUserDb[0]))
 
-    def saveDiscordUserToDatabase(self, userId: string, data):
+    def saveDiscordUserToDatabase(self, primaryKey: string, data):
+        """
+        Helper to save a DiscordUser from this class into the database
+
+        :param primaryKey: Primary key of the user
+        :param data: Data
+        :return:
+        """
         with self.databaseConnection.cursor() as cursor:
-            query = WriteSaveQuery.writeSaveQuery(
+            query, nones = WriteSaveQuery.writeSaveQuery(
                 "discord",
-                userId,
+                primaryKey,
                 data
             )
 
-            cursor.execute(query[0], query[1])
+            cursor.execute(query, nones)
             self.databaseConnection.commit()
 
     async def processCommand(self, message: Message):
+        """
+        # TODO
+
+        :param message:
+        :return:
+        """
         # TODO count messeage up even with interaction, maybe in fuction that gets called at every command
         command = message.content
 
@@ -243,8 +295,10 @@ class ProcessUserInput:
 
             return reply
 
-        tag = getUserIdByTag(userTag)
-        dcUserDb = self.getDiscordUserFromDatabase(tag)
+        if (tag := getUserIdByTag(userTag)) is None:
+            return "Bitte tagge einen User korrekt!"
+
+        dcUserDb = getDiscordUserById(self.databaseConnection, tag)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             return "Dieser Benutzer war noch nie online!"
@@ -555,7 +609,8 @@ class ProcessUserInput:
 
     # TODO improve sending DMs
     async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
-        tag = getUserIdByTag(userTag)
+        if (tag := getUserIdByTag(userTag)) is None:
+            return "Bitte tagge einen User korrekt!"
 
         try:
             member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)

@@ -1,5 +1,9 @@
 import logging
 
+"""
+CUSTOM FORMATTER FOR LOGGING - DONT TOUCH
+"""
+
 
 class CustomFormatterFile(logging.Formatter):
     format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"

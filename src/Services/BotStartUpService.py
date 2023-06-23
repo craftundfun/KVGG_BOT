@@ -1,9 +1,10 @@
-import mysql
-
+import logging
 from datetime import datetime
 from discord import Client, ChannelType
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+
+logger = logging.getLogger("KVGG_BOT")
 
 
 class BotStartUpService:
@@ -12,6 +13,13 @@ class BotStartUpService:
         self.databaseConnection = getDatabaseConnection()
 
     async def startUp(self, client: Client):
+        """
+        Brings the database up to the current state of the server
+
+        :param client: Discord client
+        :return:
+        """
+        logger.info("Beginning fetching data")
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord"
 
