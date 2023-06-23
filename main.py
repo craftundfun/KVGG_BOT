@@ -341,7 +341,7 @@ async def answerQuote(interaction: discord.Interaction):
     Choice(name="Uni-Zeit", value="uni"),
 ])
 @app_commands.describe(zeit="Wähle die Zeit aus!")
-@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+@app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
 async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: str, param: str = None):
     """

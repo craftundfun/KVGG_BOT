@@ -20,6 +20,7 @@ class BotStartUpService:
         :return:
         """
         logger.info("Beginning fetching data")
+
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord"
 
