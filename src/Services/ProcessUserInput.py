@@ -63,7 +63,6 @@ def getTagStringFromId(tag: string) -> string:
     return "<@%s>" % tag
 
 
-# TODO maybe improve
 def hasUserWantedRoles(author: Message.author, *roles) -> bool:
     """
     Compares the wanted roles with the ones the author has
@@ -93,11 +92,18 @@ class ProcessUserInput:
         self.client = client
         self.logHelper = LogHelper.LogHelper()
 
-    async def processMessage(self, message: Message):
+    def processMessage(self, message: Message):
+        """
+        Increases the message count and adds XP
+
+        :param message:
+        :return:
+        """
+        raise Exception("TEST")
         logger.info("%s initated the processing of his / her message" % message.author.name)
 
         if message.channel.guild.id is None or message.author.id is None:
-            logger.warning("GuildId of AuthorId were None")
+            logger.warning("GuildId or AuthorId were None")
 
             return
 
@@ -108,21 +114,19 @@ class ProcessUserInput:
 
             return
 
-        # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
+        # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value: # TODO add again
         if dcUserDb['message_count_all_time']:
             dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
         else:
             dcUserDb['message_count_all_time'] = 1
 
         es = ExperienceService.ExperienceService(self.client)
-        es.addExperience(dcUserDb, ExperienceParameter.XP_FOR_MESSAGE.value)
+        es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
-        self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
-
-        await self.processCommand(message)
+        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
     @DeprecationWarning
-    def getDiscordUserFromDatabase(self, userId: int) -> dict | None:
+    def __getDiscordUserFromDatabase(self, userId: int) -> dict | None:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE user_id = %s"
 
@@ -135,7 +139,7 @@ class ProcessUserInput:
 
             return dict(zip(cursor.column_names, dcUserDb[0]))
 
-    def saveDiscordUserToDatabase(self, primaryKey: string, data):
+    def __saveDiscordUserToDatabase(self, primaryKey: string, data):
         """
         Helper to save a DiscordUser from this class into the database
 
@@ -153,7 +157,7 @@ class ProcessUserInput:
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
-    async def processCommand(self, message: Message):
+    async def __processCommand(self, message: Message):
         """
         # TODO
 
@@ -169,12 +173,13 @@ class ProcessUserInput:
 
             return
 
-        command = self.getCommand(command)
+        command = self.__getCommand(command)
 
         # close the connection to the database at the end
         self.databaseConnection.close()
 
-    def getCommand(self, command: string) -> ChatCommand | None:
+    @DeprecationWarning
+    def __getCommand(self, command: string) -> ChatCommand | None:
         command = command.split(' ')[0]
 
         for enum_command in ChatCommand:
@@ -183,7 +188,15 @@ class ProcessUserInput:
 
         return None
 
-    async def answerJoke(self, category: str):
+    async def answerJoke(self, member: Member, category: str):
+        """
+        Answers a joke from an API
+
+        :param category: Optional category of the joke - might not work due to API limitations
+        :return:
+        """
+        logger.info("%s requested a joke" % member.name)
+
         payload = {
             'language': 'de',
             'category': category,
@@ -195,6 +208,8 @@ class ProcessUserInput:
         )
 
         if answer.status_code != 200:
+            logger.warning("API sent an invalid response!")
+
             return "Es gab Probleme beim Erreichen der API - kein Witz."
 
         answer = answer.content.decode('utf-8')
@@ -202,8 +217,16 @@ class ProcessUserInput:
 
         return data[0]['text']
 
-    # moves all users in the authors voice channel to the given one
     async def moveUsers(self, channelName: string, member: Member) -> string:
+        """
+        Moves all users from the initiator channel to the given one
+
+        :param channelName: Chosen channel to move user to
+        :param member: Member who initiated the move
+        :return:
+        """
+        logger.info("%s requested to move users into %s" % (member.name, channelName))
+
         channelDestination = None
 
         channels = self.client.get_all_channels()
@@ -220,6 +243,8 @@ class ProcessUserInput:
                 break
 
         if channelDestination is None:
+            logger.warning("Couldn't fetch channel!")
+
             return "Channel konnte nicht gefunden werden!"
 
         authorId = member.id
@@ -253,11 +278,26 @@ class ProcessUserInput:
 
             return "Alle User wurden erfolgreich verschoben!"
         except discord.Forbidden:
+            logger.error("I dont have rights move the users!")
+
             return "Ich habe dazu leider keine Berechtigung!"
-        except discord.HTTPException:
+        except discord.HTTPException as e:
+            logger.warning("Something went wrong!", exc_info=e)
+
             return "Irgendetwas ist schief gelaufen!"
 
     async def accessTimeAndEdit(self, time: Time, userTag: string, member: Member, param: string | None) -> string:
+        """
+        Answering given Time from given User or adds (subtracts) given amount
+
+        :param time: Time-type
+        :param userTag: Requested user
+        :param member: Requesting Member
+        :param param: Optional amount of time added or subtracted
+        :return:
+        """
+        logger.info("%s requested %s-Time" % (member.name, time.getName()))
+
         # all users
         if userTag == 'all' and param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             try:
@@ -291,7 +331,7 @@ class ProcessUserInput:
                         reply += "Die Stream-Zeit von %s wurde um %d erhöht!\n" % (
                             getTagStringFromId(user['user_id']), correction)
 
-                self.saveDiscordUserToDatabase(user['id'], user)
+                self.__saveDiscordUserToDatabase(user['id'], user)
 
             return reply
 
@@ -301,6 +341,9 @@ class ProcessUserInput:
         dcUserDb = getDiscordUserById(self.databaseConnection, tag)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
+            if not dcUserDb:
+                logger.warning("Couldn't fetch DiscordUser!")
+
             return "Dieser Benutzer war noch nie online!"
 
         if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
@@ -314,7 +357,7 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self.saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+            self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
             return "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" % (
                 time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter
@@ -322,6 +365,7 @@ class ProcessUserInput:
         else:
             return time.getStringForTime(dcUserDb)
 
+    @DeprecationWarning
     async def sendHelp(self, message: Message):
         messageParts = getMessageParts(message.content)
 
@@ -342,7 +386,7 @@ class ProcessUserInput:
             await message.reply(output)
 
         elif len(messageParts) == 2:
-            command = self.getCommand(messageParts[1])
+            command = self.__getCommand(messageParts[1])
 
             if not command:
                 await message.reply("Diesen Befehl gibt es nicht!")
@@ -365,6 +409,17 @@ class ProcessUserInput:
                 await message.reply("'%s'" % commandExplanation[0])
 
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str):
+        """
+        Lets the user change their WhatsApp settings
+
+        :param member: Member, who requested a change of his / her settings
+        :param type: Type of messages (gaming or university)
+        :param action: Action of the messages (join or leave)
+        :param switch: Switch (on / off)
+        :return:
+        """
+        logger.info("%s requested a change of his / her WhatsApp settings" % member.name)
+
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT u.id, recieve_join_notification, receive_leave_notification, " \
@@ -377,6 +432,8 @@ class ProcessUserInput:
             user = dict(zip(cursor.column_names, cursor.fetchone()))
 
         if not user:
+            logger.warning("Couldn't fetch corresponding user!")
+
             return "Du bist nicht als User bei uns registriert!"
 
         if type == 'Gaming':
@@ -414,8 +471,6 @@ class ProcessUserInput:
                 elif switch == 'off':
                     user['receive_uni_leave_notification'] = 0
 
-        print(user)
-
         with self.databaseConnection.cursor() as cursor:
             query, noneTuple = WriteSaveQuery.writeSaveQuery(
                 rp.getParameter(rp.Parameters.NAME) + ".user",
@@ -428,7 +483,15 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde übernommen!"
 
-    async def sendLeaderboard(self):
+    async def sendLeaderboard(self, member: Member) -> string:
+        """
+        Returns the leaderboard of our stats in the database
+
+        :param member: Member, who requested the leaderboard
+        :return:
+        """
+        logger.info("%s requested our leaderboard" % member.name)
+
         with self.databaseConnection.cursor() as cursor:
             # online time
             query = "SELECT username, formated_time " \
@@ -571,19 +634,25 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
 
-        answer += self.leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
-        answer += self.leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
-        answer += self.leaderboardHelperCounter(usersPaulCounter, PaulCounter.PaulCounter())
-        answer += self.leaderboardHelperCounter(usersBjarneCounter, BjarneCounter.BjarneCounter())
-        answer += self.leaderboardHelperCounter(usersOlegCounter, OlegCounter.OlegCounter())
-        answer += self.leaderboardHelperCounter(usersJjCounter, JjCounter.JjCounter())
-        answer += self.leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
-        answer += self.leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
+        answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
+        answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
+        answer += self.__leaderboardHelperCounter(usersPaulCounter, PaulCounter.PaulCounter())
+        answer += self.__leaderboardHelperCounter(usersBjarneCounter, BjarneCounter.BjarneCounter())
+        answer += self.__leaderboardHelperCounter(usersOlegCounter, OlegCounter.OlegCounter())
+        answer += self.__leaderboardHelperCounter(usersJjCounter, JjCounter.JjCounter())
+        answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
+        answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
 
-        # await message.reply(answer)
         return answer
 
-    def leaderboardHelperCounter(self, users, counter: Counter) -> string:
+    def __leaderboardHelperCounter(self, users, counter: Counter) -> string:
+        """
+        Helper for listing a leaderboard entry for given counter
+
+        :param users: List of users
+        :param counter: counter-type
+        :return:
+        """
         if len(users) < 1:
             return ""
 
@@ -595,6 +664,14 @@ class ProcessUserInput:
         return answer
 
     async def sendRegistrationLink(self, member: Member):
+        """
+        Sends an individual invitaion link to the member who requested it
+
+        :param member:
+        :return:
+        """
+        logger.info("%s request a registration link" % member.name)
+
         link = "https://axellotl.de/register/"
         link += str(member.id)
 
@@ -602,24 +679,43 @@ class ProcessUserInput:
             await member.create_dm()
 
             if not member.dm_channel:
+                logger.warning("Couldn't create DM for %s!" % member.name)
+
                 return "Es gab Probleme dir eine Nachricht zu schreiben!"
 
         await member.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
+
         return "Dir wurde das Formular privat gesendet!"
 
     # TODO improve sending DMs
     async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
+        """
+        Answering given Counter from given User or adds (subtracts) given amount
+
+        :param counter: Chosen counter-type
+        :param userTag: User which counter was requested
+        :param member: Member who requested the counter
+        :param param: Optional amount of time to add / subtract
+        :return:
+        """
+        logger.info("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
+
         if (tag := getUserIdByTag(userTag)) is None:
             return "Bitte tagge einen User korrekt!"
 
+        # get requested user as member from guild
         try:
             member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
         except discord.errors.HTTPException:
-            return "Kein gültiger Benutzer!"
+            logger.warning("Couldn't fetch member from guild!")
+
+            return "Entweder existiert der Nutzer / die Nutzerin nicht oder es gab einen Fehler!"
 
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return "Dieser Benutzer existiert (noch) nicht!"
 
         counter.setDiscordUser(dcUserDb)
@@ -832,7 +928,16 @@ class ProcessUserInput:
             self.databaseConnection.commit()
         """
 
-    async def sendLogs(self, member: Member, amount: int):
+    async def sendLogs(self, member: Member, amount: int) -> string:
+        """
+        Answer a given amount of Logs from our database
+
+        :param member: Member, who requested the insight
+        :param amount: Amount of Logs to be returned
+        :return: string - Answer
+        """
+        logger.info("%s requested %d Logs" % (member.name, amount))
+
         if hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             with self.databaseConnection.cursor() as cursor:
                 query = "SELECT discord.user_id, logs.command, logs.created_at " \
@@ -846,6 +951,8 @@ class ProcessUserInput:
                 logs = cursor.fetchall()
 
                 if not logs:
+                    logger.warning("Couldn't fetch Logs!")
+
                     return "Es ist ein Fehler aufgetreten!"
 
             answer = "Die letzten %d Logs:\n\n" % amount

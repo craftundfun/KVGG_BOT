@@ -582,15 +582,30 @@ class ExperienceService:
 
         return answer
 
-    def addExperience(self, dcUserDb: dict, experienceParameter: int):
+    def addExperience(self, experienceParameter: int, dcUserDb: dict = None, member: Member = None):
         """
         Adds the given amount of xp to the given user
 
+        :param member: Optional Member if DiscordUser is not used
         :param dcUserDb: DiscordUser, who receives the xp
         :param experienceParameter: Amount of xp
         :return:
         """
-        logger.info("%s gets XP" % dcUserDb['username'])
+        if dcUserDb:
+            logger.info("%s gets XP" % dcUserDb['username'])
+        elif member:
+            logger.info("%s gets XP" % member.name)
+        else:
+            logger.warning("Someone is getting XP, but nothing is given!")
+
+        if not dcUserDb:
+            if member is None:
+                raise ValueError
+
+            if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
+                logger.error("Couldn't fetch DiscordUser!")
+
+                return 
 
         xp = self.__getExperience(dcUserDb['user_id'])
 

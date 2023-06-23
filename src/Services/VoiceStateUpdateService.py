@@ -1,3 +1,5 @@
+import logging
+
 import discord
 
 from datetime import datetime
@@ -9,31 +11,32 @@ from src.Services import ExperienceService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
+logger = logging.getLogger("KVGG_BOT")
+
 
 class VoiceStateUpdateService:
-
+    """
+    Handles every VoiceState and keeps the database up to date
+    """
     def __init__(self, client: discord.Client):
         self.databaseConnection = getDatabaseConnection()
         self.client = client
         self.waHelper = WhatsAppHelper()
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
+        logger.info("%s raised a VoiceStateUpdate" % member.name)
+
         if not member:
             return
         elif member.bot:
             return
 
-        # TODO insert VoiceState
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
-            return
+            logger.error("Couldn't fetch DiscordUser from %s!" % member.name)
 
-        # only needed for console print
-        if member.nick:
-            username = member.nick
-        else:
-            username = member.name
+            return
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
@@ -110,6 +113,12 @@ class VoiceStateUpdateService:
             self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
 
     def __saveDiscordUser(self, dcUserDb: dict):
+        """
+        Saves the given DiscordUser to our database
+
+        :param dcUserDb: DiscordUser to save
+        :return:
+        """
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
                 'discord',
@@ -118,9 +127,17 @@ class VoiceStateUpdateService:
             )
 
             cursor.execute(query, nones)
-        self.databaseConnection.commit()
+            self.databaseConnection.commit()
 
     async def __checkFelixCounterAndSendStopMessage(self, dcUserDb: dict):
+        """
+        Check if the given DiscordUser had a Felix-Counter, if so it stops the timer
+
+        :param dcUserDb:
+        :return:
+        """
+        logger.info("Checking Felix-Timer from %" % dcUserDb['username'])
+
         if dcUserDb['felix_counter_start'] is not None:
             dcUserDb['felix_counter_start'] = None
         else:
@@ -133,6 +150,8 @@ class VoiceStateUpdateService:
             await member.create_dm()
 
             if not member.dm_channel:
+                logger.warning("Couldn't create DM!")
+
                 return
 
         await member.dm_channel.send("Dein Felix-Counter wurde beendet!")

@@ -11,4 +11,6 @@ ADD main.py .
 ADD src ./src
 ADD parameters.yaml .
 
+ENV AM_I_IN_A_DOCKER_CONTAINER Yes
+
 CMD ["python3", "./main.py"]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import string
 
 from datetime import datetime, timedelta
@@ -12,12 +13,27 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 
+logger = logging.getLogger("KVGG_BOT")
+
 
 class WhatsAppHelper:
+    """
+    Creates and manages WhatsApp-messages
+    """
+
     def __init__(self):
         self.databaseConnection = getDatabaseConnection()
 
     def sendOnlineNotification(self, member: Member, update: VoiceState):
+        """
+        Creates an online notification, but only for allowed channels and users who are opted-in
+
+        :param member: Member that the users will be notified about
+        :param update: VoiceStateUpdate
+        :return:
+        """
+        logger.info("Creating Online-Notification for %s" % member.name)
+
         # if a channel does not count time
         if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
                 update.channel.id) not in ChannelIdUniversityTracking.getValues():
@@ -29,6 +45,8 @@ class WhatsAppHelper:
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
+            logger.warning("Couldn't fetch DiscordUser!")
+
             return
 
         if not self.__canSendMessage(dcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE.value):
@@ -46,6 +64,8 @@ class WhatsAppHelper:
             data = cursor.fetchall()
 
             if data is None:
+                logger.warning("Couldn't fetch users!")
+
                 return
 
             users = [dict(zip(cursor.column_names, date)) for date in data]
@@ -64,6 +84,16 @@ class WhatsAppHelper:
                 self.__queueWhatsAppMessage(dcUserDb, update.channel, user, member.name)
 
     def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
+        """
+        Creates an offline notification, but only for allowed channels and users who are opted-in
+
+        :param dcUserDb: DiscordUser that caused the notification
+        :param update: VoiceStateUpdate
+        :param member: Member that caused the notification
+        :return:
+        """
+        logger.info("Creating Offline-Notification for %s" % member.name)
+
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM user WHERE phone_number IS NOT NULL and api_key_whats_app IS NOT NULL"
 
@@ -72,6 +102,8 @@ class WhatsAppHelper:
             data = cursor.fetchall()
 
             if not data:
+                logger.warning("Couldn't fetch users!")
+
                 return
 
             users = [dict(zip(cursor.column_names, date)) for date in data]
@@ -89,6 +121,16 @@ class WhatsAppHelper:
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
+        """
+        If a DiscordUser switches channel within a timeinterval the unsent message will be edited
+
+        :param dcUserDb: DiscordUser, who changed the channels
+        :param channelName: New Channel
+        :return:
+        """
+        # TODO check in welchen Channel User joint, ggf. nachricht löschen
+        logger.info("Editing message from %s caused by changing channels" % dcUserDb['username'])
+
         if (messages := getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:
             return
 
@@ -110,6 +152,13 @@ class WhatsAppHelper:
             self.databaseConnection.commit()
 
     def __canSendMessage(self, dcUserDb: dict, intervalTime: int) -> bool:
+        """
+        If the given user can send a notification based on his absence, etc.
+
+        :param dcUserDb: DiscordUser to check
+        :param intervalTime: Time to wait
+        :return:
+        """
         if value := dcUserDb['last_online']:
             now = datetime.now()
             diff: timedelta = value - now
@@ -119,6 +168,13 @@ class WhatsAppHelper:
         return True
 
     def __retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool):
+        """
+        Retract messages from the queue if user left a channel fast enough
+
+        :param dcUserDb: DiscordUser that left his channel fast enough
+        :param isJoinMessage: Specify looking for join or leave messages
+        :return:
+        """
         with self.databaseConnection.cursor() as cursor:
             messages = getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, isJoinMessage)
 
@@ -133,6 +189,17 @@ class WhatsAppHelper:
             self.databaseConnection.commit()
 
     def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, user: dict, usernameFromTriggerUser: string):
+        """
+        Saves the message into the queue
+
+        :param triggerDcUserDb: Trigger of the notification
+        :param channel: Channel the user joined into
+        :param user: User to send the message to
+        :param usernameFromTriggerUser: Who triggered the message
+        :return:
+        """
+        logger.info("Queueing message into database")
+
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord WHERE id = %s"
 
@@ -141,6 +208,8 @@ class WhatsAppHelper:
             data = cursor.fetchone()
 
             if data is None:
+                logger.warning("Couldn't fetch DiscordUser!")
+
                 return
 
             dcUserDbRecipient = dict(zip(cursor.column_names, data))

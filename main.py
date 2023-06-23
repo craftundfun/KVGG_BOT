@@ -1,14 +1,17 @@
 from __future__ import unicode_literals
 
 import asyncio
+import logging.handlers
+import signal
 import sys
 import threading
-import discord
-import logging.handlers
-
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
-from discord.app_commands import Choice
+import traceback
 from typing import List
+
+import discord
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
+from discord.app_commands import Choice, commands
+
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
 from src.Helper.CustomFormatter import CustomFormatter
@@ -22,6 +25,8 @@ from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
+from src.Services.EmailService import send_exception_mail
+
 
 # configure Logger
 logger = logging.getLogger("KVGG_BOT")
@@ -34,10 +39,10 @@ fileHandler.setFormatter(CustomFormatterFile())
 logger.addHandler(fileHandler)
 
 # set up Formatter for console
-ch = logging.StreamHandler(sys.stdout)
-ch.setLevel(logging.INFO)
-ch.setFormatter(CustomFormatter())
-logger.addHandler(ch)
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(logging.INFO)
+handler.setFormatter(CustomFormatter())
+logger.addHandler(handler)
 
 
 def thread_wrapper(func, args):
@@ -97,12 +102,26 @@ class MyClient(discord.Client):
         await botStartUpService.startUp(self)
         logger.info("Users fetched and updated")
 
-        try:
-            await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
-        except Exception as e:
-            logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
+        if len(sys.argv) > 1 and sys.argv[1] == "-clean":
+            commandsTree = []
+
+            for command in tree.walk_commands(guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))):
+                if isinstance(command, commands.Command):
+                    commandsTree.append(command)
+
+            for command in commandsTree:
+                tree.remove_command(command.name, guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+
+            await tree.sync(guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+
+            logger.critical("Removed commands from tree. You can end the bot now!")
         else:
-            logger.info("Commands synced to Guild")
+            try:
+                await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
+            except Exception as e:
+                logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
+            else:
+                logger.info("Commands synced to Guild")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         try:
@@ -119,25 +138,19 @@ class MyClient(discord.Client):
 
     async def on_message(self, message: discord.Message):
         """
-        TO BE FILLED # TODO
+        Checks for new Quote
 
         :param message:
         :return:
         """
-
-        return  # TODO
-        # don't respond to ourselves
-        if message.author == self.user:
-            return
-
-        if message.content:
+        if not message.author.bot and not message.content == "":
             pui = ProcessUserInput.ProcessUserInput(self)
-            # try:
-            await pui.processMessage(message)
-            # TODO do something useful
-            # except Exception as e:
-            #    var = traceback.format_exc()
-            #   print(var)
+
+            pui.processMessage(message)
+
+            qm = QuotesManager.QuotesManager(self)
+
+            await qm.checkForNewQuote(message)
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -238,7 +251,7 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
         category = "flachwitze"
     else:
         category = kategorie.value
-    answer = await pui.answerJoke(category)
+    answer = await pui.answerJoke(interaction.user, category)
     await interaction.response.send_message(answer)
 
 
@@ -309,7 +322,7 @@ async def answerQuote(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    answer = await QuotesManager.QuotesManager(client).answerQuote()
+    answer = await QuotesManager.QuotesManager(client).answerQuote(interaction.user)
 
     if answer:
         await interaction.response.send_message(answer)
@@ -459,7 +472,7 @@ async def sendLeaderboard(interaction: discord.Interaction):
     :return:
     """
     pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.sendLeaderboard()
+    answer = await pui.sendLeaderboard(interaction.user)
 
     await interaction.response.send_message(answer)
 
@@ -597,8 +610,12 @@ def run():
 
     try:
         client.run(token=token, reconnect=True)
+    except KeyboardInterrupt:
+        pass  # do nothing, needed for signal
     except Exception as e:
-        logger.critical("DER BOT IST GECRASHT", exc_info=e)
+        logger.critical("----BOT CRASHED----", exc_info=e)
+
+        send_exception_mail(traceback.format_exc())
 
         if restartTrys > 0:
             restartTrys -= 1
@@ -609,5 +626,7 @@ def run():
             sys.exit(1)
 
 
+
 if __name__ == '__main__':
+    # signal.signal(signal.SIGINT, wrapper)
     run()
