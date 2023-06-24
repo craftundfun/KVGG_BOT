@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import List, Dict, Any
 from discord import Message, Member, User
 from mysql.connector import MySQLConnection
 
+logger = logging.getLogger("KVGG_BOT")
 
 @DeprecationWarning
 def __createDiscordUser(message: Message) -> None | dict:
@@ -75,7 +77,11 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
             data = cursor.fetchone()
 
             if not data:
+                logger.error("Couldn't create DiscordUser!")
+
                 return None
+            else:
+                logger.info("New DiscordUser entry for %s" % username)
 
     dcUserDb = dict(zip(cursor.column_names, data))
 
