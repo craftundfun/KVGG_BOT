@@ -351,7 +351,7 @@ class ExperienceService:
         # lazy import to avoid circular import
         from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
         logger.info("%s requested XP" % member.name)
-        # TODO improve
+        # TODO own command for xp-notifications
         """
         if messageParts[1] == 'on':
             dcUserDb = getDiscordUser(self.databaseConnection, message.author)

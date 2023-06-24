@@ -10,6 +10,7 @@ RUN pip install mutagen
 ADD main.py .
 ADD src ./src
 ADD parameters.yaml .
+ADD Logs .
 
 ENV AM_I_IN_A_DOCKER_CONTAINER Yes
 

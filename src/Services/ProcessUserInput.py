@@ -393,7 +393,7 @@ class ProcessUserInput:
 
                 return
             elif command == ChatCommand.XP:
-                pass  # TODO
+                pass
                 return
 
             query = "SELECT execute_explanation FROM commands WHERE command = %s"

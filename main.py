@@ -33,7 +33,7 @@ logger = logging.getLogger("KVGG_BOT")
 logger.setLevel(logging.INFO)
 
 # creates up to 10 log files, every day at midnight a new one is created - if 10 was reached logs will be overwritten
-fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=10)
+fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/', when='midnight', backupCount=10)
 fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(CustomFormatterFile())
 logger.addHandler(fileHandler)
