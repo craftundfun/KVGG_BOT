@@ -128,7 +128,6 @@ class WhatsAppHelper:
         :param channelName: New Channel
         :return:
         """
-        # TODO check in welchen Channel User joint, ggf. nachricht löschen
         logger.info("Editing message from %s caused by changing channels" % dcUserDb['username'])
 
         if (messages := getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:

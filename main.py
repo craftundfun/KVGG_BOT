@@ -152,6 +152,12 @@ class MyClient(discord.Client):
 
             await qm.checkForNewQuote(message)
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        pui = ProcessUserInput.ProcessUserInput(self)
+
+        pui.raiseMessageCounter(interaction.user, interaction.channel)
+
+
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
         Calls the QuotesManager to check if a quote was deleted

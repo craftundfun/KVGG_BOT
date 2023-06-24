@@ -4,16 +4,17 @@ import array
 import json
 import logging
 import string
-from datetime import datetime
-
+import os
 import discord
 import requests
-from discord import Message, Client, Member
 
+from discord import Message, Client, Member
+from datetime import datetime
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Id import ChannelId
 from src.Id.ChatCommand import ChatCommand
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
@@ -27,6 +28,7 @@ from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Helper.getFormattedTime import getFormattedTime
 
 logger = logging.getLogger("KVGG_BOT")
+SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 def getMessageParts(content: string) -> array:
@@ -99,7 +101,6 @@ class ProcessUserInput:
         :param message:
         :return:
         """
-        raise Exception("TEST")
         logger.info("%s initated the processing of his / her message" % message.author.name)
 
         if message.channel.guild.id is None or message.author.id is None:
@@ -114,14 +115,44 @@ class ProcessUserInput:
 
             return
 
-        # if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value: # TODO add again
-        if dcUserDb['message_count_all_time']:
-            dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
-        else:
-            dcUserDb['message_count_all_time'] = 1
+        if message.channel.id != int(ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value):
+            if dcUserDb['message_count_all_time']:
+                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
+            else:
+                dcUserDb['message_count_all_time'] = 1
+        elif not SECRET_KEY:
+            logger.info("Overwrite message count")
+
+            if dcUserDb['message_count_all_time']:
+                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
+            else:
+                dcUserDb['message_count_all_time'] = 1
 
         es = ExperienceService.ExperienceService(self.client)
         es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
+
+        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+
+    def raiseMessageCounter(self, member: Member, channel):
+        """
+        Increases the message count if the given user if he / she used an interaction
+
+        :param member: Member, who called the interaction
+        :param channel: Channel, where the interaction was used
+        :return:
+        """
+        logger.info("Increasing message-count for %s" % member.name)
+
+        dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+        if dcUserDb is None:
+            logger.warning("Couldn't fetch DiscordUser!")
+
+        if channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value and SECRET_KEY:
+            if dcUserDb['message_count_all_time']:
+                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
+            else:
+                dcUserDb['message_count_all_time'] = 1
 
         self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
@@ -157,14 +188,12 @@ class ProcessUserInput:
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
+    @DeprecationWarning
     async def __processCommand(self, message: Message):
         """
-        # TODO
-
         :param message:
         :return:
         """
-        # TODO count messeage up even with interaction, maybe in fuction that gets called at every command
         command = message.content
 
         if not command.startswith('!'):
