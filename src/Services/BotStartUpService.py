@@ -1,8 +1,12 @@
 import logging
+import os
 from datetime import datetime
+
+import discord
 from discord import Client, ChannelType
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
@@ -114,6 +118,9 @@ class BotStartUpService:
                     logger.error("Couldnt create new entry for %s!" % member.name)
 
         self.databaseConnection.commit()
+
+        if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+            await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(file=discord.File("./Logs/log.txt"))
 
     def __del__(self):
         self.databaseConnection.close()
