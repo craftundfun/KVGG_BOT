@@ -458,16 +458,26 @@ class ExperienceService:
             if xp['xp_boosts_inventory'] is None:
                 return "Du hast keine XP-Boosts in deinem Inventar!"
 
-            reply = "Du hast folgende XP-Boosts in deinem Inventar:\n\n"
+            reply = "__Du hast folgende XP-Boosts in deinem Inventar__:\n\n"
             inventory = json.loads(xp['xp_boosts_inventory'])
 
             for index, item in enumerate(inventory, start=1):
                 reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
                          (index, item['description'], item['remaining'], item['multiplier'])
 
+            replyWithoutActive = reply
+
+            if xp['active_xp_boosts'] is not None:
+                reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
+                inventory = json.loads(xp['active_xp_boosts'])
+
+                for index, item in enumerate(inventory, start=1):
+                    reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+                        index, item['description'], item['remaining'], item['multiplier'])
+
             reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
 
-            return reply
+            return reply, replyWithoutActive
         # !inventory use
         else:
             # no xp boosts available
@@ -558,22 +568,6 @@ class ExperienceService:
                 else:
                     return "Deine Eingabe war unültig!"
             # TODO list active ones with leaderboard simultaneous
-        # elif messageParts[1] == 'active':
-        #    if xp['active_xp_boosts'] is None:
-        #        await message.reply("Du hast keine aktiven XP-Boosts!")
-
-        #        return
-
-        #    reply = "Du hast folgende aktive XP-Boosts:\n\n"
-        #    activeBoosts: list = json.loads(xp['active_xp_boosts'])
-
-        #    for index, item in enumerate(activeBoosts, start=1):
-        #        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
-        #            index, item['description'], item['remaining'], item['multiplier'])
-
-        #    await message.reply(reply)
-
-        #    return  # return here to avoid straining the database with an unnecessary save
 
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(

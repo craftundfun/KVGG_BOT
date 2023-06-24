@@ -6,7 +6,7 @@ import signal
 import sys
 import threading
 import traceback
-from typing import List
+from typing import List, Tuple
 
 import discord
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
@@ -410,7 +410,7 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     elif "Cookie" == counter.value:
         nameCounter = CookieCounter.CookieCounter()
     elif "Felix" == counter.value:
-        nameCounter = FelixCounter.FelixCounter()  # TODO felix timer
+        nameCounter = FelixCounter.FelixCounter()
     elif "JJ" == counter.value:
         nameCounter = JjCounter.JjCounter()
     elif "Oleg" == counter.value:
@@ -542,7 +542,15 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
     xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
 
-    await interaction.response.send_message(answer)
+    try:
+        if isinstance(answer, Tuple):
+            await interaction.response.send_message(answer[0])
+        else:
+            await interaction.response.send_message(answer)
+    except discord.errors.HTTPException as e:
+        logger.warning("Message was too long, switching to shorter one!")
+
+        await interaction.response.send_message(answer[1])
 
 
 """HANDLE XP REQUEST"""

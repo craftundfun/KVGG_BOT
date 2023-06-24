@@ -789,6 +789,15 @@ class ProcessUserInput:
                 getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
 
     async def handleFelixTimer(self, member: Member, tag: string, action: string, zeit: string = None):
+        """
+        Handles the Feli-Timer for the given user
+
+        :param member: Member, who raised the command
+        :param tag: Tag of the user whose timer will be edited
+        :param action: Chosen action, start or stop
+        :param zeit: Optional time to start the timer at
+        :return:
+        """
         logger.info("Handling Felix-Timer by %s" % member.name)
 
         userId = getUserIdByTag(tag)
