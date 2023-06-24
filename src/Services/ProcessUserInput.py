@@ -9,7 +9,7 @@ import discord
 import requests
 
 from discord import Message, Client, Member
-from datetime import datetime
+from datetime import datetime, timedelta
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
@@ -788,173 +788,124 @@ class ProcessUserInput:
             return "%s hat einen %s-Counter von %d!" % (
                 getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
 
-        """
-        # !NAME @Bjarne
-        if messageLength == 2:
-            await message.reply("%s hat einen %s-Counter von %d!" % (
-                getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
-                                )
+    async def handleFelixTimer(self, member: Member, tag: string, action: string, zeit: string = None):
+        logger.info("Handling Felix-Timer by %s" % member.name)
 
-            return
-        # !felix @Bjarne start / stop
-        elif isinstance(counter, FelixCounter.FelixCounter) and messageParts[2] in FelixCounter.getAllKeywords():
-            # !felix @Bjarne start
-            if messageParts[2] == FelixCounter.FELIX_COUNTER_START_KEYWORD:
-                # no timer set and not online -> can set timer
-                if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
-                    date = None
+        userId = getUserIdByTag(tag)
+        dcUserDb = getDiscordUserById(self.databaseConnection, userId)
 
-                    # with time
-                    if messageLength == 4:
-                        # get the datetime
-                        try:
-                            timeToStart = datetime.strptime(messageParts[3], "%H:%M")
-                            current = datetime.now()
-                            timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
+        if not dcUserDb:
+            logger.warning("Couldn't fetch DiscordUser!")
 
-                            # if the time is set to the next day
-                            if timeToStart < datetime.now():
-                                timeToStart = timeToStart + timedelta(days=1)
+            return "Bitte tagge deinen User korrekt!"
 
-                            date = timeToStart
-                        except ValueError:
-                            try:
-                                minutesFromNow = int(messageParts[3])
-                            except ValueError:
-                                await message.reply("Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 "
-                                                    "Minuten oder '09:04' um den Timer um 09:04 Uhr zu starten!")
+        counter = FelixCounter.FelixCounter(dcUserDb)
 
-                                return
+        if action == "start":
+            if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
+                date = None
 
-                            timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
-                            date = timeToStart
+                if not zeit:
+                    return "Bitte gib eine Zeit an!"
 
-                    if not date:
-                        date = datetime.now()
+                try:
+                    timeToStart = datetime.strptime(zeit, "%H:%M")
+                    current = datetime.now()
+                    timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
 
-                    link = FelixCounter.LIAR
+                    # if the time is set to the next day
+                    if timeToStart < datetime.now():
+                        timeToStart = timeToStart + timedelta(days=1)
 
-                    if message.author.nick:
-                        username = message.author.nick
-                    else:
-                        username = message.author.name
+                    date = timeToStart
+                except ValueError:
+                    try:
+                        minutesFromNow = int(zeit)
+                    except ValueError:
+                        return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
+                               "Timer um 09:04 Uhr zu starten!"
 
-                    counter.setFelixTimer(date)
-                    await message.reply("Der %s-Timer von %s wird um %s Uhr gestartet!" % (
-                        counter.getNameOfCounter(), getTagStringFromId(tag), date.strftime("%H:%M"))
-                                        )
+                    timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
+                    date = timeToStart
 
-                    authorId = message.author.id
-                    author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+                if not date:
+                    return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
-                    # TODO change to Felix-Counter receiver and not author
-                    if not author.dm_channel:
-                        await author.create_dm()
+                link = FelixCounter.LIAR
 
-                        # check if dm_channel was really created
-                        if not author.dm_channel:
-                            return
-
-                    await author.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
-                                                 "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
-                                                 "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                                 "Minuten!\n%s"
-                                                 % (
-                                                     counter.getNameOfCounter(),
-                                                     username, date.strftime("%H:%M"),
-                                                     counter.getNameOfCounter(),
-                                                     link
-                                                 ))
-                # user online
-                elif dcUserDb['channel_id'] is not None:
-                    await message.reply("%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!"
-                                        % (getTagStringFromId(tag), counter.getNameOfCounter())
-                                        )
-
-                    return
-                # timer already running
-                elif counter.getFelixTimer() is not None:
-                    await message.reply("Es läuft bereits ein Timer!")
-
-                    return
-                # if everything goes downhill
+                if member.nick:
+                    username = member.nick
                 else:
-                    await message.reply("Es ist ein Fehler aufgetreten!")
+                    username = member.name
 
-                    return
-            # !felix @Bjarne stop
-            elif messageParts[2] == FelixCounter.FELIX_COUNTER_STOP_KEYWORD:
-                if counter.getFelixTimer() is not None:
-                    counter.setFelixTimer(None)
-                    await message.reply("Der %s-Timer von %s wurde beendet!"
-                                        % (counter.getNameOfCounter(), getTagStringFromId(tag)))
+                counter.setFelixTimer(date)
+                self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
-                    if message.author.nick:
-                        username = message.author.nick
-                    else:
-                        username = message.author.name
+                answer = "Der %s-Timer von %s wird um %s Uhr gestartet!" % (
+                    counter.getNameOfCounter(), tag, date.strftime("%H:%M"))
 
-                    authorId = message.author.id
-                    author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+                if not member.dm_channel:
+                    await member.create_dm()
 
-                    if not author.dm_channel:
-                        await author.create_dm()
+                    if not member.dm_channel:
+                        logger.warning("Couldnt create DM-Channel with %s!" % member.name)
 
-                        # check if dm_channel was really created
-                        if not author.dm_channel:
-                            return
+                        return answer
 
-                    # TODO send to receiver and not author
-                    await author.dm_channel.send("Dein %s-Timer wurde von %s beendet!"
-                                                 % (counter.getNameOfCounter(), username))
+                await member.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
+                                             "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
+                                             "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
+                                             "Minuten!\n%s"
+                                             % (
+                                                 counter.getNameOfCounter(),
+                                                 username, date.strftime("%H:%M"),
+                                                 counter.getNameOfCounter(),
+                                                 link
+                                             ))
 
-                else:
-                    await message.reply("Es lief kein %s-Timer für %s!"
-                                        % (counter.getNameOfCounter(), getTagStringFromId(tag)))
-        elif self.hasUserWantedRoles(message.author, RoleId.ADMIN, RoleId.MOD):
-            try:
-                value = int(messageParts[2])
-            except ValueError:
-                await message.reply("Deine Eingabe war ungültig!")
+                return answer
 
-                return
+            elif dcUserDb['channel_id'] is not None:
+                return "%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!" % (
+                    tag, counter.getNameOfCounter())
 
-            if str(message.author.id) == dcUserDb['user_id'] and value < 0:
-                await message.reply("Du darfst deinen eigenen %s-Counter nicht verringern!"
-                                    % counter.getNameOfCounter())
+            elif counter.getFelixTimer() is not None:
+                return "Es läuft bereits ein Timer!"
 
-                return
-
-            if counter.getCounterValue() + value < 0:
-                counter.setCounterValue(0)
             else:
-                counter.setCounterValue(counter.getCounterValue() + value)
-            await message.reply("Der %s-Counter von %s wurde um %d erhöht!"
-                                % (counter.getNameOfCounter(), getTagStringFromId(tag), value))
+                logger.error("No matching condition were found for starting a Felix-Timer!")
 
-        else:
-            # check if entered value was a number
-            try:
-                value = int(messageParts[2])
-            except ValueError:
-                await message.reply("Deine Eingabe war falsch!")
+                return "Es ist ein Fehler aufgetreten!"
 
-                return
+        elif action == "stop":
+            if counter.getFelixTimer() is not None:
+                counter.setFelixTimer(None)
 
-            counter.setCounterValue(counter.getCounterValue() + 1)
-            await message.reply("Der %s-Counter von %s wurde um 1 erhöht!"
-                                % (counter.getNameOfCounter(), getTagStringFromId(tag)))  #
+                if member.nick:
+                    username = member.nick
+                else:
+                    username = member.name
 
-        with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+                answer = "Der %s-Timer von %s wurde beendet!" % (counter.getNameOfCounter(), tag)
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
-        """
+                self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+
+                if not member.dm_channel:
+                    await member.create_dm()
+
+                    if not member.dm_channel:
+                        logger.warning("Couldnt create DM-Channel with %s!" % member.name)
+
+                        return answer
+
+                await member.dm_channel.send(
+                    "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+
+                return answer
+
+            else:
+                return "Es lief kein %s-Timer für %s!" % (
+                    counter.getNameOfCounter(), tag)
 
     async def sendLogs(self, member: Member, amount: int) -> string:
         """

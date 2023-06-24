@@ -593,6 +593,27 @@ async def handleXpNotification(interaction: discord.Interaction, action: Choice[
     await interaction.response.send_message(answer)
 
 
+"""FELIX TIMER"""
+
+
+@tree.command(name="felix-timer", description="Lässt dich einen Felix-Timer für einen User starten / stoppen",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(action=[
+    Choice(name="start", value="start"),
+    Choice(name="stop", value="stop"),
+])
+@app_commands.describe(action="Wähle eine Aktion aus!")
+@app_commands.describe(user="Wähle einen User aus!")
+@app_commands.describe(
+    zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
+)
+async def handleFelixTimer(interaction: discord.Interaction, user: str, action: Choice[str], zeit: str = None):
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.handleFelixTimer(interaction.user, user, action.value, zeit)
+
+    await interaction.response.send_message(answer)
+
+
 # FUCK YOU
 """
 @tree.command(name="beta-feature", description="Just dont use it",

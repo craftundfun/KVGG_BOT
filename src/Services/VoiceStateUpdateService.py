@@ -136,7 +136,7 @@ class VoiceStateUpdateService:
         :param dcUserDb:
         :return:
         """
-        logger.info("Checking Felix-Timer from %" % dcUserDb['username'])
+        logger.info("Checking Felix-Timer from %s" % dcUserDb['username'])
 
         if dcUserDb['felix_counter_start'] is not None:
             dcUserDb['felix_counter_start'] = None
