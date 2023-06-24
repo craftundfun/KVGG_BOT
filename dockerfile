@@ -1,11 +1,17 @@
 FROM python:3.8.10
 
-ADD main.py .
-
 RUN python3 -m pip install -U "discord.py[voice]"
 RUN pip install mysql-connector-python
-RUN pip install SQLAlchemy
 RUN pip install requests
+RUN apt-get install libffi-dev
+RUN pip install mutagen
 
 
-CMD [ "python3", "./main.py" ]
+ADD main.py .
+ADD src ./src
+ADD parameters.yaml .
+ADD Logs .
+
+ENV AM_I_IN_A_DOCKER_CONTAINER Yes
+
+CMD ["python3", "./main.py"]

@@ -6,27 +6,27 @@ from src.Helper.getFormattedTime import getFormattedTime
 from src.InheritedCommands.Times.Time import Time
 
 
-class OnlineTime(Time):
+class StreamTime(Time):
 
     def __init__(self):
-        super().__init__("Online")
+        super().__init__('Stream')
 
     def increaseTime(self, dcUserDb, value: int, updateFormattedTime: bool = True):
-        dcUserDb['time_online'] = dcUserDb['time_online'] + value
+        dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + value
 
         if updateFormattedTime:
-            dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
+            dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
     def getTime(self, dcUserDb) -> int | None:
-        return dcUserDb['time_online']
+        return dcUserDb['time_streamed']
 
     def getFormattedTime(self, dcUserDb) -> string:
-        return dcUserDb['formated_time']
+        return dcUserDb['formatted_stream_time']
 
     def getStringForTime(self, dcUserDb) -> string:
-        if dcUserDb['formated_time'] is None:
+        if dcUserDb['formatted_stream_time'] is None:
             return "Es liegt keine formatierte Zeit vor!"
-        return "<@%s> war bereits %s Stunden online!" % (dcUserDb['user_id'], dcUserDb['formated_time'])
+        return "<@%s> hat bereits %s Stunden gestreamt!" % (dcUserDb['user_id'], dcUserDb['formatted_stream_time'])
 
     def setFormattedTime(self, dcUserDb, time: string):
-        dcUserDb['formated_time'] = time
+        dcUserDb['formatted_stream_time'] = time

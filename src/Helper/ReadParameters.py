@@ -9,6 +9,10 @@ class Parameters(Enum):
     PASSWORD = 2
     NAME = 3
     TOKEN = 4
+    EMAIL_HOST = 5
+    PORT = 6
+    EMAIL_USER = 7
+    EMAIL_PASSWORD = 8
 
 
 def getParameter(param: Parameters) -> string:

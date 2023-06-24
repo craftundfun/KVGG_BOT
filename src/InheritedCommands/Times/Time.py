@@ -13,15 +13,19 @@ class Time(ABC):
     def increaseTime(self, dcUserDb, value: int, updateFormattedTime: bool = True):
         pass
 
+    @abstractmethod
     def getTime(self, dcUserDb) -> int | None:
         pass
 
+    @abstractmethod
     def setFormattedTime(self, dcUserDb, time: string):
         pass
 
+    @abstractmethod
     def getFormattedTime(self, dcUserDb) -> string:
         pass
 
+    @abstractmethod
     def getStringForTime(self, dcUserDb) -> string:
         pass
 

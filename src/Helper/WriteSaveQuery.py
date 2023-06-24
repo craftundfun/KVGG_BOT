@@ -3,12 +3,16 @@ from datetime import datetime
 
 
 # writes the update SQL statement for the given data
-def writeSaveQuery(table_name: string, entity_id: string, data: dict) -> string:
+def writeSaveQuery(table_name: string, primary_key: string, data: dict) -> string:
     set_clauses = []
     how_many_None = 0
 
     # for every column
     for column, value in data.items():
+        # don't touch the primary key
+        if column == 'id':
+            continue
+
         if value is None:
             set_clauses.append(f"{column} = %s")
             how_many_None += 1
@@ -19,7 +23,7 @@ def writeSaveQuery(table_name: string, entity_id: string, data: dict) -> string:
             set_clauses.append(f"{column} = '{value}'")
 
     set_clause = ', '.join(set_clauses)
-    update_query = f"UPDATE {table_name}\nSET {set_clause}\nWHERE id = {entity_id}"
+    update_query = f"UPDATE {table_name} SET {set_clause} WHERE id = {primary_key}"
     parameters = ()
 
     # create Tuple for None-parameter
