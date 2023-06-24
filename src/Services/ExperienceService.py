@@ -455,8 +455,20 @@ class ExperienceService:
             return "Es ist ein Fehler aufgetreten!"
 
         if action == 'list':
+            reply = ""
+
             if xp['xp_boosts_inventory'] is None:
-                return "Du hast keine XP-Boosts in deinem Inventar!"
+                reply += "Du hast keine XP-Boosts in deinem Inventar!"
+
+                if xp['active_xp_boosts']:
+                    reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
+                    inventory = json.loads(xp['active_xp_boosts'])
+
+                    for index, item in enumerate(inventory, start=1):
+                        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+                            index, item['description'], item['remaining'], item['multiplier'])
+
+                return reply
 
             reply = "__Du hast folgende XP-Boosts in deinem Inventar__:\n\n"
             inventory = json.loads(xp['xp_boosts_inventory'])
@@ -567,7 +579,6 @@ class ExperienceService:
                         chosenXpBoost['remaining'], chosenXpBoost['multiplier'])
                 else:
                     return "Deine Eingabe war unültig!"
-            # TODO list active ones with leaderboard simultaneous
 
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(

@@ -389,7 +389,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     Choice(name="Rene", value="Rene"),
 ])
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
-@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+@app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
 async def counter(interaction: discord.Interaction, counter: Choice[str], user: str, param: str = None):
     """
