@@ -351,55 +351,7 @@ class ExperienceService:
         # lazy import to avoid circular import
         from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
         logger.info("%s requested XP" % member.name)
-        # TODO own command for xp-notifications
-        """
-        if messageParts[1] == 'on':
-            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
-            if dcUserDb is None:
-                await message.reply("Es ist ein Fehler aufgetreten!")
-
-                return
-
-            dcUserDb['double_xp_notification'] = 1
-
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
-
-            await message.reply("Deine Einstellungen wurden gespeichert!")
-
-            return
-        elif messageParts[1] == 'off':
-            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
-
-            if dcUserDb is None:
-                await message.reply("Es ist ein Fehler aufgetreten!")
-
-                return
-
-            dcUserDb['double_xp_notification'] = 0
-
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
-
-            await message.reply("Deine Einstellungen wurden gespeichert!")
-
-            return
-        """
         # else:
         if (userId := getUserIdByTag(userTag)) is None:
             return "Bitte tagge einen User korrekt!"
@@ -423,6 +375,59 @@ class ExperienceService:
         reply += getDoubleXpWeekendInformation()
 
         return reply
+
+    def handleXpNotification(self, member: Member, setting: string) -> string:
+        """
+        Lets the user choose his / her double-xp-weekend notification
+
+        :param member:
+        :param setting:
+        :return:
+        """
+        logger.info("%s requested a change of his / her double-xp-weekend notification" % member.name)
+
+        if setting == 'on':
+            dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+            if dcUserDb is None:
+                logger.warning("Couldn't fetch DiscordUser!")
+
+                return "Es ist ein Fehler aufgetreten!"
+
+            dcUserDb['double_xp_notification'] = 1
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "Deine Einstellungen wurden gespeichert!"
+        elif setting == 'off':
+            dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+            if dcUserDb is None:
+                logger.warning("Couldn't fetch DiscordUser!")
+
+                return "Es ist ein Fehler aufgetreten!"
+
+            dcUserDb['double_xp_notification'] = 0
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "Deine Einstellungen wurden gespeichert!"
 
     async def handleXpInventory(self, member: Member, action: str, row: str = None):
         """
@@ -450,19 +455,41 @@ class ExperienceService:
             return "Es ist ein Fehler aufgetreten!"
 
         if action == 'list':
-            if xp['xp_boosts_inventory'] is None:
-                return "Du hast keine XP-Boosts in deinem Inventar!"
+            reply = ""
 
-            reply = "Du hast folgende XP-Boosts in deinem Inventar:\n\n"
+            if xp['xp_boosts_inventory'] is None:
+                reply += "Du hast keine XP-Boosts in deinem Inventar!"
+
+                if xp['active_xp_boosts']:
+                    reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
+                    inventory = json.loads(xp['active_xp_boosts'])
+
+                    for index, item in enumerate(inventory, start=1):
+                        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+                            index, item['description'], item['remaining'], item['multiplier'])
+
+                return reply
+
+            reply = "__Du hast folgende XP-Boosts in deinem Inventar__:\n\n"
             inventory = json.loads(xp['xp_boosts_inventory'])
 
             for index, item in enumerate(inventory, start=1):
                 reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
                          (index, item['description'], item['remaining'], item['multiplier'])
 
+            replyWithoutActive = reply
+
+            if xp['active_xp_boosts'] is not None:
+                reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
+                inventory = json.loads(xp['active_xp_boosts'])
+
+                for index, item in enumerate(inventory, start=1):
+                    reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
+                        index, item['description'], item['remaining'], item['multiplier'])
+
             reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
 
-            return reply
+            return reply, replyWithoutActive
         # !inventory use
         else:
             # no xp boosts available
@@ -552,23 +579,6 @@ class ExperienceService:
                         chosenXpBoost['remaining'], chosenXpBoost['multiplier'])
                 else:
                     return "Deine Eingabe war unültig!"
-            # TODO list active ones with leaderboard simultaneous
-        # elif messageParts[1] == 'active':
-        #    if xp['active_xp_boosts'] is None:
-        #        await message.reply("Du hast keine aktiven XP-Boosts!")
-
-        #        return
-
-        #    reply = "Du hast folgende aktive XP-Boosts:\n\n"
-        #    activeBoosts: list = json.loads(xp['active_xp_boosts'])
-
-        #    for index, item in enumerate(activeBoosts, start=1):
-        #        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
-        #            index, item['description'], item['remaining'], item['multiplier'])
-
-        #    await message.reply(reply)
-
-        #    return  # return here to avoid straining the database with an unnecessary save
 
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
@@ -605,7 +615,7 @@ class ExperienceService:
             if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
                 logger.error("Couldn't fetch DiscordUser!")
 
-                return 
+                return
 
         xp = self.__getExperience(dcUserDb['user_id'])
 

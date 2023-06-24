@@ -6,7 +6,7 @@ import signal
 import sys
 import threading
 import traceback
-from typing import List
+from typing import List, Tuple
 
 import discord
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
@@ -27,13 +27,12 @@ from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateServic
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 
-
 # configure Logger
 logger = logging.getLogger("KVGG_BOT")
 logger.setLevel(logging.INFO)
 
 # creates up to 10 log files, every day at midnight a new one is created - if 10 was reached logs will be overwritten
-fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/', when='midnight', backupCount=10)
+fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=10)
 fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(CustomFormatterFile())
 logger.addHandler(fileHandler)
@@ -152,6 +151,11 @@ class MyClient(discord.Client):
 
             await qm.checkForNewQuote(message)
 
+    async def on_interaction(self, interaction: discord.Interaction):
+        pui = ProcessUserInput.ProcessUserInput(self)
+
+        pui.raiseMessageCounter(interaction.user, interaction.channel)
+
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
         Calls the QuotesManager to check if a quote was deleted
@@ -264,7 +268,7 @@ async def channel_choices(interaction: discord.Interaction, current: str) -> Lis
 
     :param interaction: Interaction, but gets ignored
     :param current: Current input from the user to filter autocomplete
-    :return: List of Choices excluding forbidden channels  # TODO maybe change
+    :return: List of Choices excluding forbidden channels
     """
     channels = client.get_all_channels()
     voiceChannels: List[str] = []
@@ -385,7 +389,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     Choice(name="Rene", value="Rene"),
 ])
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
-@app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
+@app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
 async def counter(interaction: discord.Interaction, counter: Choice[str], user: str, param: str = None):
     """
@@ -406,7 +410,7 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     elif "Cookie" == counter.value:
         nameCounter = CookieCounter.CookieCounter()
     elif "Felix" == counter.value:
-        nameCounter = FelixCounter.FelixCounter()  # TODO felix timer
+        nameCounter = FelixCounter.FelixCounter()
     elif "JJ" == counter.value:
         nameCounter = JjCounter.JjCounter()
     elif "Oleg" == counter.value:
@@ -538,7 +542,15 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
     xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
 
-    await interaction.response.send_message(answer)
+    try:
+        if isinstance(answer, Tuple):
+            await interaction.response.send_message(answer[0])
+        else:
+            await interaction.response.send_message(answer)
+    except discord.errors.HTTPException as e:
+        logger.warning("Message was too long, switching to shorter one!")
+
+        await interaction.response.send_message(answer[1])
 
 
 """HANDLE XP REQUEST"""
@@ -569,6 +581,44 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
 async def getXpLeaderboard(interaction: discord.Interaction):
     exp = ExperienceService.ExperienceService(client)
     answer = exp.sendXpLeaderboard(interaction.user)
+    await interaction.response.send_message(answer)
+
+
+"""XP NOTIFICATION"""
+
+
+@tree.command(name="xp_notification",
+              description="Lässt dich deine Doppel-XP-Wochenende Benachrichtigungen einstellen.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(action=[
+    Choice(name="on", value="on"),
+    Choice(name="off", value="off"),
+])
+@app_commands.describe(action="Wähle deine Einstellung!")
+async def handleXpNotification(interaction: discord.Interaction, action: Choice[str]):
+    exp = ExperienceService.ExperienceService(client)
+    answer = exp.handleXpNotification(interaction.user, action.value)
+    await interaction.response.send_message(answer)
+
+
+"""FELIX TIMER"""
+
+
+@tree.command(name="felix-timer", description="Lässt dich einen Felix-Timer für einen User starten / stoppen",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(action=[
+    Choice(name="start", value="start"),
+    Choice(name="stop", value="stop"),
+])
+@app_commands.describe(action="Wähle eine Aktion aus!")
+@app_commands.describe(user="Wähle einen User aus!")
+@app_commands.describe(
+    zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
+)
+async def handleFelixTimer(interaction: discord.Interaction, user: str, action: Choice[str], zeit: str = None):
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.handleFelixTimer(interaction.user, user, action.value, zeit)
+
     await interaction.response.send_message(answer)
 
 
@@ -624,7 +674,6 @@ def run():
         else:
             logger.critical("BOT STOPPING, 5 RESTARTS ENCOUNTERED")
             sys.exit(1)
-
 
 
 if __name__ == '__main__':

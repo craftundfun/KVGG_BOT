@@ -1,8 +1,13 @@
 import logging
+import os
 from datetime import datetime
+
+import discord
 from discord import Client, ChannelType
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Id.ChannelId import ChannelId
+from src.Repository.DiscordUserRepository import getDiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -33,7 +38,7 @@ class BotStartUpService:
 
             dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
 
-        # for every user
+        # for every user from the database
         for user in dcUsersDb:
             foundInChannel = False
             # look in every channel
@@ -100,6 +105,22 @@ class BotStartUpService:
                 cursor.execute(query, nones)
 
         self.databaseConnection.commit()
+
+        # check for new members that aren't in our database
+        for channel in client.get_all_channels():
+            if channel.type != ChannelType.voice:
+                continue
+
+            for member in channel.members:
+                dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+                if dcUserDb is None:
+                    logger.error("Couldnt create new entry for %s!" % member.name)
+
+        self.databaseConnection.commit()
+
+        if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+            await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(file=discord.File("./Logs/log.txt"))
 
     def __del__(self):
         self.databaseConnection.close()
