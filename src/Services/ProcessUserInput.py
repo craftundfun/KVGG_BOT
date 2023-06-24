@@ -716,7 +716,6 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    # TODO improve sending DMs
     async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
         """
         Answering given Counter from given User or adds (subtracts) given amount

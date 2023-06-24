@@ -351,55 +351,7 @@ class ExperienceService:
         # lazy import to avoid circular import
         from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
         logger.info("%s requested XP" % member.name)
-        # TODO own command for xp-notifications
-        """
-        if messageParts[1] == 'on':
-            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
 
-            if dcUserDb is None:
-                await message.reply("Es ist ein Fehler aufgetreten!")
-
-                return
-
-            dcUserDb['double_xp_notification'] = 1
-
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
-
-            await message.reply("Deine Einstellungen wurden gespeichert!")
-
-            return
-        elif messageParts[1] == 'off':
-            dcUserDb = getDiscordUser(self.databaseConnection, message.author)
-
-            if dcUserDb is None:
-                await message.reply("Es ist ein Fehler aufgetreten!")
-
-                return
-
-            dcUserDb['double_xp_notification'] = 0
-
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
-
-            await message.reply("Deine Einstellungen wurden gespeichert!")
-
-            return
-        """
         # else:
         if (userId := getUserIdByTag(userTag)) is None:
             return "Bitte tagge einen User korrekt!"
@@ -423,6 +375,59 @@ class ExperienceService:
         reply += getDoubleXpWeekendInformation()
 
         return reply
+
+    def handleXpNotification(self, member: Member, setting: string) -> string:
+        """
+        Lets the user choose his / her double-xp-weekend notification
+
+        :param member:
+        :param setting:
+        :return:
+        """
+        logger.info("%s requested a change of his / her double-xp-weekend notification" % member.name)
+
+        if setting == 'on':
+            dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+            if dcUserDb is None:
+                logger.warning("Couldn't fetch DiscordUser!")
+
+                return "Es ist ein Fehler aufgetreten!"
+
+            dcUserDb['double_xp_notification'] = 1
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "Deine Einstellungen wurden gespeichert!"
+        elif setting == 'off':
+            dcUserDb = getDiscordUser(self.databaseConnection, member)
+
+            if dcUserDb is None:
+                logger.warning("Couldn't fetch DiscordUser!")
+
+                return "Es ist ein Fehler aufgetreten!"
+
+            dcUserDb['double_xp_notification'] = 0
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            with self.databaseConnection.cursor() as cursor:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+
+            return "Deine Einstellungen wurden gespeichert!"
 
     async def handleXpInventory(self, member: Member, action: str, row: str = None):
         """
@@ -605,7 +610,7 @@ class ExperienceService:
             if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
                 logger.error("Couldn't fetch DiscordUser!")
 
-                return 
+                return
 
         xp = self.__getExperience(dcUserDb['user_id'])
 

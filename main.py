@@ -27,7 +27,6 @@ from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateServic
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 
-
 # configure Logger
 logger = logging.getLogger("KVGG_BOT")
 logger.setLevel(logging.INFO)
@@ -157,7 +156,6 @@ class MyClient(discord.Client):
 
         pui.raiseMessageCounter(interaction.user, interaction.channel)
 
-
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
         Calls the QuotesManager to check if a quote was deleted
@@ -270,7 +268,7 @@ async def channel_choices(interaction: discord.Interaction, current: str) -> Lis
 
     :param interaction: Interaction, but gets ignored
     :param current: Current input from the user to filter autocomplete
-    :return: List of Choices excluding forbidden channels  # TODO maybe change
+    :return: List of Choices excluding forbidden channels
     """
     channels = client.get_all_channels()
     voiceChannels: List[str] = []
@@ -578,6 +576,23 @@ async def getXpLeaderboard(interaction: discord.Interaction):
     await interaction.response.send_message(answer)
 
 
+"""XP NOTIFICATION"""
+
+
+@tree.command(name="xp_notification",
+              description="Lässt dich deine Doppel-XP-Wochenende Benachrichtigungen einstellen.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(action=[
+    Choice(name="on", value="on"),
+    Choice(name="off", value="off"),
+])
+@app_commands.describe(action="Wähle deine Einstellung!")
+async def handleXpNotification(interaction: discord.Interaction, action: Choice[str]):
+    exp = ExperienceService.ExperienceService(client)
+    answer = exp.handleXpNotification(interaction.user, action.value)
+    await interaction.response.send_message(answer)
+
+
 # FUCK YOU
 """
 @tree.command(name="beta-feature", description="Just dont use it",
@@ -630,7 +645,6 @@ def run():
         else:
             logger.critical("BOT STOPPING, 5 RESTARTS ENCOUNTERED")
             sys.exit(1)
-
 
 
 if __name__ == '__main__':
