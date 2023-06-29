@@ -1,8 +1,8 @@
 from __future__ import unicode_literals
 
+import nest_asyncio
 import asyncio
 import logging.handlers
-import signal
 import sys
 import threading
 import traceback
@@ -27,19 +27,21 @@ from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateServic
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 
+nest_asyncio.apply()
+
 # configure Logger
 logger = logging.getLogger("KVGG_BOT")
 logger.setLevel(logging.INFO)
 
-# creates up to 10 log files, every day at midnight a new one is created - if 10 was reached logs will be overwritten
-fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=10)
+# creates up to 10 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
+fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(CustomFormatterFile())
 logger.addHandler(fileHandler)
 
 # set up Formatter for console
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
+handler.setLevel(logging.WARNING)
 handler.setFormatter(CustomFormatter())
 logger.addHandler(handler)
 
@@ -151,10 +153,10 @@ class MyClient(discord.Client):
 
             await qm.checkForNewQuote(message)
 
-    async def on_interaction(self, interaction: discord.Interaction):
-        pui = ProcessUserInput.ProcessUserInput(self)
+    # async def on_interaction(self, interaction: discord.Interaction):
+    #     pui = ProcessUserInput.ProcessUserInput(self)
 
-        pui.raiseMessageCounter(interaction.user, interaction.channel)
+    #    pui.raiseMessageCounter(interaction.user, interaction.channel) # TODO in jeden Command einabuen
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -310,7 +312,8 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
     :param channel: Destination channel
     :return:
     """
-    answer = await ProcessUserInput.ProcessUserInput(client).moveUsers(channel, interaction.user)
+    pui = ProcessUserInput.ProcessUserInput(client)
+    answer = await pui.moveUsers(channel, interaction.user)
     await interaction.response.send_message(answer)
 
 

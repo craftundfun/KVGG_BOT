@@ -88,7 +88,7 @@ class QuotesManager:
         :param message:
         :return:
         """
-        logger.info("A quote was updated")
+        logger.info("A quote may updated")
 
         channel = getQuotesChannel(self.client)
 

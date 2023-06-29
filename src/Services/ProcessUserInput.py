@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import array
+import asyncio
 import json
 import logging
 import string
 import os
+import threading
+from asyncio import AbstractEventLoop
+from asyncio.unix_events import _UnixSelectorEventLoop
+
 import discord
 import requests
 
-from discord import Message, Client, Member
+from discord import Message, Client, Member, ChannelType, VoiceChannel
 from datetime import datetime, timedelta
+
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
@@ -142,7 +148,7 @@ class ProcessUserInput:
         :return:
         """
         logger.info("Increasing message-count for %s" % member.name)
-
+        # TODO everytime something gets entered in a command the count counts, stop this
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if dcUserDb is None:
@@ -281,17 +287,7 @@ class ProcessUserInput:
         if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             return "Du hast dazu keine Berechtigung!"
 
-        channelStart = None
-
-        for channel in voiceChannels:
-            for channelMember in channel.members:
-                if channelMember.id == authorId:
-                    channelStart = channel
-
-                    break
-
-            if channelStart:
-                break
+        channelStart = member.voice.channel
 
         if not channelStart:
             return "Du bist mit keinem Voicechannel verbunden!"
@@ -300,20 +296,28 @@ class ProcessUserInput:
             return "Alle befinden sich bereits in diesem Channel!"
 
         membersInStartVc = channelStart.members
+        loop = asyncio.get_event_loop()
+
+        async def asyncioGenerator():
+            try:
+                await asyncio.gather(*[member.move_to(channelDestination) for member in membersInStartVc])
+            except discord.Forbidden:
+                logger.error("I dont have rights move the users!")
+
+                return "Ich habe dazu leider keine Berechtigung!"
+            except discord.HTTPException as e:
+                logger.warning("Something went wrong!", exc_info=e)
+
+                return "Irgendetwas ist schief gelaufen!"
 
         try:
-            for member in membersInStartVc:
-                await member.move_to(channelDestination, reason="Command von " + str(authorId))
-
-            return "Alle User wurden erfolgreich verschoben!"
-        except discord.Forbidden:
-            logger.error("I dont have rights move the users!")
-
-            return "Ich habe dazu leider keine Berechtigung!"
-        except discord.HTTPException as e:
-            logger.warning("Something went wrong!", exc_info=e)
+            loop.run_until_complete(asyncioGenerator())
+        except Exception as e:
+            logger.error("Somthing went wrong while using asyncio!")
 
             return "Irgendetwas ist schief gelaufen!"
+
+        return "Alle User wurden erfolgreich verschoben!"
 
     async def accessTimeAndEdit(self, time: Time, userTag: string, member: Member, param: string | None) -> string:
         """
