@@ -4,23 +4,22 @@ import array
 import asyncio
 import json
 import logging
-import string
 import os
-import threading
-from asyncio import AbstractEventLoop
-from asyncio.unix_events import _UnixSelectorEventLoop
+import string
+from datetime import datetime, timedelta
 
 import discord
 import requests
-
-from discord import Message, Client, Member, ChannelType, VoiceChannel
-from datetime import datetime, timedelta
+from discord import Message, Client, Member
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.getFormattedTime import getFormattedTime
 from src.Id import ChannelId
+from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
+from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChatCommand import ChatCommand
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
@@ -29,9 +28,6 @@ from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter
 from src.InheritedCommands.Times import Time
 from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Helper.getFormattedTime import getFormattedTime
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
@@ -148,7 +144,7 @@ class ProcessUserInput:
         :return:
         """
         logger.info("Increasing message-count for %s" % member.name)
-        # TODO everytime something gets entered in a command the count counts, stop this
+
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if dcUserDb is None:

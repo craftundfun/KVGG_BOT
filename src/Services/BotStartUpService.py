@@ -7,6 +7,7 @@ from discord import Client, ChannelType
 from src.Helper import WriteSaveQuery
 from src.Helper.createNewDatabaseConnection import getDatabaseConnection
 from src.Id.ChannelId import ChannelId
+from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
@@ -94,6 +95,10 @@ class BotStartUpService:
                 user['muted_at'] = None
                 user['full_muted_at'] = None
 
+            # update nick
+            if (member := client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(user['user_id']))):
+                user['username'] = member.nick if member.nick else member.name
+
         with self.databaseConnection.cursor() as cursor:
             for user in dcUsersDb:
                 query, nones = WriteSaveQuery.writeSaveQuery(
@@ -120,7 +125,8 @@ class BotStartUpService:
         self.databaseConnection.commit()
 
         if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-            await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(file=discord.File("./Logs/log.txt"))
+            await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(
+                file=discord.File("./Logs/log.txt"))
 
     def __del__(self):
         self.databaseConnection.close()

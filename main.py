@@ -4,14 +4,12 @@ import nest_asyncio
 import asyncio
 import logging.handlers
 import sys
-import threading
 import traceback
-from typing import List, Tuple
-
 import discord
+
+from typing import List, Tuple
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice, commands
-
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
 from src.Helper.CustomFormatter import CustomFormatter
@@ -33,7 +31,7 @@ nest_asyncio.apply()
 logger = logging.getLogger("KVGG_BOT")
 logger.setLevel(logging.INFO)
 
-# creates up to 10 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
+# creates up to 5 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(CustomFormatterFile())
@@ -53,7 +51,14 @@ def thread_wrapper(func, args):
     loop.close()
 
 
+@DeprecationWarning
 async def some_thread(client: discord.Client):
+    """
+    JUST FOR TESTING PURPOSES
+
+    :param client:
+    :return:
+    """
     while True:
         # await client.fetch_guild(int(GuildId.GUILD_KVGG.value))
         # await client.fetch_user(555430341389844500)
@@ -134,7 +139,9 @@ class MyClient(discord.Client):
         else:
             logger.info("Activity set")
 
-        _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
+        await self.fetch_guild(int(GuildId.GUILD_KVGG.value))
+
+        #_thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
         # _thread.start()
 
     async def on_message(self, message: discord.Message):
@@ -154,7 +161,7 @@ class MyClient(discord.Client):
             await qm.checkForNewQuote(message)
 
     # async def on_interaction(self, interaction: discord.Interaction):
-    #     pui = ProcessUserInput.ProcessUserInput(self)
+    #    pui = ProcessUserInput.ProcessUserInput(self)
 
     #    pui.raiseMessageCounter(interaction.user, interaction.channel) # TODO in jeden Command einabuen
 
@@ -225,6 +232,7 @@ async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendLogs(interaction.user, amount.value)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -253,11 +261,15 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
     """
 
     pui = ProcessUserInput.ProcessUserInput(client)
+
     if kategorie is None:
         category = "flachwitze"
     else:
         category = kategorie.value
+
     answer = await pui.answerJoke(interaction.user, category)
+
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -314,6 +326,8 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
     """
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.moveUsers(channel, interaction.user)
+
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -330,6 +344,8 @@ async def answerQuote(interaction: discord.Interaction):
     :return:
     """
     answer = await QuotesManager.QuotesManager(client).answerQuote(interaction.user)
+
+    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
 
     if answer:
         await interaction.response.send_message(answer)
@@ -373,6 +389,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.accessTimeAndEdit(time, user, interaction.user, param)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -426,6 +443,7 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.accessNameCounterAndEdit(nameCounter, user, interaction.user, param)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -463,6 +481,7 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.manageWhatsAppSettings(interaction.user, type.value, action.value, switch.value)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -481,6 +500,7 @@ async def sendLeaderboard(interaction: discord.Interaction):
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendLeaderboard(interaction.user)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -500,6 +520,7 @@ async def sendRegistration(interaction: discord.Interaction):
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.sendRegistrationLink(interaction.user)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -517,8 +538,10 @@ async def spinForXpBoost(interaction: discord.Interaction):
     :return:
     """
     xpService = ExperienceService.ExperienceService(client)
+    pui = ProcessUserInput.ProcessUserInput(client)
     answer = await xpService.spinForXpBoost(interaction.user)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -544,6 +567,8 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
     """
     xpService = ExperienceService.ExperienceService(client)
     answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
+
+    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
 
     try:
         if isinstance(answer, Tuple):
@@ -584,6 +609,8 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
 async def getXpLeaderboard(interaction: discord.Interaction):
     exp = ExperienceService.ExperienceService(client)
     answer = exp.sendXpLeaderboard(interaction.user)
+
+    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -601,6 +628,8 @@ async def getXpLeaderboard(interaction: discord.Interaction):
 async def handleXpNotification(interaction: discord.Interaction, action: Choice[str]):
     exp = ExperienceService.ExperienceService(client)
     answer = exp.handleXpNotification(interaction.user, action.value)
+
+    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -622,6 +651,7 @@ async def handleFelixTimer(interaction: discord.Interaction, user: str, action: 
     pui = ProcessUserInput.ProcessUserInput(client)
     answer = await pui.handleFelixTimer(interaction.user, user, action.value, zeit)
 
+    pui.raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
 
 
@@ -663,8 +693,6 @@ def run():
 
     try:
         client.run(token=token, reconnect=True)
-    except KeyboardInterrupt:
-        pass  # do nothing, needed for signal
     except Exception as e:
         logger.critical("----BOT CRASHED----", exc_info=e)
 
@@ -680,5 +708,4 @@ def run():
 
 
 if __name__ == '__main__':
-    # signal.signal(signal.SIGINT, wrapper)
     run()

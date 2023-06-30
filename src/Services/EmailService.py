@@ -23,8 +23,8 @@ def send_exception_mail(message: string):
         email = EmailMessage()
         email["From"] = "KVGG-Bot-Python"
         email["To"] = exception_recipient
-        email["Subject"] = "Test"
-        email.set_content(f"Exception Message: {message}\nException Trace: {message}")
+        email["Subject"] = "STACKTRACE"
+        email.set_content(f"Stacktrace: {message}")
 
         try:
             with smtplib.SMTP_SSL(getParameter(param.EMAIL_HOST), getParameter(param.PORT)) as server:

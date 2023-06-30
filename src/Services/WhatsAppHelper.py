@@ -92,6 +92,20 @@ class WhatsAppHelper:
         :param member: Member that caused the notification
         :return:
         """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT id " \
+                    "FROM message_queue " \
+                    "WHERE trigger_user_id = %s AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) < 1"
+
+            cursor.execute(query, (dcUserDb['id'],))
+
+            # if entries were in the database, we know we have to retract them
+            if cursor.fetchall():
+                self.__retractMessagesFromMessageQueue(dcUserDb, True)
+                logger.info("Retracted message because %s left fast enough" % member.name)
+
+                return
+
         logger.info("Creating Offline-Notification for %s" % member.name)
 
         with self.databaseConnection.cursor() as cursor:
@@ -174,6 +188,8 @@ class WhatsAppHelper:
         :param isJoinMessage: Specify looking for join or leave messages
         :return:
         """
+        logger.info("Retracting messages from Queue for %s" % dcUserDb['username'])
+
         with self.databaseConnection.cursor() as cursor:
             messages = getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, isJoinMessage)
 

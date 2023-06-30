@@ -91,6 +91,8 @@ class VoiceStateUpdateService:
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
 
+                dcUserDb['username'] = member.nick if member.nick else member.name
+
                 self.__saveDiscordUser(dcUserDb)
             # channel changed
             else:
@@ -101,6 +103,8 @@ class VoiceStateUpdateService:
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
+            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
+
             dcUserDb['channel_id'] = None
             dcUserDb['joined_at'] = None
             dcUserDb['muted_at'] = None
@@ -110,7 +114,7 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
-            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
+
 
     def __saveDiscordUser(self, dcUserDb: dict):
         """
