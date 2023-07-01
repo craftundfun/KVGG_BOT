@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 
+import os
+
 import nest_asyncio
 import asyncio
 import logging.handlers
@@ -25,6 +27,7 @@ from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateServic
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 
+os.environ['TZ'] = 'Europe/Berlin'
 nest_asyncio.apply()
 
 # configure Logger
