@@ -1,6 +1,8 @@
 from __future__ import unicode_literals
 
 import os
+import time
+from datetime import datetime
 
 import nest_asyncio
 import asyncio
@@ -28,6 +30,8 @@ from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 
 os.environ['TZ'] = 'Europe/Berlin'
+time.tzset()
+
 nest_asyncio.apply()
 
 # configure Logger
