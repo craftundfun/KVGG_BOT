@@ -1,7 +1,3 @@
-FROM postgres:10
-ENV TZ="Europe/Berlin"
-RUN date
-
 FROM python:3.8.10
 
 RUN python3 -m pip install -U "discord.py[voice]"
