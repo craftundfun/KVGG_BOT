@@ -6,6 +6,7 @@ RUN pip install requests
 RUN apt-get install libffi-dev
 RUN pip install mutagen
 RUN pip install nest-asyncio
+RUN --mount=target=/home/axellotl/web/DiscordBot/KVGG_BOT/Logs,type=cache \
 
 ADD main.py .
 ADD src ./src
