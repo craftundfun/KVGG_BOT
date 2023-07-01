@@ -7,9 +7,9 @@ RUN apt-get install libffi-dev
 RUN pip install mutagen
 RUN pip install nest-asyncio
 
-ADD main.py .
-ADD src ./src
-ADD parameters.yaml .
+COPY main.py .
+COPY src ./src
+COPY parameters.yaml .
 
 RUN mkdir "Logs"
 
