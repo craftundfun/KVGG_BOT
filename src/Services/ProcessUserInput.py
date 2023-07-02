@@ -264,19 +264,14 @@ class ProcessUserInput:
             return "Du bist mit keinem Voicechannel verbunden!"
 
         channelDestination = None
-
         channels = self.client.get_all_channels()
-        voiceChannels = []
 
         for channel in channels:
             if isinstance(channel, discord.VoiceChannel):
-                voiceChannels.append(channel)
+                if channel.name.lower() == channelName.lower():
+                    channelDestination = channel
 
-        for channel in voiceChannels:
-            if channel.name.lower() == channelName.lower():
-                channelDestination = channel
-
-                break
+                    break
 
         if channelDestination is None:
             logger.warning("Couldn't fetch channel!")
@@ -292,8 +287,10 @@ class ProcessUserInput:
         canProceed = False
 
         for role in member.roles:
-            if channelDestination.permissions_for(role).view_channel:
+            permissions = channelDestination.permissions_for(role)
+            if permissions.view_channel and permissions.connect:
                 canProceed = True
+
                 break
 
         if not canProceed:
