@@ -690,7 +690,7 @@ def run():
     try:
         client.run(token=token, reconnect=True)
     except Exception as e:
-        logger.critical("----BOT CRASHED----", exc_info=e)
+        logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
 
         send_exception_mail(traceback.format_exc())
 
