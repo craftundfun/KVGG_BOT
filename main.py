@@ -46,7 +46,7 @@ logger.addHandler(fileHandler)
 
 # set up Formatter for console
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.WARNING)
+handler.setLevel(logging.INFO)  #TODO change
 handler.setFormatter(CustomFormatter())
 logger.addHandler(handler)
 
@@ -301,7 +301,7 @@ async def channel_choices(interaction: discord.Interaction, current: str) -> Lis
         ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_DREI.value,
         ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_VIER.value,
     ]
-
+    # TODO channel filtern and WhatsApp-Enum und Rechte zu sehen
     # for every channel from the guild
     for channel in channels:
         # if voice channel

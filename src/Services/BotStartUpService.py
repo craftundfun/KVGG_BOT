@@ -124,9 +124,9 @@ class BotStartUpService:
 
         self.databaseConnection.commit()
 
-        if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-            await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(
-                file=discord.File("./Logs/log.txt"))
+        #if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+        #    await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(
+        #        file=discord.File("./Logs/log.txt"))
 
     def __del__(self):
         self.databaseConnection.close()
