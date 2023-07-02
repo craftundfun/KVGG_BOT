@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 
 import os
 import time
-from datetime import datetime
 
 import nest_asyncio
 import asyncio
@@ -49,6 +48,8 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.WARNING)
 handler.setFormatter(CustomFormatter())
 logger.addHandler(handler)
+
+logger.info("\n\n----Initial bot start!----\n\n")
 
 
 def thread_wrapper(func, args):
