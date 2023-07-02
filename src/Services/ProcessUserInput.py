@@ -738,13 +738,13 @@ class ProcessUserInput:
 
         # get requested user as member from guild
         try:
-            member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
+            memberCounter = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
         except discord.errors.HTTPException:
             logger.warning("Couldn't fetch member from guild!")
 
             return "Entweder existiert der Nutzer / die Nutzerin nicht oder es gab einen Fehler!"
 
-        dcUserDb = getDiscordUser(self.databaseConnection, member)
+        dcUserDb = getDiscordUser(self.databaseConnection, memberCounter)
 
         if not dcUserDb:
             logger.warning("Couldn't fetch DiscordUser!")
