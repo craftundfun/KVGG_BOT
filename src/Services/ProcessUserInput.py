@@ -258,38 +258,43 @@ class ProcessUserInput:
         """
         logger.info("%s requested to move users into %s" % (member.name, channelName))
 
-        channelDestination = None
+        channelStart = member.voice.channel
 
+        if not channelStart:
+            return "Du bist mit keinem Voicechannel verbunden!"
+
+        channelDestination = None
         channels = self.client.get_all_channels()
-        voiceChannels = []
 
         for channel in channels:
             if isinstance(channel, discord.VoiceChannel):
-                voiceChannels.append(channel)
+                if channel.name.lower() == channelName.lower():
+                    channelDestination = channel
 
-        for channel in voiceChannels:
-            if channel.name.lower() == channelName.lower():
-                channelDestination = channel
-
-                break
+                    break
 
         if channelDestination is None:
             logger.warning("Couldn't fetch channel!")
 
             return "Channel konnte nicht gefunden werden!"
 
-        authorId = member.id
-
-        if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            return "Du hast dazu keine Berechtigung!"
-
-        channelStart = member.voice.channel
-
-        if not channelStart:
-            return "Du bist mit keinem Voicechannel verbunden!"
-
         if channelStart.id == channelDestination.id:
             return "Alle befinden sich bereits in diesem Channel!"
+
+        if str(channelDestination.id) not in ChannelIdWhatsAppAndTracking.getValues():
+            return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
+
+        canProceed = False
+
+        for role in member.roles:
+            permissions = channelDestination.permissions_for(role)
+            if permissions.view_channel and permissions.connect:
+                canProceed = True
+
+                break
+
+        if not canProceed:
+            return "Du hast keine Berechtigung in diesen Channel zu moven!"
 
         membersInStartVc = channelStart.members
         loop = asyncio.get_event_loop()

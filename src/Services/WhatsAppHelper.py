@@ -92,21 +92,19 @@ class WhatsAppHelper:
         :param member: Member that caused the notification
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT id " \
-                    "FROM message_queue " \
-                    "WHERE trigger_user_id = %s AND TIMESTAMPDIFF(MINUTE, created_at, NOW()) < 1"
-
-            cursor.execute(query, (dcUserDb['id'],))
-
-            # if entries were in the database, we know we have to retract them
-            if cursor.fetchall():
-                self.__retractMessagesFromMessageQueue(dcUserDb, True)
-                logger.info("Retracted message because %s left fast enough" % member.name)
-
-                return
-
         logger.info("Creating Offline-Notification for %s" % member.name)
+
+        if lastOnline := dcUserDb['joined_at']:
+            diff: timedelta = datetime.now() - lastOnline
+
+            if diff.days <= 0:
+                if diff.seconds <= WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value * 60:
+                    self.__retractMessagesFromMessageQueue(dcUserDb, True)
+
+                    return
+
+        if not self.__canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
+            return
 
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM user WHERE phone_number IS NOT NULL and api_key_whats_app IS NOT NULL"
@@ -174,10 +172,15 @@ class WhatsAppHelper:
         """
         if value := dcUserDb['last_online']:
             now = datetime.now()
-            diff: timedelta = value - now
+            diff: timedelta = now - value
 
-            if diff.days > 0 or diff.seconds > intervalTime * 60:
+            if diff.days > 0:
+                return True
+            elif diff.seconds > intervalTime * 60:
+                return True
+            else:
                 return False
+
         return True
 
     def __retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool):

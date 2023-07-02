@@ -148,7 +148,7 @@ class MyClient(discord.Client):
 
         await self.fetch_guild(int(GuildId.GUILD_KVGG.value))
 
-        #_thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
+        # _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
         # _thread.start()
 
     async def on_message(self, message: discord.Message):
@@ -166,11 +166,6 @@ class MyClient(discord.Client):
             qm = QuotesManager.QuotesManager(self)
 
             await qm.checkForNewQuote(message)
-
-    # async def on_interaction(self, interaction: discord.Interaction):
-    #    pui = ProcessUserInput.ProcessUserInput(self)
-
-    #    pui.raiseMessageCounter(interaction.user, interaction.channel) # TODO in jeden Command einabuen
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -293,27 +288,21 @@ async def channel_choices(interaction: discord.Interaction, current: str) -> Lis
     """
     channels = client.get_all_channels()
     voiceChannels: List[str] = []
-    exclusiveChannels = [
-        ChannelIdWhatsAppAndTracking.CHANNEL_STAFF.value,
-        ChannelIdWhatsAppAndTracking.CHANNEL_GOLF.value,
-        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_EINS.value,
-        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_ZWEI.value,
-        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_DREI.value,
-        ChannelIdWhatsAppAndTracking.CHANNEL_EVENT_VIER.value,
-    ]
 
-    # for every channel from the guild
     for channel in channels:
-        # if voice channel
-        if isinstance(channel, discord.VoiceChannel):
-            # if a voice channel is a "public" one
-            if str(channel.id) in ChannelIdWhatsAppAndTracking.getValues():
-                # if a channel is restricted for normal users check if MOD or ADMIN uses the command
-                if str(channel.id) in exclusiveChannels:
-                    if hasUserWantedRoles(interaction.user, RoleId.ADMIN, RoleId.MOD):
-                        voiceChannels.append(channel.name)
-                else:
-                    voiceChannels.append(channel.name)
+        if not isinstance(channel, discord.VoiceChannel):
+            continue
+
+        if str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues():
+            continue
+
+        for role in interaction.user.roles:
+            permissions = channel.permissions_for(role)
+
+            if permissions.view_channel and permissions.connect:
+                voiceChannels.append(channel.name)
+
+                break
 
     return [
         Choice(name=name, value=name) for name in voiceChannels if current.lower() in name.lower()
@@ -701,7 +690,7 @@ def run():
     try:
         client.run(token=token, reconnect=True)
     except Exception as e:
-        logger.critical("----BOT CRASHED----", exc_info=e)
+        logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
 
         send_exception_mail(traceback.format_exc())
 
