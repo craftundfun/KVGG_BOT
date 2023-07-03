@@ -8,6 +8,8 @@ from src.Helper.ReadParameters import Parameters as parameters
 from src.Helper import ReadParameters as rp
 
 logger = logging.getLogger("KVGG_BOT")
+
+
 def getDatabaseConnection() -> MySQLConnection | None:
     """
     :return: New database connection
