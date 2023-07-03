@@ -262,6 +262,8 @@ class ProcessUserInput:
 
         if not channelStart:
             return "Du bist mit keinem Voicechannel verbunden!"
+        elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues():
+            return "Dein Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
         channelDestination = None
         channels = self.client.get_all_channels()

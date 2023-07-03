@@ -13,6 +13,8 @@ import discord
 from typing import List, Tuple
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice, commands
+from discord.ext import tasks
+
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
 from src.Helper.CustomFormatter import CustomFormatter
@@ -27,6 +29,7 @@ from src.Services import ExperienceService
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
+from src.Services import BackgroundServices
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -80,6 +83,7 @@ async def some_thread(client: discord.Client):
 
 
 class MyClient(discord.Client):
+    backgroundServices = None
 
     async def on_member_join(self, member: Member):
         """
@@ -149,8 +153,9 @@ class MyClient(discord.Client):
 
         await self.fetch_guild(int(GuildId.GUILD_KVGG.value))
 
-        # _thread = threading.Thread(target=thread_wrapper, args=(some_thread, client))
-        # _thread.start()
+        global backgroundServices
+
+        backgroundServices = BackgroundServices.BackgroundServices(self)
 
     async def on_message(self, message: discord.Message):
         """
@@ -217,6 +222,7 @@ intents.members = True
 client = MyClient(intents=intents)
 # creates the command tree
 tree = app_commands.CommandTree(client)
+backgroundServices = None
 
 """SEND LOGS"""
 
@@ -652,7 +658,44 @@ async def handleFelixTimer(interaction: discord.Interaction, user: str, action: 
     await interaction.response.send_message(answer)
 
 
+"""OVERWRITE COGS"""
+
+
+@tree.command(name="disable_cogs", description="Stellt die Achievement-Loops aus",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def shutdownCogs(interaction: discord.Interaction):
+    member = interaction.user
+
+    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
+
+    if backgroundServices:
+        backgroundServices.cog_unload()
+        logger.warning("Cogs were ended!")
+        await interaction.response.send_message("Alle Cogs wurden beendet!")
+    else:
+        await interaction.response.send_message("Es gab keine Loops zum beenden!")
+
+
+@tree.command(name="enable_cogs", description="Stellt die Achievement-Loops an",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def shutdownCogs(interaction: discord.Interaction):
+    member = interaction.user
+
+    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
+
+    if backgroundServices:
+        await backgroundServices.cog_load()
+        logger.warning("Cogs were started!")
+        await interaction.response.send_message("Alle Cogs wurden gestartet!")
+    else:
+        await interaction.response.send_message("Es gab keine Loops zum starten!")
+
+
 # FUCK YOU
+
+
 """
 @tree.command(name="beta-feature", description="Just dont use it",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
