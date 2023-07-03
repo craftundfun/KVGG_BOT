@@ -48,9 +48,11 @@ class BackgroundServices(commands.Cog):
             return
 
         with databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord WHERE time_online IS NOT NULL and MOD(time_online, %s) = 0"
+            query = "SELECT * " \
+                    "FROM discord " \
+                    "WHERE channel_id IS NOT NULL and time_online IS NOT NULL and MOD(time_online, %s) = 0"
 
-            cursor.execute(query, (AchievementParameter.ONLINE_TIME_HOURS.value,))
+            cursor.execute(query, (AchievementParameter.ONLINE_TIME_HOURS.value * 60,))
 
             data = cursor.fetchall()
 
@@ -85,9 +87,11 @@ class BackgroundServices(commands.Cog):
             return
 
         with databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord WHERE time_streamed > 0 and MOD(time_streamed, %s) = 0"
+            query = "SELECT * " \
+                    "FROM discord " \
+                    "WHERE channel_id IS NOT NULL and time_streamed > 0 and MOD(time_streamed, %s) = 0"
 
-            cursor.execute(query, (AchievementParameter.STREAM_TIME_HOURS.value,))
+            cursor.execute(query, (AchievementParameter.STREAM_TIME_HOURS.value * 60,))
 
             data = cursor.fetchall()
 
@@ -122,7 +126,10 @@ class BackgroundServices(commands.Cog):
             return
 
         with databaseConnection.cursor() as cursor:
-            query = "SELECT e.xp_amount, d.user_id FROM experience e INNER JOIN discord d on e.discord_user_id = d.id WHERE e.xp_amount > 0 and MOD(e.xp_amount, %s) = 0"
+            query = "SELECT e.xp_amount, d.user_id " \
+                    "FROM experience e " \
+                    "INNER JOIN discord d on e.discord_user_id = d.id " \
+                    "WHERE d.channel_id IS NOT NULL and e.xp_amount > 0 and MOD(e.xp_amount, %s) = 0"
 
             cursor.execute(query, (AchievementParameter.XP_AMOUNT.value,))
 
