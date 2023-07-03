@@ -48,7 +48,7 @@ logger.addHandler(fileHandler)
 
 # set up Formatter for console
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)  # TODO change
+handler.setLevel(logging.WARNING)
 handler.setFormatter(CustomFormatter())
 logger.addHandler(handler)
 
