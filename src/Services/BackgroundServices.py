@@ -2,7 +2,7 @@ import logging
 
 import discord
 from discord.ext import tasks, commands
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Id.ChannelId import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking

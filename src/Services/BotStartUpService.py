@@ -5,7 +5,7 @@ from datetime import datetime
 import discord
 from discord import Client, ChannelType
 from src.Helper import WriteSaveQuery
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser

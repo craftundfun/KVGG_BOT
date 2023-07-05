@@ -11,7 +11,7 @@ from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
 logger = logging.getLogger("KVGG_BOT")
 
