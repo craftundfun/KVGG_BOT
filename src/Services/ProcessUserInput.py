@@ -860,24 +860,31 @@ class ProcessUserInput:
                 answer = "Der %s-Timer von %s wird um %s Uhr gestartet!" % (
                     counter.getNameOfCounter(), tag, date.strftime("%H:%M"))
 
-                if not member.dm_channel:
-                    await member.create_dm()
+                memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
 
-                    if not member.dm_channel:
-                        logger.warning("Couldnt create DM-Channel with %s!" % member.name)
+                if not memberDm:
+                    logger.warning("Couldn't fetch member from Guild!")
+
+                    return
+
+                if not memberDm.dm_channel:
+                    await memberDm.create_dm()
+
+                    if not memberDm.dm_channel:
+                        logger.warning("Couldn't create DM-Channel with %s!" % memberDm.name)
 
                         return answer
 
-                await member.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
-                                             "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
-                                             "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                             "Minuten!\n%s"
-                                             % (
-                                                 counter.getNameOfCounter(),
-                                                 username, date.strftime("%H:%M"),
-                                                 counter.getNameOfCounter(),
-                                                 link
-                                             ))
+                await memberDm.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
+                                               "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
+                                               "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
+                                               "Minuten!\n%s"
+                                               % (
+                                                   counter.getNameOfCounter(),
+                                                   username, date.strftime("%H:%M"),
+                                                   counter.getNameOfCounter(),
+                                                   link
+                                               ))
 
                 return answer
 
@@ -906,15 +913,22 @@ class ProcessUserInput:
 
                 self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
-                if not member.dm_channel:
-                    await member.create_dm()
+                memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
 
-                    if not member.dm_channel:
+                if not memberDm:
+                    logger.warning("Couldn't fetch member from Guild!")
+
+                    return
+
+                if not memberDm.dm_channel:
+                    await memberDm.create_dm()
+
+                    if not memberDm.dm_channel:
                         logger.warning("Couldnt create DM-Channel with %s!" % member.name)
 
                         return answer
 
-                await member.dm_channel.send(
+                await memberDm.dm_channel.send(
                     "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
 
                 return answer
