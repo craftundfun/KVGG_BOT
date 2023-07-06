@@ -263,5 +263,88 @@ class WhatsAppHelper:
             cursor.execute(query, (text, user['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
 
+    def manageSuspendSetting(self, member: Member, start: str, end: str):
+        """
+        Enables a given time interval for the member to not receive messages in
+
+        :param member: Member, who requested the interval
+        :param start: Starttime
+        :param end: Endtime
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            data = dict(zip(cursor.column_names, data))
+
+        current = datetime.now()
+
+        try:
+            startTime: datetime = datetime.strptime(start, "%H:%M")
+            startTime = startTime.replace(year=current.year, month=current.month, day=current.day)
+        except ValueError:
+            return "Bitte wähle eine korrekte Startzeit aus!"
+
+        try:
+            endTime: datetime = datetime.strptime(end, "%H:%M")
+            endTime = endTime.replace(year=current.year, month=current.month, day=current.day)
+        except ValueError:
+            return "Bitte wähle eine korrekt Endzeit aus!"
+
+        data['suspend_start'] = startTime
+        data['suspend_end'] = endTime
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'whatsapp',
+                data['id'],
+                data,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+        return "Du bekommst von nun an ab %s bis %s keine WhatsApp-Nachrichten mehr." % (
+            startTime.strftime("%H:%M"), endTime.strftime("%H:%M"))
+
+    def resetSuspendSetting(self, member: Member):
+        """
+        Resets the suspend settings to None
+
+        :param member: Member, who wishes to have his / her settings revoked
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            data = dict(zip(cursor.column_names, data))
+            data['suspend_start'] = None
+            data['suspend_end'] = None
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'whatsapp',
+                data['id'],
+                data,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+            return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten."
+
     def __del__(self):
         self.databaseConnection.close()
