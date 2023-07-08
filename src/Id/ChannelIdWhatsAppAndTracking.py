@@ -34,7 +34,7 @@ class ChannelIdWhatsAppAndTracking(Enum):
 
     CHANNEL_EVENT_VIER = '915289914097164348'
 
-    CHANNEL_STAFF = '502845911773216768'  # TODO remove
+    # CHANNEL_STAFF = '502845911773216768'
 
     @classmethod
     def getValues(cls) -> set:
