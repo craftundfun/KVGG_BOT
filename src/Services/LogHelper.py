@@ -4,7 +4,7 @@ from datetime import datetime
 from discord import Message
 from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
 logger = logging.getLogger("KVGG_BOT")
 

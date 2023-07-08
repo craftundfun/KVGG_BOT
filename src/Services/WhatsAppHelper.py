@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import string
 
 from datetime import datetime, timedelta
+from typing import Any, List, Dict
+
+import discord.app_commands
 from discord import VoiceState, Member
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper import WriteSaveQuery
@@ -11,7 +15,7 @@ from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -23,6 +27,30 @@ class WhatsAppHelper:
 
     def __init__(self):
         self.databaseConnection = getDatabaseConnection()
+
+    def __getUsersForMessage(self) -> List[Dict[str, Any]] | None:
+        """
+        Returns all Users with phone number and api key including their whatsapp settings
+
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            # not pretty but otherwise complete garbage
+            query = "SELECT w.discord_user_id, w.receive_join_notification, w.receive_leave_notification, " \
+                    "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id " \
+                    "FROM whatsapp_setting AS w INNER JOIN user AS u ON u.discord_user_id = w.discord_user_id " \
+                    "WHERE u.phone_number IS NOT NULL and u.api_key_whats_app IS NOT NULL"
+
+            cursor.execute(query)
+
+            data = cursor.fetchall()
+
+            if data is None:
+                logger.warning("Couldn't fetch users!")
+
+                return None
+
+            return [dict(zip(cursor.column_names, date)) for date in data]
 
     def sendOnlineNotification(self, member: Member, update: VoiceState):
         """
@@ -42,46 +70,35 @@ class WhatsAppHelper:
         if member.bot:
             return
 
-        dcUserDb = getDiscordUser(self.databaseConnection, member)
+        triggerDcUserDb = getDiscordUser(self.databaseConnection, member)
 
-        if not dcUserDb:
+        if not triggerDcUserDb:
             logger.warning("Couldn't fetch DiscordUser!")
 
             return
 
-        if not self.__canSendMessage(dcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE.value):
+        if not self.__canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE.value):
             # delete leave message if user is fast enough back online
-            if not self.__canSendMessage(dcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value):
-                self.__retractMessagesFromMessageQueue(dcUserDb, False)
+            if not self.__canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value):
+                self.__retractMessagesFromMessageQueue(triggerDcUserDb, False)
 
             return
 
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM user WHERE phone_number IS NOT NULL and api_key_whats_app IS NOT NULL"
-
-            cursor.execute(query)
-
-            data = cursor.fetchall()
-
-            if data is None:
-                logger.warning("Couldn't fetch users!")
-
-                return
-
-            users = [dict(zip(cursor.column_names, date)) for date in data]
+        if not (users := self.__getUsersForMessage()):
+            return
 
         for user in users:
             # dont send message to trigger user
-            if user['discord_user_id'] == dcUserDb['id']:
+            if user['discord_user_id'] == triggerDcUserDb['id']:
                 continue
 
-            if dcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
-                'recieve_join_notification']:
+            if triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
+                'receive_join_notification']:
                 # works correctly
-                self.__queueWhatsAppMessage(dcUserDb, update.channel, user, member.name)
-            elif dcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
+                self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
+            elif triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
                 'receive_uni_join_notification']:
-                self.__queueWhatsAppMessage(dcUserDb, update.channel, user, member.name)
+                self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
 
     def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
         """
@@ -106,19 +123,8 @@ class WhatsAppHelper:
         if not self.__canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
             return
 
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM user WHERE phone_number IS NOT NULL and api_key_whats_app IS NOT NULL"
-
-            cursor.execute(query)
-
-            data = cursor.fetchall()
-
-            if not data:
-                logger.warning("Couldn't fetch users!")
-
-                return
-
-            users = [dict(zip(cursor.column_names, date)) for date in data]
+        if not (users := self.__getUsersForMessage()):
+            return
 
         for user in users:
             if user['discord_user_id'] == dcUserDb['id']:
@@ -126,10 +132,10 @@ class WhatsAppHelper:
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
             if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues() and user[
-                'recieve_join_notification']:
+                'receive_leave_notification']:
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
             elif str(update.channel.id) in ChannelIdUniversityTracking.getValues() and user[
-                'receive_uni_join_notification']:
+                'receive_uni_leave_notification']:
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
@@ -206,22 +212,23 @@ class WhatsAppHelper:
 
             self.databaseConnection.commit()
 
-    def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, user: dict, usernameFromTriggerUser: string):
+    def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, whatsappSetting: dict,
+                               usernameFromTriggerUser: string):
         """
         Saves the message into the queue
 
         :param triggerDcUserDb: Trigger of the notification
         :param channel: Channel the user joined into
-        :param user: User to send the message to
+        :param whatsappSetting: User to send the message to
         :param usernameFromTriggerUser: Who triggered the message
         :return:
         """
         logger.info("Queueing message into database")
 
         with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord WHERE id = %s"
+            query = "SELECT channel_id FROM discord WHERE id = %s"
 
-            cursor.execute(query, (user['discord_user_id'],))
+            cursor.execute(query, (whatsappSetting['discord_user_id'],))
 
             data = cursor.fetchone()
 
@@ -233,6 +240,9 @@ class WhatsAppHelper:
             dcUserDbRecipient = dict(zip(cursor.column_names, data))
 
             if dcUserDbRecipient['channel_id'] == triggerDcUserDb['channel_id']:
+                return
+
+            if self.__hasReceiverSuspended(whatsappSetting):
                 return
 
             delay = WhatsAppParameter.DELAY_JOIN_MESSAGE.value
@@ -260,8 +270,227 @@ class WhatsAppHelper:
                     "message, user_id, created_at, time_to_sent, trigger_user_id, is_join_message" \
                     ") VALUES (%s, %s, %s, %s, %s, %s)"
 
-            cursor.execute(query, (text, user['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
+            cursor.execute(query, (
+                text, whatsappSetting['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
+
+    def addOrEditSuspendDay(self, member: Member, weekday: discord.app_commands.Choice, start: str, end: str):
+        """
+        Enables a given time interval for the member to not receive messages in
+
+        :param member: Member, who requested the interval
+        :param weekday: Choice of the day to edit
+        :param start: Starttime
+        :param end: Endtime
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            whatsappSetting = dict(zip(cursor.column_names, data))
+
+        current = datetime.now()
+
+        try:
+            startTime: datetime = datetime.strptime(start, "%H:%M")
+            startTime = startTime.replace(year=current.year, month=current.month, day=current.day)
+        except ValueError:
+            return "Bitte wähle eine korrekte Startzeit aus!"
+
+        try:
+            endTime: datetime = datetime.strptime(end, "%H:%M")
+            endTime = endTime.replace(year=current.year, month=current.month, day=current.day)
+        except ValueError:
+            return "Bitte wähle eine korrekt Endzeit aus!"
+
+        if endTime.hour < startTime.hour:
+            return "Deine Endzeit kann nicht früher als die Startzeit sein!"
+        elif endTime == startTime:
+            return "Dein Intervall beträgt 0 Minuten!"
+
+        suspendDay: dict = {
+            'day': weekday.value,
+            'start': str(startTime),
+            'end': str(endTime),
+        }
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if suspendTimes is None:
+            newSuspendTimes = [suspendDay]
+        else:
+            suspendTimes = json.loads(suspendTimes)
+            newSuspendTimes = []
+
+            alreadyExisted = False
+
+            for day in suspendTimes:
+                if day['day'] == suspendDay['day']:
+                    newSuspendTimes.append(suspendDay)
+
+                    alreadyExisted = True
+                else:
+                    newSuspendTimes.append(day)
+
+            if not alreadyExisted:
+                newSuspendTimes.append(suspendDay)
+
+        whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'whatsapp_setting',
+                whatsappSetting['id'],
+                whatsappSetting,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+        return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
+            startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
+
+    def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
+        """
+        Resets the suspend settings to None
+
+        :param member: Member, who wishes to have his / her settings revoked
+        :param weekday: Weekday to reset
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            whatsappSetting = dict(zip(cursor.column_names, data))
+
+            suspendTimes = whatsappSetting['suspend_times']
+
+            if not suspendTimes:
+                return "Du hast keine Suspend-Zeiten zum zurücksetzen!"
+
+            suspendTimes = json.loads(suspendTimes)
+            newSuspendTimes = []
+            found = False
+
+            for day in suspendTimes:
+                if day['day'] != weekday.value:
+                    newSuspendTimes.append(day)
+                else:
+                    found = True
+
+            if len(newSuspendTimes) == 0:
+                whatsappSetting['suspend_times'] = None
+            else:
+                whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
+
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'whatsapp_setting',
+                whatsappSetting['id'],
+                whatsappSetting,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+            if found:
+                return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten am %s." % weekday.name
+            else:
+                return "Du hattest keine Suspend-Zeit an diesem Tag festgelegt!"
+
+    def __hasReceiverSuspended(self, whatsappSetting) -> bool:
+        """
+        Returns true if the receiver doesn't want messages currently.
+
+        :return:
+        """
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if not suspendTimes:
+            return False
+
+        suspendTimes = json.loads(suspendTimes)
+        now = datetime.now()
+
+        for day in suspendTimes:
+            # if we have the correct day
+            if int(day['day']) - 1 == now.weekday():
+                # if the time is correct
+                startTime: datetime = datetime.strptime(day['start'], "%Y-%m-%d %H:%M:%S")
+                endTime: datetime = datetime.strptime(day['end'], "%Y-%m-%d %H:%M:%S")
+
+                if startTime < now < endTime:
+                    return True
+                else:
+                    return False
+
+    def listSuspendSettings(self, member: Member) -> str:
+        """
+        Returns all suspend settings from this member
+
+        :param member:
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            whatsappSetting = dict(zip(cursor.column_names, data))
+
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if not suspendTimes:
+            return "Du hast keine Suspend-Zeiten gesetzt!"
+
+        suspendTimes = json.loads(suspendTimes)
+        answer = "Du hast folgende Suspend-Zeiten:\n\n"
+
+        days = {
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag",
+            "7": "Sonntag",
+        }
+
+        # to give the sort function the key to sort from
+        def sort_key(dictionary):
+            return dictionary["day"]
+
+        suspendTimes = sorted(suspendTimes, key=sort_key)
+
+        for day in suspendTimes:
+            startTime = datetime.strptime(day['start'], "%Y-%m-%d %H:%M:%S")
+            startTime = startTime.strftime("%H:%M")
+            endTime = datetime.strptime(day['end'], "%Y-%m-%d %H:%M:%S")
+            endTime = endTime.strftime("%H:%M")
+            weekday = day["day"]
+
+            answer += "- %s: von %s Uhr bis %s Uhr\n" % (
+                days[weekday], startTime, endTime,
+            )
+
+        return answer
 
     def __del__(self):
         self.databaseConnection.close()

@@ -15,7 +15,7 @@ from discord import Message, Client, Member
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
-from src.Helper.createNewDatabaseConnection import getDatabaseConnection
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.getFormattedTime import getFormattedTime
 from src.Id import ChannelId
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking

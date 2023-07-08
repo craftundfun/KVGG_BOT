@@ -25,7 +25,7 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
-from src.Services import ExperienceService
+from src.Services import ExperienceService, WhatsAppHelper
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
@@ -692,6 +692,61 @@ async def shutdownCogs(interaction: discord.Interaction):
     else:
         await interaction.response.send_message("Es gab keine Loops zum starten!")
 
+
+"""WHATSAPP SUSPEND SETTING"""
+
+
+@tree.command(name="whatsapp_suspend_settings",
+              description="Stelle einen Zeitraum ein in dem du keine WhatsApp-Nachrichten bekommen möchtest",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
+              )
+@app_commands.choices(day=[
+    Choice(name="Montag", value="1"),
+    Choice(name="Dienstag", value="2"),
+    Choice(name="Mittwoch", value="3"),
+    Choice(name="Donnerstag", value="4"),
+    Choice(name="Freitag", value="5"),
+    Choice(name="Samstag", value="6"),
+    Choice(name="Sonntag", value="7"),
+])
+@app_commands.describe(start="Wähle die Startzeit, z.B. 09:08")
+@app_commands.describe(end="Wähle die Endzeit, z.B. 09:08")
+async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Choice[str], start: str, end: str):
+    wa = WhatsAppHelper.WhatsAppHelper()
+    answer = wa.addOrEditSuspendDay(interaction.user, day, start, end)
+
+    await interaction.response.send_message(answer)
+
+
+@tree.command(name="reset_message_suspend_setting",
+              description="Wähle einen Tag um deine Suspend-Einstellung zurückzustellen",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
+              )
+@app_commands.choices(day=[
+    Choice(name="Montag", value="1"),
+    Choice(name="Dienstag", value="2"),
+    Choice(name="Mittwoch", value="3"),
+    Choice(name="Donnerstag", value="4"),
+    Choice(name="Freitag", value="5"),
+    Choice(name="Samstag", value="6"),
+    Choice(name="Sonntag", value="7"),
+])
+async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Choice[str]):
+    wa = WhatsAppHelper.WhatsAppHelper()
+    answer = wa.resetSuspendSetting(interaction.user, day)
+
+    await interaction.response.send_message(answer)
+
+
+@tree.command(name="list_message_suspend_settings",
+              description="Listet dir deine Suspend-Zeiten auf",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
+              )
+async def listSuspendSettings(interaction: discord.Interaction):
+    wa = WhatsAppHelper.WhatsAppHelper()
+    answer = wa.listSuspendSettings(interaction.user)
+
+    await interaction.response.send_message(answer)
 
 # FUCK YOU
 
