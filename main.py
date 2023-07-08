@@ -696,7 +696,7 @@ async def shutdownCogs(interaction: discord.Interaction):
 """WHATSAPP SUSPEND SETTING"""
 
 
-@tree.command(name="suspend_whatsapp_settings",
+@tree.command(name="whatsapp_suspend_settings",
               description="Stelle einen Zeitraum ein in dem du keine WhatsApp-Nachrichten bekommen möchtest",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
@@ -718,7 +718,7 @@ async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Ch
     await interaction.response.send_message(answer)
 
 
-@tree.command(name="reset_suspend_whatsapp_setting",
+@tree.command(name="reset_message_suspend_setting",
               description="Wähle einen Tag um deine Suspend-Einstellung zurückzustellen",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
@@ -737,7 +737,16 @@ async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Cho
 
     await interaction.response.send_message(answer)
 
-# TODO list command for suspends
+
+@tree.command(name="list_message_suspend_settings",
+              description="Listet dir deine Suspend-Zeiten auf",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
+              )
+async def listSuspendSettings(interaction: discord.Interaction):
+    wa = WhatsAppHelper.WhatsAppHelper()
+    answer = wa.listSuspendSettings(interaction.user)
+
+    await interaction.response.send_message(answer)
 
 # FUCK YOU
 

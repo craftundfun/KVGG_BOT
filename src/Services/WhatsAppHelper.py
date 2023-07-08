@@ -312,6 +312,8 @@ class WhatsAppHelper:
 
         if endTime.hour < startTime.hour:
             return "Deine Endzeit kann nicht früher als die Startzeit sein!"
+        elif endTime == startTime:
+            return "Dein Intervall beträgt 0 Minuten!"
 
         suspendDay: dict = {
             'day': weekday.value,
@@ -433,6 +435,62 @@ class WhatsAppHelper:
                     return True
                 else:
                     return False
+
+    def listSuspendSettings(self, member: Member) -> str:
+        """
+        Returns all suspend settings from this member
+
+        :param member:
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            data = cursor.fetchone()
+
+            if not data:
+                return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+
+            whatsappSetting = dict(zip(cursor.column_names, data))
+
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if not suspendTimes:
+            return "Du hast keine Suspend-Zeiten gesetzt!"
+
+        suspendTimes = json.loads(suspendTimes)
+        answer = "Du hast folgende Suspend-Zeiten:\n\n"
+
+        days = {
+            "1": "Montag",
+            "2": "Dienstag",
+            "3": "Mittwoch",
+            "4": "Donnerstag",
+            "5": "Freitag",
+            "6": "Samstag",
+            "7": "Sonntag",
+        }
+
+        # to give the sort function the key to sort from
+        def sort_key(dictionary):
+            return dictionary["day"]
+
+        suspendTimes = sorted(suspendTimes, key=sort_key)
+
+        for day in suspendTimes:
+            startTime = datetime.strptime(day['start'], "%Y-%m-%d %H:%M:%S")
+            startTime = startTime.strftime("%H:%M")
+            endTime = datetime.strptime(day['end'], "%Y-%m-%d %H:%M:%S")
+            endTime = endTime.strftime("%H:%M")
+            weekday = day["day"]
+
+            answer += "- %s: von %s Uhr bis %s Uhr\n" % (
+                days[weekday], startTime, endTime,
+            )
+
+        return answer
 
     def __del__(self):
         self.databaseConnection.close()
