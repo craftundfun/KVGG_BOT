@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
 import string
 
 from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
+import discord.app_commands
 from discord import VoiceState, Member
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper import WriteSaveQuery
@@ -35,8 +37,7 @@ class WhatsAppHelper:
         with self.databaseConnection.cursor() as cursor:
             # not pretty but otherwise complete garbage
             query = "SELECT w.discord_user_id, w.receive_join_notification, w.receive_leave_notification, " \
-                    "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_start, " \
-                    "w.suspend_end, u.id " \
+                    "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id " \
                     "FROM whatsapp_setting AS w INNER JOIN user AS u ON u.discord_user_id = w.discord_user_id " \
                     "WHERE u.phone_number IS NOT NULL and u.api_key_whats_app IS NOT NULL"
 
@@ -241,6 +242,9 @@ class WhatsAppHelper:
             if dcUserDbRecipient['channel_id'] == triggerDcUserDb['channel_id']:
                 return
 
+            if self.__hasReceiverSuspended(whatsappSetting):
+                return
+
             delay = WhatsAppParameter.DELAY_JOIN_MESSAGE.value
             timeToSent = datetime.now() + timedelta(minutes=delay)
 
@@ -270,11 +274,12 @@ class WhatsAppHelper:
                 text, whatsappSetting['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
 
-    def manageSuspendSetting(self, member: Member, start: str, end: str):
+    def addOrEditSuspendDay(self, member: Member, weekday: discord.app_commands.Choice, start: str, end: str):
         """
         Enables a given time interval for the member to not receive messages in
 
         :param member: Member, who requested the interval
+        :param weekday: Choice of the day to edit
         :param start: Starttime
         :param end: Endtime
         :return:
@@ -289,7 +294,7 @@ class WhatsAppHelper:
             if not data:
                 return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
-            data = dict(zip(cursor.column_names, data))
+            whatsappSetting = dict(zip(cursor.column_names, data))
 
         current = datetime.now()
 
@@ -305,27 +310,56 @@ class WhatsAppHelper:
         except ValueError:
             return "Bitte wähle eine korrekt Endzeit aus!"
 
-        data['suspend_start'] = startTime
-        data['suspend_end'] = endTime
+        if endTime.hour < startTime.hour:
+            return "Deine Endzeit kann nicht früher als die Startzeit sein!"
+
+        suspendDay: dict = {
+            'day': weekday.value,
+            'start': str(startTime),
+            'end': str(endTime),
+        }
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if suspendTimes is None:
+            newSuspendTimes = [suspendDay]
+        else:
+            suspendTimes = json.loads(suspendTimes)
+            newSuspendTimes = []
+
+            alreadyExisted = False
+
+            for day in suspendTimes:
+                if day['day'] == suspendDay['day']:
+                    newSuspendTimes.append(suspendDay)
+
+                    alreadyExisted = True
+                else:
+                    newSuspendTimes.append(day)
+
+            if not alreadyExisted:
+                newSuspendTimes.append(suspendDay)
+
+        whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
 
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
                 'whatsapp_setting',
-                data['id'],
-                data,
+                whatsappSetting['id'],
+                whatsappSetting,
             )
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
-        return "Du bekommst von nun an ab %s bis %s keine WhatsApp-Nachrichten mehr." % (
-            startTime.strftime("%H:%M"), endTime.strftime("%H:%M"))
+        return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
+            startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
 
-    def resetSuspendSetting(self, member: Member):
+    def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
         """
         Resets the suspend settings to None
 
         :param member: Member, who wishes to have his / her settings revoked
+        :param weekday: Weekday to reset
         :return:
         """
         with self.databaseConnection.cursor() as cursor:
@@ -338,20 +372,67 @@ class WhatsAppHelper:
             if not data:
                 return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
-            data = dict(zip(cursor.column_names, data))
-            data['suspend_start'] = None
-            data['suspend_end'] = None
+            whatsappSetting = dict(zip(cursor.column_names, data))
+
+            suspendTimes = whatsappSetting['suspend_times']
+
+            if not suspendTimes:
+                return "Du hast keine Suspend-Zeiten zum zurücksetzen!"
+
+            suspendTimes = json.loads(suspendTimes)
+            newSuspendTimes = []
+            found = False
+
+            for day in suspendTimes:
+                if day['day'] != weekday.value:
+                    newSuspendTimes.append(day)
+                else:
+                    found = True
+
+            if len(newSuspendTimes) == 0:
+                whatsappSetting['suspend_times'] = None
+            else:
+                whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
 
             query, nones = WriteSaveQuery.writeSaveQuery(
                 'whatsapp_setting',
-                data['id'],
-                data,
+                whatsappSetting['id'],
+                whatsappSetting,
             )
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
-            return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten."
+            if found:
+                return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten am %s." % weekday.name
+            else:
+                return "Du hattest keine Suspend-Zeit an diesem Tag festgelegt!"
+
+    def __hasReceiverSuspended(self, whatsappSetting) -> bool:
+        """
+        Returns true if the receiver doesn't want messages currently.
+
+        :return:
+        """
+        suspendTimes = whatsappSetting['suspend_times']
+
+        if not suspendTimes:
+            return False
+
+        suspendTimes = json.loads(suspendTimes)
+        now = datetime.now()
+
+        for day in suspendTimes:
+            # if we have the correct day
+            if int(day['day']) - 1 == now.weekday():
+                # if the time is correct
+                startTime: datetime = datetime.strptime(day['start'], "%Y-%m-%d %H:%M:%S")
+                endTime: datetime = datetime.strptime(day['end'], "%Y-%m-%d %H:%M:%S")
+
+                if startTime < now < endTime:
+                    return True
+                else:
+                    return False
 
     def __del__(self):
         self.databaseConnection.close()
