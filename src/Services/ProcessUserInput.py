@@ -878,13 +878,13 @@ class ProcessUserInput:
                 await memberDm.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
                                                "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
                                                "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                               "Minuten!\n%s"
+                                               "Minuten!\n"
                                                % (
                                                    counter.getNameOfCounter(),
                                                    username, date.strftime("%H:%M"),
                                                    counter.getNameOfCounter(),
-                                                   link
                                                ))
+                await memberDm.dm_channel.send(link)
 
                 return answer
 
