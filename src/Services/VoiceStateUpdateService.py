@@ -18,6 +18,7 @@ class VoiceStateUpdateService:
     """
     Handles every VoiceState and keeps the database up to date
     """
+
     def __init__(self, client: discord.Client):
         self.databaseConnection = getDatabaseConnection()
         self.client = client
@@ -60,6 +61,7 @@ class VoiceStateUpdateService:
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
             await ExperienceService.informAboutDoubleXpWeekend(dcUserDb, self.client)
+            await self.__welcomeBackMessage(member, dcUserDb)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -115,7 +117,6 @@ class VoiceStateUpdateService:
 
             self.__saveDiscordUser(dcUserDb)
 
-
     def __saveDiscordUser(self, dcUserDb: dict):
         """
         Saves the given DiscordUser to our database
@@ -160,5 +161,30 @@ class VoiceStateUpdateService:
 
         await member.dm_channel.send("Dein Felix-Counter wurde beendet!")
 
+    """You are finally awake GIF"""
+    finallyAwake = "https://tenor.com/bwJvI.gif"
+
+    async def __welcomeBackMessage(self, member: Member, dcUserDb):
+        """
+        If the member was offline for longer than 30 days, he / she will receive a welcome back message
+
+        :param member:
+        :param dcUserDb:
+        :return:
+        """
+        if not dcUserDb['last_online']:
+            return
+
+        if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 30:
+            if not member.dm_channel:
+                await member.create_dm()
+
+                if not member.dm_channel:
+                    return
+
+            await member.dm_channel.send("Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
+                                         "und %d Minuten nicht mehr da." %
+                                         (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
+            await member.dm_channel.send(self.finallyAwake)
     def __del__(self):
         self.databaseConnection.close()

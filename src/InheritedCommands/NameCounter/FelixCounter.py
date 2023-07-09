@@ -7,7 +7,7 @@ from src.InheritedCommands.NameCounter.Counter import Counter
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
 FELIX_COUNTER_STOP_KEYWORD = 'stop'
-LIAR = 'https://tenor.com/view/anakin-liar-star-wars-lying-gif-8634649'
+LIAR = 'https://tenor.com/KoqH.gif'
 
 
 def getAllKeywords() -> list:
