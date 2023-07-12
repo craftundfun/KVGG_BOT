@@ -45,15 +45,18 @@ class VoiceStateUpdateService:
             dcUserDb['joined_at'] = datetime.now()
 
             # if user joined with (full) mute
-            if voiceStateAfter.self_mute:
+            if voiceStateAfter.self_mute or voiceStateAfter.mute:
                 dcUserDb['muted_at'] = datetime.now()
-            elif not voiceStateAfter.self_mute:
+            elif not voiceStateAfter.self_mute and not voiceStateAfter.mute:
                 dcUserDb['muted_at'] = None
 
-            if voiceStateAfter.self_deaf:
+            if voiceStateAfter.self_deaf or voiceStateAfter.deaf:
                 dcUserDb['full_muted_at'] = datetime.now()
-            elif not voiceStateAfter.self_deaf:
+            elif not voiceStateAfter.self_deaf and not voiceStateAfter.self_deaf:
                 dcUserDb['full_muted_at'] = None
+
+            dcUserDb['started_stream_at'] = None
+            dcUserDb['started_webcam_at'] = None
 
             # must run before saving user
             await self.__checkFelixCounterAndSendStopMessage(dcUserDb)
@@ -70,15 +73,15 @@ class VoiceStateUpdateService:
                 now = datetime.now()
 
                 # if a user is mute
-                if voiceStateAfter.self_mute:
+                if voiceStateAfter.self_mute or voiceStateAfter.mute:
                     dcUserDb['muted_at'] = now
-                elif not voiceStateAfter.self_mute:
+                elif not voiceStateAfter.self_mute and not voiceStateAfter.mute:
                     dcUserDb['muted_at'] = None
 
                 # if a user is full mute
-                if voiceStateAfter.self_deaf:
+                if voiceStateAfter.self_deaf or voiceStateAfter.deaf:
                     dcUserDb['full_muted_at'] = now
-                elif not voiceStateAfter.self_deaf:
+                elif not voiceStateAfter.self_deaf and not voiceStateAfter.deaf:
                     dcUserDb['full_muted_at'] = None
 
                 # if user started stream
