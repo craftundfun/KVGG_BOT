@@ -7,6 +7,7 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Id.ChannelId import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Services.ProcessUserInput import getTagStringFromId
+from src.Services import DatabaseRefreshService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -21,6 +22,8 @@ class BackgroundServices(commands.Cog):
         logger.info("streamTimeAchievement started")
         self.xpAchievement.start()
         logger.info("xpAchievement started")
+        self.refreshDatabaseWithDiscord.start()
+        logger.info("refreshDatabaseWithDiscord started")
 
     def cog_unload(self) -> None:
         """
@@ -31,11 +34,13 @@ class BackgroundServices(commands.Cog):
         self.onlineTimeAchievement.cancel()
         self.streamTimeAchievement.cancel()
         self.xpAchievement.cancel()
+        self.refreshDatabaseWithDiscord.cancel()
 
     async def cog_load(self):
         self.onlineTimeAchievement.start()
         self.streamTimeAchievement.start()
         self.xpAchievement.start()
+        self.refreshDatabaseWithDiscord.start()
 
     @tasks.loop(seconds=60)
     async def onlineTimeAchievement(self):
@@ -163,3 +168,9 @@ class BackgroundServices(commands.Cog):
 
             await channel.send(str(tag) + ", du hast bereits " + str(xp) + " XP gefarmt. Weiter so "
                                                                            ":cookie:")
+
+    @tasks.loop(minutes=30)
+    async def refreshDatabaseWithDiscord(self):
+        logger.info("Running refreshDatabaseWithDiscord")
+        dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
+        await dbr.updateDatabaseToServerState()

@@ -26,7 +26,7 @@ from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCou
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
 from src.Services import ExperienceService, WhatsAppHelper
-from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, BotStartUpService
+from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
 from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
 from src.Services import BackgroundServices
@@ -48,7 +48,12 @@ logger.addHandler(fileHandler)
 
 # set up Formatter for console
 handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.WARNING)
+
+if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+    handler.setLevel(logging.WARNING)
+else:
+    handler.setLevel(logging.INFO)
+
 handler.setFormatter(CustomFormatter())
 logger.addHandler(handler)
 
@@ -115,9 +120,9 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
-        botStartUpService = BotStartUpService.BotStartUpService()
+        botStartUpService = DatabaseRefreshService.DatabaseRefreshService(self)
 
-        await botStartUpService.startUp(self)
+        await botStartUpService.startUp()
         logger.info("Users fetched and updated")
 
         if len(sys.argv) > 1 and sys.argv[1] == "-clean":
