@@ -135,7 +135,7 @@ class DatabaseRefreshService:
         :return:
         """
         # save online members for database -> discord comparison
-        onlineMembers = []
+        onlineMembers = {}
 
         # discord -> database
         for channel in self.client.get_all_channels():
@@ -148,7 +148,7 @@ class DatabaseRefreshService:
 
                 # check every member per channel
                 for member in channel.members:
-                    onlineMembers.append(member)
+                    onlineMembers[str(member.id)] = member
                     cursor.execute(query, (member.id,))
 
                     if not (data := cursor.fetchone()):
@@ -205,21 +205,9 @@ class DatabaseRefreshService:
 
             dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
 
-            def __findMemberInList(userId) -> member | None:
-                """
-                Helps tp find a member with the given id in the list.
-
-                :param userId:
-                :return:
-                """
-                for member in onlineMembers:
-                    if member.id == int(userId):
-                        return member
-                return None
-
             for dcUserDb in dcUsersDb:
                 # if a member gets returned, we know that he / she was served already
-                if __findMemberInList(dcUserDb['user_id']):
+                if str(dcUserDb['user_id']) in onlineMembers:
                     continue
 
                 dcUserDb['last_online'] = datetime.now()
