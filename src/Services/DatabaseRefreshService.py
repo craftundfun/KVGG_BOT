@@ -125,10 +125,6 @@ class DatabaseRefreshService:
 
         self.databaseConnection.commit()
 
-        # if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-        #    await client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(
-        #        file=discord.File("./Logs/log.txt"))
-
     async def updateDatabaseToServerState(self):
         """
         Updates the database to the current state of the discord
