@@ -15,6 +15,9 @@ logger = logging.getLogger("KVGG_BOT")
 class BackgroundServices(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
+        self.onlineTimeAchievementMemberList = []
+        self.xpAchievementMemberList = []
+        self.streamTimeAchievementMemberList = []
 
         self.onlineTimeAchievement.start()
         logger.info("onlineTimeAchievement started")
@@ -74,7 +77,13 @@ class BackgroundServices(commands.Cog):
 
             return
 
+        tempList = []
+
         for user in users:
+            # if member received achievement before
+            if user['user_id'] in self.onlineTimeAchievementMemberList:
+                continue
+
             if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
                 continue
 
@@ -83,6 +92,9 @@ class BackgroundServices(commands.Cog):
 
             await channel.send(str(tag) + ", du bist nun schon " + str(hours) + " Stunden online gewesen. Weiter so "
                                                                                 ":cookie:")
+            tempList.append(user['user_id'])
+
+        self.onlineTimeAchievementMemberList = tempList
 
     @tasks.loop(seconds=60)
     async def streamTimeAchievement(self):
@@ -116,7 +128,13 @@ class BackgroundServices(commands.Cog):
 
             return
 
+        tempList = []
+
         for user in users:
+            # if member received achievement before
+            if user['user_id'] in self.streamTimeAchievementMemberList:
+                continue
+
             if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
                 continue
 
@@ -125,6 +143,9 @@ class BackgroundServices(commands.Cog):
 
             await channel.send(str(tag) + ", du hast nun schon " + str(hours) + " Stunden gestreamt. Weiter so "
                                                                                 ":cookie:")
+            tempList.append(user['user_id'])
+
+        self.streamTimeAchievementMemberList = tempList
 
     @tasks.loop(seconds=60)
     async def xpAchievement(self):
@@ -159,7 +180,13 @@ class BackgroundServices(commands.Cog):
 
             return
 
+        tempList = []
+
         for user in users:
+            # if member received achievement before
+            if user['user_id'] in self.xpAchievementMemberList:
+                continue
+
             if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
                 continue
 
@@ -168,6 +195,9 @@ class BackgroundServices(commands.Cog):
 
             await channel.send(str(tag) + ", du hast bereits " + str(xp) + " XP gefarmt. Weiter so "
                                                                            ":cookie:")
+            self.xpAchievementMemberList.append(user['user_id'])
+
+        self.xpAchievementMemberList = tempList
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
