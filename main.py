@@ -1,7 +1,9 @@
 from __future__ import unicode_literals
 
+import json
 import os
 import time
+from asyncio import sleep
 
 import nest_asyncio
 import asyncio
@@ -11,7 +13,9 @@ import traceback
 import discord
 
 from typing import List, Tuple
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
+
+import requests
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook
 from discord.app_commands import Choice, commands
 from discord.ext import tasks
 
@@ -752,6 +756,49 @@ async def listSuspendSettings(interaction: discord.Interaction):
     answer = wa.listSuspendSettings(interaction.user)
 
     await interaction.response.send_message(answer)
+
+
+@tree.command(name="weather",
+              description="Frag das Wetter von einem Ort in Deutschland an",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
+              )
+@app_commands.describe(stadt="Stadt / Ort in Deutschland")
+async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
+    response: discord.InteractionResponse = interaction.response
+    webhook: discord.Webhook = interaction.followup
+
+    payload = {
+        'city': stadt,
+        'country': 'Germany',
+    }
+
+    await response.defer(thinking=True)
+
+    answer = requests.get(
+        'https://api.api-ninjas.com/v1/weather',
+        params=payload,
+        headers={
+            'X-Api-Key': 'xB1xvy4KwyTStfJSM98dug==spvKlzk9oSuR1EYS'
+        }
+    )
+
+    if answer.status_code != 200:
+        logger.warning("API sent an invalid response!: " + answer.content.decode('uft-8'))
+
+        await webhook.send("Es gab ein Problem! Vielleicht lag deine Stadt nicht in Deutschland?")
+
+        return
+
+    answer = answer.content.decode('utf-8')
+    data = json.loads(answer)
+
+    answer = "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine Luftfeuchtigkeit " \
+             "von %d Prozent. Es ist zu %s Prozent bewölkt." % (
+                 stadt, data['temp'], data['feels_like'], data['humidity'], data['cloud_pct'],
+             )
+
+    await webhook.send(answer)
+
 
 # FUCK YOU
 
