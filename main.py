@@ -778,7 +778,7 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
         'https://api.api-ninjas.com/v1/weather',
         params=payload,
         headers={
-            'X-Api-Key': 'xB1xvy4KwyTStfJSM98dug==spvKlzk9oSuR1EYS'
+            'X-Api-Key': ''
         }
     )
 
