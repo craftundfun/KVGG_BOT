@@ -159,7 +159,7 @@ class BackgroundServices(commands.Cog):
             return
 
         with databaseConnection.cursor() as cursor:
-            query = "SELECT e.xp_amount, d.user_id " \
+            query = "SELECT e.xp_amount, d.user_id, d.channel_id " \
                     "FROM experience e " \
                     "INNER JOIN discord d on e.discord_user_id = d.id " \
                     "WHERE d.channel_id IS NOT NULL and e.xp_amount > 0 and MOD(e.xp_amount, %s) = 0"
