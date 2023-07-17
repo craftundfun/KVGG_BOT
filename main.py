@@ -822,7 +822,7 @@ async def convertCurrency(interaction: discord.interactions.Interaction, von: st
               description="Dein Text als QRCode",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
-async def test(ctx, text: str):
+async def generateQRCode(ctx, text: str):
     api = ApiServices.ApiServices()
     await api.generateQRCode(ctx, text)
 

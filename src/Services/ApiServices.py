@@ -41,6 +41,7 @@ class ApiServices:
                     'X-API-Key': self.apiKey,
                 }
             )
+
             answerAir = await client.get(
                 self.url + "airquality",
                 params=payload,
@@ -152,5 +153,4 @@ class ApiServices:
 
             return
 
-        await webhook.send(file=discord.File(BytesIO(answer.content),filename="qrcode.png"))
-
+        await webhook.send(file=discord.File(BytesIO(answer.content), filename="qrcode.png"))
