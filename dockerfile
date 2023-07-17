@@ -6,6 +6,7 @@ RUN pip install requests
 RUN apt-get install libffi-dev
 RUN pip install mutagen
 RUN pip install nest-asyncio
+RUN pip install httpx
 
 
 COPY main.py .
