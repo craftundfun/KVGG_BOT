@@ -96,6 +96,25 @@ class ProcessUserInput:
         self.client = client
         self.logHelper = LogHelper.LogHelper()
 
+    def changeWelcomeBackNotificationSetting(self, member: Member, setting: bool) -> str:
+        """
+        Changes the notification setting for coming online
+
+        :param member:
+        :param setting:
+        :return:
+        """
+        # TODO make extra class for changing settings
+
+        if not (dcUserDb := getDiscordUserById(self.databaseConnection, member.id)):
+            return "Es gab ein Problem!"
+
+        dcUserDb['welcome_back_notification'] = 1 if setting else 0
+
+        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+
+        return "Deine Einstellung wurde erfolgreich gespeichert!"
+
     def processMessage(self, message: Message):
         """
         Increases the message count and adds XP
