@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 
 import discord
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from discord import Member, VoiceState
 from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
@@ -64,7 +66,9 @@ class VoiceStateUpdateService:
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
             await ExperienceService.informAboutDoubleXpWeekend(dcUserDb, self.client)
-            await self.__welcomeBackMessage(member, dcUserDb)
+
+            if not await self.__xDaysOfflineMessage(member, dcUserDb):
+                await self.__welcomeBackMessage(member, dcUserDb)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -167,27 +171,99 @@ class VoiceStateUpdateService:
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
 
-    async def __welcomeBackMessage(self, member: Member, dcUserDb):
+    async def __xDaysOfflineMessage(self, member: Member, dcUserDb) -> bool:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
         :param member:
         :param dcUserDb:
-        :return:
+        :return: Boolean if a message was sent
         """
         if not dcUserDb['last_online']:
-            return
+            return False
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 30:
             if not member.dm_channel:
                 await member.create_dm()
 
                 if not member.dm_channel:
-                    return
+                    return False
 
             await member.dm_channel.send("Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
                                          "und %d Minuten nicht mehr da." %
                                          (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
             await member.dm_channel.send(self.finallyAwake)
+
+            return True
+
+        return False
+
+    async def __welcomeBackMessage(self, member: Member, dcUserDb):
+        """
+        Sends a welcome back notification for users who opted in
+
+        :param member: Member, who joined
+        :param dcUserDb: Discord User from our database
+        :return:
+        """
+        optedIn = dcUserDb['welcome_back_notification']
+
+        if not optedIn or optedIn is False:
+            return
+        elif not dcUserDb['last_online']:
+            return
+
+        now = datetime.now()
+
+        if 0 <= now.hour <= 11:
+            daytime = "Morgen"
+        elif 12 <= now.hour <= 14:
+            daytime = "Mittag"
+        elif 15 <= now.hour <= 17:
+            daytime = "Nachmittag"
+        else:
+            daytime = "Abend"
+
+        lastOnlineDiff: timedelta = now - dcUserDb['last_online']
+        days: int = lastOnlineDiff.days
+        hours: int = lastOnlineDiff.seconds // 3600
+        minutes: int = (lastOnlineDiff.seconds // 60) % 60
+
+        if minutes < 30:
+            return
+
+        onlineTime: str | None = dcUserDb['formated_time']
+        streamTime: str | None = dcUserDb['formatted_stream_time']
+
+        xpService = ExperienceService.ExperienceService(self.client)
+        xp: dict | None = xpService.getXpValue(dcUserDb)
+
+        message = "Hey, guten %s. Du warst vor %d Tagen, %d Stunden und %d Minuten zuletzt online. " % (
+            daytime, days, hours, minutes
+        )
+
+        if onlineTime:
+            message += "Deine Online-Zeit beträgt %s Stunden" % onlineTime
+
+        if streamTime:
+            message += ", deine Stream-Zeit %s Stunden. " % streamTime
+        else:
+            message += ". "
+
+        if xp:
+            message += "Außerdem hast du bereits %d XP gefarmt." % xp['xp_amount']
+
+        message += "\n\nViel Spaß!"
+
+        if not member.dm_channel:
+            await member.create_dm()
+
+            if not member.dm_channel:
+                logger.warning("Couldnt create DM-Channel with %s" % member.name)
+                
+                return
+
+        await member.dm_channel.send(message)
+
     def __del__(self):
         self.databaseConnection.close()

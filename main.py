@@ -654,18 +654,31 @@ async def getXpLeaderboard(interaction: discord.Interaction):
 """XP NOTIFICATION"""
 
 
-@tree.command(name="xp_notification",
-              description="Lässt dich deine Doppel-XP-Wochenende Benachrichtigungen einstellen.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
+@tree.command(name="notifications",
+              description="Lässt dich deine Benachrichtigungen einstellen.",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
+@app_commands.choices(category=[
+    Choice(name="xp", value="xp"),
+    Choice(name="welcome", value="welcome"),
+])
+@app_commands.describe(category="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
     Choice(name="on", value="on"),
     Choice(name="off", value="off"),
 ])
-@app_commands.describe(action="Wähle deine Einstellung!")
-async def handleXpNotification(interaction: discord.Interaction, action: Choice[str]):
-    exp = ExperienceService.ExperienceService(client)
-    answer = exp.handleXpNotification(interaction.user, action.value)
+@app_commands.describe(action="Wähle deine Einstellung")
+async def handleNotificationSettings(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
+    if category.value == "xp":
+        exp = ExperienceService.ExperienceService(client)
+        answer = exp.handleXpNotification(interaction.user, action.value)
+    elif category.value == "welcome":
+        pui = ProcessUserInput.ProcessUserInput(client)
+        answer = pui.changeWelcomeBackNotificationSetting(interaction.user, True if action.value == "on" else False)
+    else:
+        answer = "Irgendetwas ist schief gelaufen!"
+
+        logger.warning("User reached unreachable code!")
 
     ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
     await interaction.response.send_message(answer)
@@ -816,6 +829,9 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 async def convertCurrency(interaction: discord.interactions.Interaction, von: str, nach: str, betrag: float):
     api = ApiServices.ApiServices()
     await api.convertCurrency(interaction, von, nach, betrag)
+
+
+"""QR-CODE"""
 
 
 @tree.command(name="qrcode",

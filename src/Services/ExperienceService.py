@@ -339,6 +339,15 @@ class ExperienceService:
 
             return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
 
+    def getXpValue(self, dcUserDb: dict) -> dict | None:
+        """
+        Returns the xp for the given discord user
+
+        :param dcUserDb:
+        :return:
+        """
+        return self.__getExperience(dcUserDb['user_id'])
+
     async def handleXpRequest(self, member: Member, userTag: str) -> string:
         """
         Handles the XP-Request of the given tag
