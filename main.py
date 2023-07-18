@@ -668,7 +668,7 @@ async def getXpLeaderboard(interaction: discord.Interaction):
     Choice(name="off", value="off"),
 ])
 @app_commands.describe(action="Wähle deine Einstellung")
-async def handleXpNotification(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
+async def handleNotificationSettings(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
     if category.value == "xp":
         exp = ExperienceService.ExperienceService(client)
         answer = exp.handleXpNotification(interaction.user, action.value)
