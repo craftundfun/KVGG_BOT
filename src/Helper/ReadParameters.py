@@ -13,6 +13,7 @@ class Parameters(Enum):
     PORT = 6
     EMAIL_USER = 7
     EMAIL_PASSWORD = 8
+    API_KEY = 9
 
 
 def getParameter(param: Parameters) -> string:
