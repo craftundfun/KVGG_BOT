@@ -18,6 +18,8 @@ def getDatabaseConnection() -> MySQLConnection | None:
     databaseConnection = None
 
     try:
+        logger.debug("trying to create new database connection")
+
         databaseConnection = mysql.connector.connect(
             user=rp.getParameter(parameters.USER),
             password=rp.getParameter(parameters.PASSWORD),
@@ -31,4 +33,6 @@ def getDatabaseConnection() -> MySQLConnection | None:
     if databaseConnection is None:
         logger.critical("DatabaseConnection couldn't be established!")
         raise TypeError("DatabaseConnection couldn't be established, return was None!")
+
+    logger.debug("creating new database connection was successful")
     return databaseConnection

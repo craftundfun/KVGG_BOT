@@ -277,6 +277,9 @@ class ProcessUserInput:
         """
         logger.info("%s requested to move users into %s" % (member.name, channelName))
 
+        if not member.voice:
+            return "Du bist mit keinem Voicechannel verbunden!"
+
         channelStart = member.voice.channel
 
         if not channelStart:
