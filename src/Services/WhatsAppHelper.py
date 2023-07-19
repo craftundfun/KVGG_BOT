@@ -14,7 +14,7 @@ from src.Helper import WriteSaveQuery
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
+from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
 logger = logging.getLogger("KVGG_BOT")
@@ -148,7 +148,7 @@ class WhatsAppHelper:
         """
         logger.info("Editing message from %s caused by changing channels" % dcUserDb['username'])
 
-        if (messages := getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:
+        if (messages := getUnsentMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:
             return
 
         if len(messages) == 0:
@@ -200,7 +200,7 @@ class WhatsAppHelper:
         logger.info("Retracting messages from Queue for %s" % dcUserDb['username'])
 
         with self.databaseConnection.cursor() as cursor:
-            messages = getUnsendMessagesFromTriggerUser(self.databaseConnection, dcUserDb, isJoinMessage)
+            messages = getUnsentMessagesFromTriggerUser(self.databaseConnection, dcUserDb, isJoinMessage)
 
             if messages is None:
                 return
@@ -249,7 +249,7 @@ class WhatsAppHelper:
             timeToSent = datetime.now() + timedelta(minutes=delay)
 
             if not channel:
-                joinMessages: list = getUnsendMessagesFromTriggerUser(self.databaseConnection, triggerDcUserDb, True)
+                joinMessages: list = getUnsentMessagesFromTriggerUser(self.databaseConnection, triggerDcUserDb, True)
 
                 # if there are no join message send leave
                 if joinMessages is None or len(joinMessages) == 0:

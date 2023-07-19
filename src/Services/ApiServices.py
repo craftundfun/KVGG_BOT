@@ -31,9 +31,11 @@ class ApiServices:
             'country': 'Germany',
         }
 
+        logger.debug("setting response to thinking")
         await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for weather")
             answerWeather = await client.get(
                 self.url + "weather",
                 params=payload,
@@ -42,6 +44,7 @@ class ApiServices:
                 }
             )
 
+            logger.debug("calling API for air-quality")
             answerAir = await client.get(
                 self.url + "airquality",
                 params=payload,
@@ -56,6 +59,8 @@ class ApiServices:
                                " das Problem weiterhin auftreten sollte liegt es wohl nicht an dir.")
 
             return
+
+        logger.debug("retrieved data successfully")
 
         answerWeather = answerWeather.content.decode('utf-8')
         dataWeather = json.loads(answerWeather)
@@ -95,9 +100,11 @@ class ApiServices:
             'amount': amount,
         }
 
+        logger.debug("setting response to thinking")
         await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for currency-conversion")
             answer = await client.get(
                 self.url + "convertcurrency",
                 params=payload,
@@ -112,6 +119,8 @@ class ApiServices:
                                "es nicht an dir.")
 
             return
+
+        logger.debug("retrieved data successfully")
 
         data = answer.content.decode('utf-8')
         data = json.loads(data)
@@ -138,9 +147,11 @@ class ApiServices:
             'Accept': 'image/png',
         }
 
+        logger.debug("setting response to thinking")
         await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for QR-Code generation")
             answer = await client.get(
                 "https://api.qrserver.com/v1/create-qr-code/",
                 params=payload,
@@ -152,5 +163,7 @@ class ApiServices:
             await webhook.send("Es ist ein Problem aufgetreten!")
 
             return
+
+        logger.debug("retrieved data successfully")
 
         await webhook.send(file=discord.File(BytesIO(answer.content), filename="qrcode.png"))

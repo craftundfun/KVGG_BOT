@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from mysql.connector import MySQLConnection
 
+logger = logging.getLogger("KVGG_BOT")
 
-def getUnsendMessagesFromTriggerUser(databaseConnection: MySQLConnection, dcUserDb: dict,
+
+def getUnsentMessagesFromTriggerUser(databaseConnection: MySQLConnection, dcUserDb: dict,
                                      isJoinMessage: bool) -> list | None:
     with databaseConnection.cursor() as cursor:
         query = "SELECT * " \
@@ -16,6 +19,7 @@ def getUnsendMessagesFromTriggerUser(databaseConnection: MySQLConnection, dcUser
         cursor.execute(query, (dcUserDb['id'], datetime.now(), isJoinMessage))
 
         data = cursor.fetchall()
+        logger.debug("fetched data from database")
 
         if not data:
             return None
