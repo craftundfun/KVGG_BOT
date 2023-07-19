@@ -803,6 +803,34 @@ class ProcessUserInput:
 
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
                 counter.getNameOfCounter(), getTagStringFromId(tag), value)
+        elif param:
+            try:
+                value = int(param)
+            except ValueError:
+                return "Dein eingegebener Parameter war ungültig!"
+
+            if int(dcUserDb['user_id']) == member.id and value < 0:
+                return "Du darfst deinen eigenen Counter nicht verringern!"
+
+            value = 1
+
+            if counter.getCounterValue() + value < 0:
+                counter.setCounterValue(0)
+            else:
+                counter.setCounterValue(counter.getCounterValue() + value)
+
+                with self.databaseConnection.cursor() as cursor:
+                    query, nones = WriteSaveQuery.writeSaveQuery(
+                        'discord',
+                        dcUserDb['id'],
+                        dcUserDb
+                    )
+
+                    cursor.execute(query, nones)
+                    self.databaseConnection.commit()
+
+            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+                counter.getNameOfCounter(), getTagStringFromId(tag), value)
         else:
             with self.databaseConnection.cursor() as cursor:
                 query, nones = WriteSaveQuery.writeSaveQuery(
