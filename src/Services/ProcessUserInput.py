@@ -825,6 +825,9 @@ class ProcessUserInput:
 
                     cursor.execute(query, nones)
                     self.databaseConnection.commit()
+
+            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+                counter.getNameOfCounter(), getTagStringFromId(tag), value)
         else:
             with self.databaseConnection.cursor() as cursor:
                 query, nones = WriteSaveQuery.writeSaveQuery(
