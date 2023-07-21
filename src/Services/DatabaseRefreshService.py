@@ -35,9 +35,12 @@ class DatabaseRefreshService:
             data = cursor.fetchall()
 
             if not data:
+                logger.critical("found not entries in discord database")
                 return
 
             dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
+
+        logger.debug("compare database against discord")
 
         # for every user from the database
         for user in dcUsersDb:
