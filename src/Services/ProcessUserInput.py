@@ -809,8 +809,10 @@ class ProcessUserInput:
 
             if int(dcUserDb['user_id']) == member.id and value < 0:
                 return "Du darfst deinen eigenen Counter nicht verringern!"
+            elif value == 0:
+                return "0 ist keine gültige Anpassung!"
 
-            value = 1 if value >= 0 else -1
+            value = 1 if value > 0 else -1
 
             if counter.getCounterValue() + value < 0:
                 counter.setCounterValue(0)
