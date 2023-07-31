@@ -9,6 +9,7 @@ from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Id.ChannelId import ChannelId
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -32,7 +33,8 @@ class QuotesManager:
         self.databaseConnection = getDatabaseConnection()
         self.client = client
 
-    async def answerQuote(self, member: Member) -> string | None:
+    @validateKeys
+    def answerQuote(self, member: Member) -> string | None:
         """
         Returns a random quote from our database
 

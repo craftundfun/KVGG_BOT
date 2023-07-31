@@ -16,6 +16,7 @@ from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsendMessagesFromTriggerUser
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -274,6 +275,7 @@ class WhatsAppHelper:
                 text, whatsappSetting['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
 
+    @validateKeys
     def addOrEditSuspendDay(self, member: Member, weekday: discord.app_commands.Choice, start: str, end: str):
         """
         Enables a given time interval for the member to not receive messages in
@@ -356,6 +358,7 @@ class WhatsAppHelper:
         return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
             startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
 
+    @validateKeys
     def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
         """
         Resets the suspend settings to None
@@ -436,6 +439,7 @@ class WhatsAppHelper:
                 else:
                     return False
 
+    @validateKeys
     def listSuspendSettings(self, member: Member) -> str:
         """
         Returns all suspend settings from this member
