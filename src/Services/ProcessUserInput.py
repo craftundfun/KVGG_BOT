@@ -25,9 +25,10 @@ from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
-from src.InheritedCommands.Times import Time
+from src.InheritedCommands.Times import Time, UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
@@ -96,6 +97,7 @@ class ProcessUserInput:
         self.client = client
         self.logHelper = LogHelper.LogHelper()
 
+    @validateKeys
     def changeWelcomeBackNotificationSetting(self, member: Member, setting: bool) -> str:
         """
         Changes the notification setting for coming online
@@ -238,6 +240,7 @@ class ProcessUserInput:
 
         return None
 
+    @validateKeys
     async def answerJoke(self, member: Member, category: str):
         """
         Answers a joke from an API
@@ -267,6 +270,7 @@ class ProcessUserInput:
 
         return data[0]['text']
 
+    @validateKeys
     async def moveUsers(self, channelName: string, member: Member) -> string:
         """
         Moves all users from the initiator channel to the given one
@@ -341,16 +345,26 @@ class ProcessUserInput:
 
         return "Alle User wurden erfolgreich verschoben!"
 
-    async def accessTimeAndEdit(self, time: Time, userTag: string, member: Member, param: string | None) -> string:
+    @validateKeys
+    async def accessTimeAndEdit(self, timeName: str, userTag: string, member: Member, param: str | None) -> str:
         """
         Answering given Time from given User or adds (subtracts) given amount
 
-        :param time: Time-type
+        :param timeName: Time-type
         :param userTag: Requested user
         :param member: Requesting Member
         :param param: Optional amount of time added or subtracted
         :return:
         """
+        time = None
+
+        if timeName == "online":
+            time = OnlineTime.OnlineTime()
+        elif timeName == "stream":
+            time = StreamTime.StreamTime()
+        elif timeName == "uni":
+            time = UniversityTime.UniversityTime()
+
         logger.info("%s requested %s-Time" % (member.name, time.getName()))
 
         # all users
@@ -463,6 +477,7 @@ class ProcessUserInput:
             else:
                 await message.reply("'%s'" % commandExplanation[0])
 
+    @validateKeys
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str):
         """
         Lets the user change their WhatsApp settings
@@ -477,17 +492,15 @@ class ProcessUserInput:
 
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
-            query = "SELECT u.id, recieve_join_notification, receive_leave_notification, " \
-                    "receive_uni_join_notification, receive_uni_leave_notification " \
-                    "FROM discord INNER JOIN user u " \
-                    "ON discord.id = u.discord_user_id " \
-                    "WHERE discord.user_id = %s"
+            query = "SELECT * " \
+                    "FROM whatsapp_setting " \
+                    "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
             cursor.execute(query, (member.id,))
-            user = dict(zip(cursor.column_names, cursor.fetchone()))
+            whatsappSettings = dict(zip(cursor.column_names, cursor.fetchone()))
 
-        if not user:
-            logger.warning("Couldn't fetch corresponding user!")
+        if not whatsappSettings:
+            logger.warning("Couldn't fetch corresponding settings!")
 
             return "Du bist nicht als User bei uns registriert!"
 
@@ -496,41 +509,41 @@ class ProcessUserInput:
             if action == 'join':
                 # !whatsapp join on
                 if switch == 'on':
-                    user['recieve_join_notification'] = 1
+                    whatsappSettings['receive_join_notification'] = 1
 
                 # !whatsapp join off
                 elif switch == 'off':
-                    user['recieve_join_notification'] = 0
+                    whatsappSettings['receive_join_notification'] = 0
 
             # !whatsapp leave
             elif action == 'leave':
                 # !whatsapp leave on
                 if switch == 'on':
-                    user['receive_leave_notification'] = 1
+                    whatsappSettings['receive_leave_notification'] = 1
 
                 # !whatsapp leave off
                 elif switch == 'off':
-                    user['receive_leave_notification'] = 0
+                    whatsappSettings['receive_leave_notification'] = 0
 
         # !whatsapp uni
         elif type == 'Uni':
             if action == 'join':
                 if switch == 'on':
-                    user['receive_uni_join_notification'] = 1
+                    whatsappSettings['receive_uni_join_notification'] = 1
                 elif switch == 'off':
-                    user['receive_uni_join_notification'] = 0
+                    whatsappSettings['receive_uni_join_notification'] = 0
 
             elif action == 'leave':
                 if switch == 'on':
-                    user['receive_uni_leave_notification'] = 1
+                    whatsappSettings['receive_uni_leave_notification'] = 1
                 elif switch == 'off':
-                    user['receive_uni_leave_notification'] = 0
+                    whatsappSettings['receive_uni_leave_notification'] = 0
 
         with self.databaseConnection.cursor() as cursor:
             query, noneTuple = WriteSaveQuery.writeSaveQuery(
-                rp.getParameter(rp.Parameters.NAME) + ".user",
-                user['id'],
-                user
+                "whatsapp_setting",
+                whatsappSettings['id'],
+                whatsappSettings
             )
 
             cursor.execute(query, noneTuple)
@@ -538,6 +551,7 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde übernommen!"
 
+    @validateKeys
     async def sendLeaderboard(self, member: Member) -> string:
         """
         Returns the leaderboard of our stats in the database
@@ -718,6 +732,7 @@ class ProcessUserInput:
 
         return answer
 
+    @validateKeys
     async def sendRegistrationLink(self, member: Member):
         """
         Sends an individual invitaion link to the member who requested it
@@ -742,16 +757,36 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    async def accessNameCounterAndEdit(self, counter: Counter, userTag: str, member: Member, param: str) -> string:
+    @validateKeys
+    async def accessNameCounterAndEdit(self, counterName: str, userTag: str, member: Member, param: str) -> string:
         """
         Answering given Counter from given User or adds (subtracts) given amount
 
-        :param counter: Chosen counter-type
+        :param counterName: Chosen counter-type
         :param userTag: User which counter was requested
         :param member: Member who requested the counter
         :param param: Optional amount of time to add / subtract
         :return:
         """
+        counter = None
+
+        if "Bjarne" == counterName:
+            counter = BjarneCounter.BjarneCounter()
+        elif "Carl" == counterName:
+            counter = CarlCounter.CarlCounter()
+        elif "Cookie" == counterName:
+            counter = CookieCounter.CookieCounter()
+        elif "Felix" == counterName:
+            counter = FelixCounter.FelixCounter()
+        elif "JJ" == counterName:
+            counter = JjCounter.JjCounter()
+        elif "Oleg" == counterName:
+            counter = OlegCounter.OlegCounter()
+        elif "Paul" == counterName:
+            counter = PaulCounter.PaulCounter()
+        elif "Rene" == counterName:
+            counter = ReneCounter.ReneCounter()
+
         logger.info("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
         if (tag := getUserIdByTag(userTag)) is None:
@@ -845,14 +880,15 @@ class ProcessUserInput:
             return "%s hat einen %s-Counter von %d!" % (
                 getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
 
-    async def handleFelixTimer(self, member: Member, tag: string, action: string, zeit: string = None):
+    @validateKeys
+    async def handleFelixTimer(self, member: Member, tag: string, action: string, time: string = None):
         """
         Handles the Feli-Timer for the given user
 
         :param member: Member, who raised the command
         :param tag: Tag of the user whose timer will be edited
         :param action: Chosen action, start or stop
-        :param zeit: Optional time to start the timer at
+        :param time: Optional time to start the timer at
         :return:
         """
         logger.info("Handling Felix-Timer by %s" % member.name)
@@ -871,11 +907,11 @@ class ProcessUserInput:
             if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
                 date = None
 
-                if not zeit:
+                if not time:
                     return "Bitte gib eine Zeit an!"
 
                 try:
-                    timeToStart = datetime.strptime(zeit, "%H:%M")
+                    timeToStart = datetime.strptime(time, "%H:%M")
                     current = datetime.now()
                     timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
 
@@ -886,7 +922,7 @@ class ProcessUserInput:
                     date = timeToStart
                 except ValueError:
                     try:
-                        minutesFromNow = int(zeit)
+                        minutesFromNow = int(time)
                     except ValueError:
                         return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
                                "Timer um 09:04 Uhr zu starten!"
@@ -987,6 +1023,7 @@ class ProcessUserInput:
                 return "Es lief kein %s-Timer für %s!" % (
                     counter.getNameOfCounter(), tag)
 
+    @validateKeys
     async def sendLogs(self, member: Member, amount: int) -> string:
         """
         Answer a given amount of Logs from our database

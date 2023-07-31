@@ -1,23 +1,17 @@
 from __future__ import unicode_literals
 
-import json
-import os
-import time
-from asyncio import sleep
-
-import nest_asyncio
 import asyncio
 import logging.handlers
+import os
 import sys
+import time
 import traceback
-import discord
-
 from typing import List, Tuple
 
-import requests
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook
+import discord
+import nest_asyncio
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
 from discord.app_commands import Choice, commands
-from discord.ext import tasks
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
@@ -29,12 +23,13 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
+from src.Services import ApiServices
+from src.Services import BackgroundServices
 from src.Services import ExperienceService, WhatsAppHelper
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
-from src.Services.ProcessUserInput import hasUserWantedRoles
 from src.Services.EmailService import send_exception_mail
-from src.Services import BackgroundServices
-from src.Services import ApiServices
+from src.Services.ProcessUserInput import hasUserWantedRoles
+from src.Services.CommandService import CommandService, Commands
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -250,11 +245,7 @@ async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice
     :param amount: Number of logs to be returned
     :return:
     """
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.sendLogs(interaction.user, amount.value)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.LOGS, interaction, member=interaction.user, amount=amount.value)
 
 
 """ANSWER JOKE"""
@@ -274,7 +265,7 @@ async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice
     Choice(name="Blondinenwitze", value="blondinenwitze"),
     Choice(name="Schulwitze", value="schulwitze"),
 ])
-async def answerJoke(interaction: discord.interactions.Interaction, kategorie: Choice[str] = None):
+async def answerJoke(interaction: discord.interactions.Interaction, kategorie: Choice[str]):
     """
     Calls the answer joke function in ProcessUserInput from this interaction
 
@@ -282,18 +273,10 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
     :param kategorie: Optional choice of the category
     :return:
     """
-
-    pui = ProcessUserInput.ProcessUserInput(client)
-
-    if kategorie is None:
-        category = "flachwitze"
-    else:
-        category = kategorie.value
-
-    answer = await pui.answerJoke(interaction.user, category)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.JOKE,
+                                            interaction,
+                                            member=interaction.user,
+                                            category=kategorie.value)
 
 
 """MOVE ALL USERS"""
@@ -343,11 +326,7 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
     :param channel: Destination channel
     :return:
     """
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.moveUsers(channel, interaction.user)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.MOVE, interaction, channelName=channel, member=interaction.user)
 
 
 """ANSWER QUOTE"""
@@ -364,14 +343,7 @@ async def answerQuote(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    answer = await QuotesManager.QuotesManager(client).answerQuote(interaction.user)
-
-    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
-
-    if answer:
-        await interaction.response.send_message(answer)
-    else:
-        await interaction.response.send_message("Es ist etwas schief gelaufen!")
+    await CommandService(client).runCommand(Commands.QUOTE, interaction, member=interaction.user)
 
 
 """ANSWER TIME / STREAMTIME / UNITIME"""
@@ -399,21 +371,12 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     :param param: Optional parameter for Admins and Mods
     :return:
     """
-
-    time = None
-
-    if zeit.value == "online":
-        time = OnlineTime.OnlineTime()
-    elif zeit.value == "stream":
-        time = StreamTime.StreamTime()
-    elif zeit.value == "uni":
-        time = UniversityTime.UniversityTime()
-
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.accessTimeAndEdit(time, user, interaction.user, param)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.TIME,
+                                            interaction,
+                                            timeName=zeit.value,
+                                            userTag=user,
+                                            member=interaction.user,
+                                            param=param)
 
 
 """NAME COUNTER"""
@@ -446,30 +409,12 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     :param param: Optional parameter for Admins and Mods
     :return:
     """
-    nameCounter = None
-
-    if "Bjarne" == counter.value:
-        nameCounter = BjarneCounter.BjarneCounter()
-    elif "Carl" == counter.value:
-        nameCounter = CarlCounter.CarlCounter()
-    elif "Cookie" == counter.value:
-        nameCounter = CookieCounter.CookieCounter()
-    elif "Felix" == counter.value:
-        nameCounter = FelixCounter.FelixCounter()
-    elif "JJ" == counter.value:
-        nameCounter = JjCounter.JjCounter()
-    elif "Oleg" == counter.value:
-        nameCounter = OlegCounter.OlegCounter()
-    elif "Paul" == counter.value:
-        nameCounter = PaulCounter.PaulCounter()
-    elif "Rene" == counter.value:
-        nameCounter = ReneCounter.ReneCounter()
-
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.accessNameCounterAndEdit(nameCounter, user, interaction.user, param)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.COUNTER,
+                                            interaction,
+                                            counterName=counter.value,
+                                            userTag=user,
+                                            member=interaction.user,
+                                            param=param)
 
 
 """MANAGE WHATSAPP SETTINGS"""
@@ -505,11 +450,12 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
     :param switch: Switch on or off
     :return:
     """
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.manageWhatsAppSettings(interaction.user, type.value, action.value, switch.value)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.WHATSAPP,
+                                            interaction,
+                                            member=interaction.user,
+                                            type=type.value,
+                                            action=action.value,
+                                            switch=switch.value)
 
 
 """SEND LEADERBOARD"""
@@ -526,11 +472,7 @@ async def sendLeaderboard(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.sendLeaderboard(interaction.user)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.LEADERBOARD, interaction, member=interaction.user)
 
 
 """SEND REGISTRATION"""
@@ -547,11 +489,7 @@ async def sendRegistration(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.sendRegistrationLink(interaction.user)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.REGISTRATION, interaction, member=interaction.user)
 
 
 """XP SPIN"""
@@ -568,12 +506,7 @@ async def spinForXpBoost(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    xpService = ExperienceService.ExperienceService(client)
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await xpService.spinForXpBoost(interaction.user)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.XP_SPIN, interaction, member=interaction.user)
 
 
 """XP INVENTORY"""
@@ -598,20 +531,11 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
     :param zeile: Optional row number to choose an Xp-Boost
     :return:
     """
-    xpService = ExperienceService.ExperienceService(client)
-    answer = await xpService.handleXpInventory(interaction.user, action.value, zeile)
-
-    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
-
-    try:
-        if isinstance(answer, Tuple):
-            await interaction.response.send_message(answer[0])
-        else:
-            await interaction.response.send_message(answer)
-    except discord.errors.HTTPException as e:
-        logger.warning("Message was too long, switching to shorter one!")
-
-        await interaction.response.send_message(answer[1])
+    await CommandService(client).runCommand(Commands.XP_INVENTORY,
+                                            interaction,
+                                            member=interaction.user,
+                                            action=action.value,
+                                            row=zeile)
 
 
 """HANDLE XP REQUEST"""
@@ -630,10 +554,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
     :param user: Entered user to read XP from
     :return:
     """
-    xpService = ExperienceService.ExperienceService(client)
-    answer = await xpService.handleXpRequest(member=interaction.user, userTag=user)
-
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.XP, interaction, member=interaction.user, userTag=user)
 
 
 """XP LEADERBOARD"""
@@ -644,11 +565,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
               )
 async def getXpLeaderboard(interaction: discord.Interaction):
-    exp = ExperienceService.ExperienceService(client)
-    answer = exp.sendXpLeaderboard(interaction.user)
-
-    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.XP_LEADERBOARD, interaction, member=interaction.user)
 
 
 """XP NOTIFICATION"""
@@ -670,18 +587,17 @@ async def getXpLeaderboard(interaction: discord.Interaction):
 @app_commands.describe(action="Wähle deine Einstellung")
 async def handleNotificationSettings(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
     if category.value == "xp":
-        exp = ExperienceService.ExperienceService(client)
-        answer = exp.handleXpNotification(interaction.user, action.value)
+        await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
+                                                interaction,
+                                                member=interaction.user,
+                                                setting=action.value)
     elif category.value == "welcome":
-        pui = ProcessUserInput.ProcessUserInput(client)
-        answer = pui.changeWelcomeBackNotificationSetting(interaction.user, True if action.value == "on" else False)
+        await CommandService(client).runCommand(Commands.NOTIFICATIONS_BACK,
+                                                interaction,
+                                                member=interaction.user,
+                                                setting=True if action.value == "on" else False)
     else:
-        answer = "Irgendetwas ist schief gelaufen!"
-
         logger.warning("User reached unreachable code!")
-
-    ProcessUserInput.ProcessUserInput(client).raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
 
 
 """FELIX TIMER"""
@@ -701,11 +617,12 @@ async def handleNotificationSettings(interaction: discord.Interaction, category:
     zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
 )
 async def handleFelixTimer(interaction: discord.Interaction, user: str, action: Choice[str], zeit: str = None):
-    pui = ProcessUserInput.ProcessUserInput(client)
-    answer = await pui.handleFelixTimer(interaction.user, user, action.value, zeit)
-
-    pui.raiseMessageCounter(interaction.user, interaction.channel)
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.FELIX_TIMER,
+                                            interaction,
+                                            member=interaction.user,
+                                            tag=user,
+                                            action=action.value,
+                                            time=zeit)
 
 
 """OVERWRITE COGS"""
@@ -766,10 +683,12 @@ async def shutdownCogs(interaction: discord.Interaction):
 @app_commands.describe(start="Wähle die Startzeit, z.B. 09:08")
 @app_commands.describe(end="Wähle die Endzeit, z.B. 09:08")
 async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Choice[str], start: str, end: str):
-    wa = WhatsAppHelper.WhatsAppHelper()
-    answer = wa.addOrEditSuspendDay(interaction.user, day, start, end)
-
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.WHATSAPP_SUSPEND_SETTINGS,
+                                            interaction,
+                                            member=interaction.user,
+                                            weekday=day,
+                                            start=start,
+                                            end=end)
 
 
 @tree.command(name="reset_message_suspend_setting",
@@ -786,10 +705,10 @@ async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Ch
     Choice(name="Sonntag", value="7"),
 ])
 async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Choice[str]):
-    wa = WhatsAppHelper.WhatsAppHelper()
-    answer = wa.resetSuspendSetting(interaction.user, day)
-
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.RESET_WHATSAPP_SUSPEND_SETTINGS,
+                                            interaction,
+                                            member=interaction.user,
+                                            weekday=day)
 
 
 @tree.command(name="list_message_suspend_settings",
@@ -797,10 +716,9 @@ async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Cho
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
               )
 async def listSuspendSettings(interaction: discord.Interaction):
-    wa = WhatsAppHelper.WhatsAppHelper()
-    answer = wa.listSuspendSettings(interaction.user)
-
-    await interaction.response.send_message(answer)
+    await CommandService(client).runCommand(Commands.LIST_WHATSAPP_SUSPEND_SETTINGS,
+                                            interaction,
+                                            member=interaction.user)
 
 
 """WEATHER"""
@@ -812,8 +730,7 @@ async def listSuspendSettings(interaction: discord.Interaction):
               )
 @app_commands.describe(stadt="Stadt / Ort in Deutschland")
 async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
-    api = ApiServices.ApiServices()
-    await api.getWeather(interaction, stadt)
+    await CommandService(client).runCommand(Commands.WEATHER, interaction, city=stadt)
 
 
 """CURRENCY"""
@@ -827,8 +744,11 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 @app_commands.describe(nach="Zielwährung: dreistelliger Währungscode, z.B. 'EUR'")
 @app_commands.describe(betrag="Kommabeträge: 320,59")
 async def convertCurrency(interaction: discord.interactions.Interaction, von: str, nach: str, betrag: float):
-    api = ApiServices.ApiServices()
-    await api.convertCurrency(interaction, von, nach, betrag)
+    await CommandService(client).runCommand(Commands.CURRENCY_CONVERTER,
+                                            interaction,
+                                            have=von,
+                                            want=nach,
+                                            amount=betrag)
 
 
 """QR-CODE"""
@@ -839,8 +759,7 @@ async def convertCurrency(interaction: discord.interactions.Interaction, von: st
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
 async def generateQRCode(ctx, text: str):
-    api = ApiServices.ApiServices()
-    await api.generateQRCode(ctx, text)
+    await CommandService(client).runCommand(Commands.QRCODE, ctx, text=text)
 
 
 # FUCK YOU

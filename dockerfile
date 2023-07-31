@@ -1,4 +1,4 @@
-FROM python:3.8.10
+FROM python:3.10.12
 
 RUN python3 -m pip install -U "discord.py[voice]"
 RUN pip install mysql-connector-python
