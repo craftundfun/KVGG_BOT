@@ -27,6 +27,8 @@ class BackgroundServices(commands.Cog):
         logger.info("xpAchievement started")
         self.refreshDatabaseWithDiscord.start()
         logger.info("refreshDatabaseWithDiscord started")
+        self.refreshMembersInDatabase.start()
+        logger.info("refreshMembersInDatabase started")
 
     def cog_unload(self) -> None:
         """
@@ -38,16 +40,18 @@ class BackgroundServices(commands.Cog):
         self.streamTimeAchievement.cancel()
         self.xpAchievement.cancel()
         self.refreshDatabaseWithDiscord.cancel()
+        self.refreshMembersInDatabase.cancel()
 
     async def cog_load(self):
         self.onlineTimeAchievement.start()
         self.streamTimeAchievement.start()
         self.xpAchievement.start()
         self.refreshDatabaseWithDiscord.start()
+        self.refreshMembersInDatabase.start()
 
     @tasks.loop(seconds=60)
     async def onlineTimeAchievement(self):
-        logger.info("Running onlineTimeAchievement")
+        logger.debug("Running onlineTimeAchievement")
 
         try:
             databaseConnection = getDatabaseConnection()
@@ -98,7 +102,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def streamTimeAchievement(self):
-        logger.info("Running streamTimeAchievement")
+        logger.debug("Running streamTimeAchievement")
 
         try:
             databaseConnection = getDatabaseConnection()
@@ -149,7 +153,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def xpAchievement(self):
-        logger.info("Running xpAchievement")
+        logger.debug("Running xpAchievement")
 
         try:
             databaseConnection = getDatabaseConnection()
@@ -201,6 +205,16 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
-        logger.info("Running refreshDatabaseWithDiscord")
+        logger.debug("Running refreshDatabaseWithDiscord")
+
         dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
+
         await dbr.updateDatabaseToServerState()
+
+    @tasks.loop(hours=24)
+    async def refreshMembersInDatabase(self):
+        logger.debug("Running refreshMembersInDatabase")
+
+        dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
+
+        await dbr.updateAllMembers()
