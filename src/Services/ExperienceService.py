@@ -14,6 +14,7 @@ from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -248,6 +249,7 @@ class ExperienceService:
     def checkAndGrantXpBoost(self):
         pass  # only necessary for cronjob
 
+    @validateKeys
     async def spinForXpBoost(self, member: Member) -> string:
         """
         Xp-Boost-Spin for member
@@ -348,6 +350,7 @@ class ExperienceService:
         """
         return self.__getExperience(dcUserDb['user_id'])
 
+    @validateKeys
     async def handleXpRequest(self, member: Member, userTag: str) -> string:
         """
         Handles the XP-Request of the given tag
@@ -385,6 +388,7 @@ class ExperienceService:
 
         return reply
 
+    @validateKeys
     def handleXpNotification(self, member: Member, setting: string) -> string:
         """
         Lets the user choose his / her double-xp-weekend notification
@@ -438,6 +442,7 @@ class ExperienceService:
 
             return "Deine Einstellungen wurden gespeichert!"
 
+    @validateKeys
     async def handleXpInventory(self, member: Member, action: str, row: str = None):
         """
         Handles the XP-Inventory
@@ -663,6 +668,7 @@ class ExperienceService:
 
             self.databaseConnection.commit()
 
+    @validateKeys
     def sendXpLeaderboard(self, member: Member) -> string:
         """
         Answers the Xp-Leaderboard

@@ -6,6 +6,7 @@ import discord
 import httpx
 
 from src.Helper import ReadParameters
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -16,23 +17,18 @@ class ApiServices:
     def __init__(self):
         self.apiKey = ReadParameters.getParameter(ReadParameters.Parameters.API_KEY)
 
-    async def getWeather(self, ctx: discord.interactions.Interaction, city: str):
+    @validateKeys
+    async def getWeather(self, city: str) -> str:
         """
         Returns the current weather of the given city
 
-        :param ctx: Interaction from discord
         :param city: City for the weather call
-        :return:
+        :return str: answer
         """
-        response: discord.InteractionResponse = ctx.response
-        webhook: discord.Webhook = ctx.followup
         payload = {
             'city': city,
             'country': 'Germany',
         }
-
-        logger.debug("setting response to thinking")
-        await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for weather")
@@ -55,10 +51,8 @@ class ApiServices:
 
         if answerWeather.status_code != 200 or answerAir.status_code != 200:
             logger.warning("API sent an invalid response!: " + answerWeather.content.decode('utf-8'))
-            await webhook.send("Es gab ein Problem! Vielleicht lag deine Stadt / dein Ort nicht in Deutschland? Wenn"
-                               " das Problem weiterhin auftreten sollte liegt es wohl nicht an dir.")
-
-            return
+            return "Es gab ein Problem! Vielleicht lag deine Stadt / dein Ort nicht in Deutschland? Wenn" \
+                   " das Problem weiterhin auftreten sollte liegt es wohl nicht an dir."
 
         logger.debug("retrieved data successfully")
 
@@ -67,41 +61,30 @@ class ApiServices:
         answerAir = answerAir.content.decode('utf-8')
         dataAir = json.loads(answerAir)
 
-        answerWeather = "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine " \
-                        "Luftfeuchtigkeit von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt " \
-                        "bei %s (von maximal 500)." % (
-                            city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
-                            dataWeather['cloud_pct'], dataAir['overall_aqi'],
-                        )
+        return "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine " \
+               "Luftfeuchtigkeit von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt " \
+               "bei %s (von maximal 500)." % (
+            city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
+            dataWeather['cloud_pct'], dataAir['overall_aqi'])
 
-        await webhook.send(answerWeather)
-
-    async def convertCurrency(self, ctx: discord.interactions.Interaction, have: str, want: str, amount: float):
+    @validateKeys
+    async def convertCurrency(self, have: str, want: str, amount: float) -> str:
         """
         Converts the given currency into the other
 
-        :param ctx: Interaction from discord
         :param have: Start currency
         :param want: End currency
         :param amount: Amount of money
         :return:
         """
-        response: discord.InteractionResponse = ctx.response
-        webhook: discord.Webhook = ctx.followup
-
         if len(have) != 3 or len(want) != 3:
-            await response.send_message("Eine deiner Währungen ist kein dreistelliger Währungscode!")
-
-            return
+            return "Eine deiner Währungen ist kein dreistelliger Währungscode!"
 
         payload = {
             'have': have,
             'want': want,
             'amount': amount,
         }
-
-        logger.debug("setting response to thinking")
-        await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for currency-conversion")
@@ -115,30 +98,24 @@ class ApiServices:
 
         if answer.status_code != 200:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
-            await webhook.send("Es gab ein Problem! Existieren deine Währungscodes überhaupt? Wenn ja, dann liegt "
-                               "es nicht an dir.")
-
-            return
+            return "Es gab ein Problem! Existieren deine Währungscodes überhaupt? Wenn ja, dann liegt " \
+                   "es nicht an dir."
 
         logger.debug("retrieved data successfully")
 
         data = answer.content.decode('utf-8')
         data = json.loads(data)
-        answer = "%s %s sind %s %s." % (
+        return "%s %s sind %s %s." % (
             data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
 
-        await webhook.send(answer)
-
-    async def generateQRCode(self, ctx: discord.interactions.Interaction, text: str):
+    @validateKeys
+    async def generateQRCode(self, text: str) -> discord.File | str:
         """
         Generates a QRCode from the given text
 
-        :param ctx: Interation from discord
         :param text: Text to convert into a QRCode
         :return:
         """
-        response: discord.InteractionResponse = ctx.response
-        webhook: discord.Webhook = ctx.followup
         payload = {
             'data': text,
             'size': "1000x1000"
@@ -146,9 +123,6 @@ class ApiServices:
         headers = {
             'Accept': 'image/png',
         }
-
-        logger.debug("setting response to thinking")
-        await response.defer(thinking=True)
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for QR-Code generation")
@@ -160,10 +134,8 @@ class ApiServices:
 
         if answer.status_code != 200:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
-            await webhook.send("Es ist ein Problem aufgetreten!")
-
-            return
+            return "Es ist ein Problem aufgetreten!"
 
         logger.debug("retrieved data successfully")
 
-        await webhook.send(file=discord.File(BytesIO(answer.content), filename="qrcode.png"))
+        return discord.File(BytesIO(answer.content), filename="qrcode.png")

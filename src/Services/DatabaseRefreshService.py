@@ -231,5 +231,41 @@ class DatabaseRefreshService:
 
             self.databaseConnection.commit()
 
+    async def updateAllMembers(self):
+        """
+        Updates all members in the database. Profile picture, nickname etc.
+
+        :return:
+        """
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * FROM discord"
+
+            cursor.execute(query)
+
+            if not (data := cursor.fetchall()):
+                logger.warning("Couldn't fetch members from database!")
+                
+                return
+
+            dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
+            logger.debug("Fetched %s members from database" % len(dcUsersDb))
+
+            for dcUserDb in dcUsersDb:
+                member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+
+                if not member:
+                    continue
+
+                dcUserDb['username'] = member.nick if member.nick else member.name
+                dcUserDb['profile_picture_discord'] = member.display_avatar
+
+                query, nones = WriteSaveQuery.writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
+
+                cursor.execute(query, nones)
+                logger.debug("Updated %s" % dcUserDb['username'])
+
+            self.databaseConnection.commit()
+            logger.debug("Uploaded changes to database")
+
     def __del__(self):
         self.databaseConnection.close()
