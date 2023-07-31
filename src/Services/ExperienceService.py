@@ -491,7 +491,7 @@ class ExperienceService:
                 reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
                          (index, item['description'], item['remaining'], item['multiplier'])
 
-            replyWithoutActive = reply
+            replyWithoutActive = reply # TODO remove
 
             if xp['active_xp_boosts'] is not None:
                 reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
@@ -503,7 +503,7 @@ class ExperienceService:
 
             reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
 
-            return reply, replyWithoutActive
+            return reply
         # !inventory use
         else:
             # no xp boosts available
