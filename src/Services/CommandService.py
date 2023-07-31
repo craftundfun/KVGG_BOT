@@ -139,7 +139,7 @@ class CommandService:
                     answer = await xp.handleXpRequest(**kwargs)
 
                 case Commands.XP_LEADERBOARD:
-                    answer = xp.sendXpLeaderboard(**kwargs)
+                    answer = xp.sendXpLeaderboard(**kwargs)[0]
 
                 case Commands.NOTIFICATIONS_BACK:
                     answer = pui.changeWelcomeBackNotificationSetting(**kwargs)
