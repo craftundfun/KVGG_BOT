@@ -281,12 +281,10 @@ class ProcessUserInput:
         """
         logger.info("%s requested to move users into %s" % (member.name, channelName))
 
-        channelStart = member.voice.channel
-
-        if not channelStart:
+        if not member.voice or not (channelStart := member.voice.channel):
             return "Du bist mit keinem Voicechannel verbunden!"
         elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues():
-            return "Dein Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
+            return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
         channelDestination = None
         channels = self.client.get_all_channels()
