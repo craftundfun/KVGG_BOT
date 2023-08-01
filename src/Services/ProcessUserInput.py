@@ -117,6 +117,7 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
+    @DeprecationWarning
     def processMessage(self, message: Message):
         """
         Increases the message count and adds XP
@@ -170,12 +171,18 @@ class ProcessUserInput:
 
         if dcUserDb is None:
             logger.warning("Couldn't fetch DiscordUser!")
+        elif channel is None:
+            logger.warning("no channel provided")
 
-        if channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value and SECRET_KEY:
+        if channel.id != int(ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value) and SECRET_KEY:
+            logger.info("ja")
             if dcUserDb['message_count_all_time']:
                 dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
             else:
                 dcUserDb['message_count_all_time'] = 1
+
+            xp = ExperienceService.ExperienceService(self.client)
+            xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
         self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
@@ -281,15 +288,10 @@ class ProcessUserInput:
         """
         logger.info("%s requested to move users into %s" % (member.name, channelName))
 
-        if not member.voice:
-            return "Du bist mit keinem Voicechannel verbunden!"
-
-        channelStart = member.voice.channel
-
-        if not channelStart:
+        if not member.voice or not (channelStart := member.voice.channel):
             return "Du bist mit keinem Voicechannel verbunden!"
         elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues():
-            return "Dein Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
+            return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
         channelDestination = None
         channels = self.client.get_all_channels()
