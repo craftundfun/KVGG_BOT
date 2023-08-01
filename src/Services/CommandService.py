@@ -67,7 +67,7 @@ class CommandService:
 
         return True
 
-    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
+    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str, pui: ProcessUserInput):
         """
         Sends the specified answer to the interaction
 
@@ -75,6 +75,8 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
+        pui.raiseMessageCounter(ctx.user, ctx.channel)
+
         try:
             await ctx.followup.send(answer)
         except Exception as e:
@@ -186,4 +188,4 @@ class CommandService:
 
             logger.error("parameters arent matched with function parameters", exc_info=e)
 
-        await self.__sendAnswer(interaction, answer)
+        await self.__sendAnswer(interaction, answer, pui)
