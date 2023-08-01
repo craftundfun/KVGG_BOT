@@ -172,7 +172,7 @@ class MyClient(discord.Client):
         if not message.author.bot and not message.content == "":
             pui = ProcessUserInput.ProcessUserInput(self)
 
-            pui.processMessage(message)
+            pui.raiseMessageCounter(message.author, message.channel)
 
             qm = QuotesManager.QuotesManager(self)
 

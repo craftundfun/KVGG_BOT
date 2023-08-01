@@ -65,11 +65,11 @@ class QuotesManager:
         :param message:
         :return:
         """
-        logger.info("%s may sent a new quote" % message.author.name)
-
         channel = getQuotesChannel(self.client)
 
         if channel is not None and (channel.id == message.channel.id):
+            logger.info("Quote detected")
+
             with self.databaseConnection.cursor() as cursor:
                 query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
 
