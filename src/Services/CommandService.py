@@ -176,7 +176,7 @@ class CommandService:
                         except Exception as e:
                             logger.error("couldn't send qr-picture", exc_info=e)
 
-                    return
+                        return
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

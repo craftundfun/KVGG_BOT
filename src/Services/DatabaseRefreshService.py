@@ -25,7 +25,7 @@ class DatabaseRefreshService:
         :param client: Discord client
         :return:
         """
-        logger.info("Beginning fetching data")
+        logger.debug("Beginning fetching data")
 
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT * FROM discord"

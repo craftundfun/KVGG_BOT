@@ -1,6 +1,7 @@
 import logging
 import smtplib
 import string
+import os
 
 from email.message import EmailMessage
 from src.Id.ExceptionEmailAddresses import ExceptionEmailAddresses
@@ -12,7 +13,6 @@ logger = logging.getLogger("KVGG_BOT")
 
 def send_exception_mail(message: string):
     # check if we are in docker -> if yes send email
-    import os
     SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
     if not SECRET_KEY:
         return
