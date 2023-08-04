@@ -13,9 +13,9 @@ import requests
 from discord import Message, Client, Member
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import ReadParameters as rp
 from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.getFormattedTime import getFormattedTime
 from src.Id import ChannelId
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
@@ -25,10 +25,9 @@ from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
-from src.InheritedCommands.Times import Time, UniversityTime, StreamTime, OnlineTime
+from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
@@ -42,6 +41,7 @@ def getMessageParts(content: string) -> array:
     :return:
     """
     messageParts = content.split(' ')
+
     return [part for part in messageParts if part.strip() != ""]
 
 
@@ -49,12 +49,14 @@ def getUserIdByTag(tag: string) -> int | None:
     """
     Filters out the user id from a tag <@123> => 123
 
-    :param tag: tag from Discord
+    :param tag: Tag from Discord
     :return: int - user id
     """
     try:
         return int(tag[2:len(tag) - 1])
     except ValueError:
+        logger.debug("couldn't convert %s into id" % tag)
+
         return None
 
 
@@ -109,11 +111,14 @@ class ProcessUserInput:
         # TODO make extra class for changing settings
 
         if not (dcUserDb := getDiscordUserById(self.databaseConnection, member.id)):
+            logger.warning("couldn't fetch DiscordUser")
+
             return "Es gab ein Problem!"
 
         dcUserDb['welcome_back_notification'] = 1 if setting else 0
 
         self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        logger.debug("saved changes to database")
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
@@ -165,17 +170,18 @@ class ProcessUserInput:
         :param channel: Channel, where the interaction was used
         :return:
         """
-        logger.info("Increasing message-count for %s" % member.name)
+        logger.debug("Increasing message-count for %s" % member.name)
 
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if dcUserDb is None:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!")
         elif channel is None:
             logger.warning("no channel provided")
 
         if channel.id != int(ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value) and SECRET_KEY:
-            logger.info("ja")
+            logger.debug("can grant an increase of the message counter")
+
             if dcUserDb['message_count_all_time']:
                 dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
             else:
@@ -184,6 +190,7 @@ class ProcessUserInput:
             xp = ExperienceService.ExperienceService(self.client)
             xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
+        logger.debug("saved changes to database")
         self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
     @DeprecationWarning
@@ -217,6 +224,7 @@ class ProcessUserInput:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+            logger.debug("saved changed DiscordUser to database")
 
     @DeprecationWarning
     async def __processCommand(self, message: Message):
@@ -252,10 +260,11 @@ class ProcessUserInput:
         """
         Answers a joke from an API
 
+        :param member: Member, who requested the joke
         :param category: Optional category of the joke - might not work due to API limitations
         :return:
         """
-        logger.info("%s requested a joke" % member.name)
+        logger.debug("%s requested a joke" % member.name)
 
         payload = {
             'language': 'de',
@@ -286,11 +295,15 @@ class ProcessUserInput:
         :param member: Member who initiated the move
         :return:
         """
-        logger.info("%s requested to move users into %s" % (member.name, channelName))
+        logger.debug("%s requested to move users into %s" % (member.name, channelName))
 
         if not member.voice or not (channelStart := member.voice.channel):
+            logger.debug("member is not connected to a voice channel")
+
             return "Du bist mit keinem Voicechannel verbunden!"
         elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues():
+            logger.debug("starting channel is not allowed to be moved")
+
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
         channelDestination = None
@@ -304,14 +317,18 @@ class ProcessUserInput:
                     break
 
         if channelDestination is None:
-            logger.warning("Couldn't fetch channel!")
+            logger.warning("couldn't fetch channel!")
 
             return "Channel konnte nicht gefunden werden!"
 
         if channelStart.id == channelDestination.id:
+            logger.debug("starting and destination channel are the same")
+
             return "Alle befinden sich bereits in diesem Channel!"
 
         if str(channelDestination.id) not in ChannelIdWhatsAppAndTracking.getValues():
+            logger.debug("destination channel is outside of the allowed moving range")
+
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
         canProceed = False
@@ -324,6 +341,8 @@ class ProcessUserInput:
                 break
 
         if not canProceed:
+            logger.debug("user has no rights to use the move command")
+
             return "Du hast keine Berechtigung in diesen Channel zu moven!"
 
         membersInStartVc = channelStart.members
@@ -344,9 +363,11 @@ class ProcessUserInput:
         try:
             loop.run_until_complete(asyncioGenerator())
         except Exception as e:
-            logger.error("Somthing went wrong while using asyncio!")
+            logger.error("Somthing went wrong while using asyncio!", exc_info=e)
 
             return "Irgendetwas ist schief gelaufen!"
+
+        logger.debug("moved all users without problems")
 
         return "Alle User wurden erfolgreich verschoben!"
 
@@ -370,18 +391,24 @@ class ProcessUserInput:
         elif timeName == "uni":
             time = UniversityTime.UniversityTime()
 
-        logger.info("%s requested %s-Time" % (member.name, time.getName()))
+        logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
         # all users
         if userTag == 'all' and param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+            logger.debug("increasing time of all online users")
+
             try:
                 correction = int(param)
             except ValueError:
+                logger.debug("given string couldn't be converted to a number")
+
                 return "Deine Korrektur war keine Zahl!"
 
             users = getOnlineUsers(self.databaseConnection)
 
             if users is None:
+                logger.debug("no one is online")
+
                 return "Es ist keiner online der Zeit dazu bekommen könnte!"
 
             reply = ""
@@ -410,20 +437,28 @@ class ProcessUserInput:
             return reply
 
         if (tag := getUserIdByTag(userTag)) is None:
+            logger.debug("tag couldn't be converted to userId")
+
             return "Bitte tagge einen User korrekt!"
 
         dcUserDb = getDiscordUserById(self.databaseConnection, tag)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
-                logger.warning("Couldn't fetch DiscordUser!")
+                logger.warning("couldn't fetch DiscordUser!")
+
+            logger.debug("user has not been online yet")
 
             return "Dieser Benutzer war noch nie online!"
 
         if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
+            logger.debug("has permission to increase time")
+
             try:
                 correction = int(param)
             except ValueError:
+                logger.debug("parameter was not convertable to int")
+
                 return "Deine Korrektur war keine Zahl!"
 
             onlineBefore = time.getTime(dcUserDb)
@@ -433,10 +468,14 @@ class ProcessUserInput:
             onlineAfter = time.getTime(dcUserDb)
             self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
 
+            logger.debug("saved changes to database")
+
             return "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" % (
                 time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter
             )
         else:
+            logger.debug("returning time")
+
             return time.getStringForTime(dcUserDb)
 
     @DeprecationWarning
@@ -493,7 +532,7 @@ class ProcessUserInput:
         :param switch: Switch (on / off)
         :return:
         """
-        logger.info("%s requested a change of his / her WhatsApp settings" % member.name)
+        logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
 
         # get dcUserDb with user
         with self.databaseConnection.cursor() as cursor:
@@ -505,7 +544,7 @@ class ProcessUserInput:
             whatsappSettings = dict(zip(cursor.column_names, cursor.fetchone()))
 
         if not whatsappSettings:
-            logger.warning("Couldn't fetch corresponding settings!")
+            logger.warning("couldn't fetch corresponding settings!")
 
             return "Du bist nicht als User bei uns registriert!"
 
@@ -554,6 +593,8 @@ class ProcessUserInput:
             cursor.execute(query, noneTuple)
             self.databaseConnection.commit()
 
+        logger.debug("saving changes to database")
+
         return "Deine Einstellung wurde übernommen!"
 
     @validateKeys
@@ -564,7 +605,7 @@ class ProcessUserInput:
         :param member: Member, who requested the leaderboard
         :return:
         """
-        logger.info("%s requested our leaderboard" % member.name)
+        logger.debug("%s requested our leaderboard" % member.name)
 
         with self.databaseConnection.cursor() as cursor:
             # online time
@@ -717,6 +758,8 @@ class ProcessUserInput:
         answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
         answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
 
+        logger.debug("sending leaderboard")
+
         return answer
 
     def __leaderboardHelperCounter(self, users, counter: Counter) -> string:
@@ -727,7 +770,13 @@ class ProcessUserInput:
         :param counter: counter-type
         :return:
         """
-        if len(users) < 1:
+        if not users:
+            logger.debug("user list was none")
+
+            return ""
+        elif len(users) < 1:
+            logger.debug("user list was empty")
+
             return ""
 
         answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
@@ -745,7 +794,7 @@ class ProcessUserInput:
         :param member:
         :return:
         """
-        logger.info("%s request a registration link" % member.name)
+        logger.debug("%s request a registration link" % member.name)
 
         link = "https://axellotl.de/register/"
         link += str(member.id)
@@ -754,11 +803,12 @@ class ProcessUserInput:
             await member.create_dm()
 
             if not member.dm_channel:
-                logger.warning("Couldn't create DM for %s!" % member.name)
+                logger.warning("couldn't create DM for %s!" % member.name)
 
                 return "Es gab Probleme dir eine Nachricht zu schreiben!"
 
         await member.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
+        logger.debug("sent dm to requester")
 
         return "Dir wurde das Formular privat gesendet!"
 
@@ -791,24 +841,30 @@ class ProcessUserInput:
             counter = PaulCounter.PaulCounter()
         elif "Rene" == counterName:
             counter = ReneCounter.ReneCounter()
+        else:
+            logger.critical("reached unreachable code!")
 
-        logger.info("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
+            return "Es ist ein Fehler aufgetreten!"
+
+        logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
         if (tag := getUserIdByTag(userTag)) is None:
+            logger.debug("tag was not correct")
+
             return "Bitte tagge einen User korrekt!"
 
         # get requested user as member from guild
         try:
             memberCounter = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
         except discord.errors.HTTPException:
-            logger.warning("Couldn't fetch member from guild!")
+            logger.warning("couldn't fetch member from guild!")
 
             return "Entweder existiert der Nutzer / die Nutzerin nicht oder es gab einen Fehler!"
 
         dcUserDb = getDiscordUser(self.databaseConnection, memberCounter)
 
         if not dcUserDb:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!") """###HIER WEITERMACHEN###"""
 
             return "Dieser Benutzer existiert (noch) nicht!"
 

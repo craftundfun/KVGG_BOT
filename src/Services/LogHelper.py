@@ -9,6 +9,7 @@ from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 logger = logging.getLogger("KVGG_BOT")
 
 
+@DeprecationWarning
 class LogHelper:
     """
     Saves the given Logs, usually called by commands, into the database
