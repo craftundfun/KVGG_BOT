@@ -40,9 +40,13 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
     :param member: Member to retrieve all data from
     :return: None | Dict[Any, Any] DiscordUser
     """
+    logger.debug("trying to get DiscordUser from database")
+
     if member is None or isinstance(member, User):
+        logger.debug("member was None or not the correct format")
         return None
     elif member.bot:
+        logger.debug("member was a bot")
         return None
 
     with databaseConnection.cursor() as cursor:
@@ -53,9 +57,12 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
         cursor.execute(query, (member.id,))
 
         data = cursor.fetchone()
+        logger.debug("fetched data from database")
 
         # user does not exist yet -> create new entry
         if not data:
+            logger.debug("creating new DiscordUser")
+
             query = "INSERT INTO discord (guild_id, user_id, username, created_at, time_streamed) " \
                     "VALUES (%s, %s, %s, %s, %s)"
 
@@ -81,9 +88,9 @@ def getDiscordUser(databaseConnection: MySQLConnection, member: Member) -> dict 
 
                 return None
             else:
-                logger.info("New DiscordUser entry for %s" % username)
+                logger.debug("New DiscordUser entry for %s" % username)
 
-    dcUserDb = dict(zip(cursor.column_names, data))
+        dcUserDb = dict(zip(cursor.column_names, data))
 
     # update profile picture
     if member.display_avatar != dcUserDb['profile_picture_discord'] or dcUserDb['profile_picture_discord'] is None:
@@ -114,10 +121,13 @@ def getDiscordUserById(databaseConnection: MySQLConnection, userId: int) -> dict
         cursor.execute(query, (userId,))
 
         data = cursor.fetchone()
+        logger.debug("fetched data from database")
 
         if not data:
+            logger.debug("no DiscordUser was found")
             return None
 
+        logger.debug("DiscordUser found")
         return dict(zip(cursor.column_names, data))
 
 
@@ -136,6 +146,7 @@ def getOnlineUsers(databaseConnection: MySQLConnection) -> List[Dict[Any, Any]] 
         cursor.execute(query)
 
         data = cursor.fetchall()
+        logger.debug("fetched data from database")
 
         if not data:
             return None

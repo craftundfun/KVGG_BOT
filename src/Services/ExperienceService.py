@@ -83,11 +83,13 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
         await member.create_dm()
 
         if not member.dm_channel:
+            logger.warning("couldn't create dm channel with %s" % member.name)
             return
 
     await member.dm_channel.send("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
                                  "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
                                  "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
+    logger.debug("sent double xp notification")
 
 
 class ExperienceService:
@@ -103,38 +105,33 @@ class ExperienceService:
         :param userId: User of the Experience
         :return:
         """
-        logger.info("Fetching Experience")
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, last_spin_for_boost, " \
-                    "active_xp_boosts " \
-                    "FROM experience " \
-                    "INNER JOIN discord d ON experience.discord_user_id = d.id " \
-                    "WHERE d.user_id = %s"
+        logger.debug("fetching experience")
 
+        query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, last_spin_for_boost, " \
+                "active_xp_boosts " \
+                "FROM experience " \
+                "INNER JOIN discord d ON experience.discord_user_id = d.id " \
+                "WHERE d.user_id = %s"
+
+        with self.databaseConnection.cursor() as cursor:
             cursor.execute(query, (userId,))
 
-            data = cursor.fetchone()
+            if not (data := cursor.fetchone()):
+                logger.debug("found no experience for %s" % str(userId))
 
-            if not data:
                 if not self.__createExperience(userId):
-                    logger.warning("Couldn't fetch Experience!")
+                    logger.warning("couldn't fetch Experience!")
 
                     return None
-
-                query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, " \
-                        "last_spin_for_boost, active_xp_boosts " \
-                        "FROM experience " \
-                        "INNER JOIN discord d ON experience.discord_user_id = d.id " \
-                        "WHERE d.user_id = %s"
 
                 cursor.execute(query, (userId,))
 
-                data = cursor.fetchone()
-
-                if not data:
-                    logger.warning("Couldn't fetch Experience!")
+                if not (data := cursor.fetchone()):
+                    logger.warning("couldn't fetch Experience!")
 
                     return None
+
+        logger.debug("fetched experience")
 
         return dict(zip(cursor.column_names, data))
 
@@ -145,14 +142,15 @@ class ExperienceService:
         :param userId: User of the Experience
         :return: bool - Whether creation of Experience was successful
         """
-        logger.info("Creating Experience")
+        logger.debug("creating experience for %s" % str(userId))
 
         xpAmount = self.__calculateXpFromPreviousData(userId)
         xpBoosts = self.__calculateXpBoostsFromPreviousData(userId)
         dcUserDb = getDiscordUserById(self.databaseConnection, userId)
 
         if dcUserDb is None:
-            logger.warning("Couldn't create Experience!")
+            logger.warning("couldn't create Experience!")
+
             return False
 
         with self.databaseConnection.cursor() as cursor:
@@ -162,23 +160,27 @@ class ExperienceService:
             cursor.execute(query, (xpAmount, dcUserDb['id'], xpBoosts))
             self.databaseConnection.commit()
 
+            logger.debug("saved experience into database")
+
         return True
 
-    def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> string | None:
+    def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> str | None:
         """
         Calculates the XP-Boosts that were earned until now
 
         :param dcUserDbId: Id of the user
         :return: None | string JSON of earned boots, otherwise None
         """
+        logger.debug("calculating xp boosts from previous data")
+
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT time_online FROM discord WHERE user_id = %s"
 
             cursor.execute(query, (dcUserDbId,))
 
-            data = cursor.fetchone()
+            if not (data := cursor.fetchone()):
+                logger.warning("couldn't calculate xp boosts")
 
-            if not data:
                 return None
 
             timeOnline = dict(zip(cursor.column_names, data))['time_online']
@@ -192,6 +194,8 @@ class ExperienceService:
         intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
 
         if intNumberAchievementBoosts == 0:
+            logger.debug("no boosts to grant")
+
             return None
 
         if intNumberAchievementBoosts > ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
@@ -208,6 +212,8 @@ class ExperienceService:
 
             boosts.append(boost)
 
+        logger.debug("%d boosts granted" % intNumberAchievementBoosts)
+
         return json.dumps(boosts)
 
     def __calculateXpFromPreviousData(self, userId: int) -> int:
@@ -217,6 +223,8 @@ class ExperienceService:
         :param userId: User of the Experience
         :return: int
         """
+        logger.debug("calculating xp from previous data")
+
         amount = 0
 
         with self.databaseConnection.cursor() as cursor:
@@ -226,10 +234,9 @@ class ExperienceService:
 
             cursor.execute(query, (userId,))
 
-            data = cursor.fetchone()
-
-            if not data:
+            if not (data := cursor.fetchone()):
                 logger.warning("Couldn't calculate previously earned xp!")
+
                 return 0
 
             data = dict(zip(cursor.column_names, data))
@@ -242,6 +249,8 @@ class ExperienceService:
 
         if messages := data['message_count_all_time']:
             amount += messages * ExperienceParameter.XP_FOR_MESSAGE.value
+
+        logger.debug("calculated %d xp" % amount)
 
         return amount
 
@@ -257,17 +266,17 @@ class ExperienceService:
         :param member: Member, who started the spin
         :return:
         """
-        logger.info("%s requested XP-SPIN." % member.name)
+        logger.debug("%s requested XP-SPIN." % member.name)
 
         if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!")
 
             return "Es ist etwas schief gelaufen!"
 
         xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            logger.warning("Couldn't spin because of missing DiscordUser!")
+            logger.warning("couldn't spin because of missing experience!")
 
             return "Es ist etwas schief gelaufen!"
 
@@ -279,6 +288,8 @@ class ExperienceService:
             inventory = json.loads(inventoryJson)
 
         if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            logger.debug("full inventory, cant spin")
+
             return "Dein Inventar ist voll! Benutze erst einen oder mehrere XP-Boosts!"
 
         lastXpSpinTime = xp['last_spin_for_boost']
@@ -295,11 +306,15 @@ class ExperienceService:
                 remainingHours = 23 - hours
                 remainingMinutes = 59 - minutes
 
+                logger.debug("cant spin, still on cooldown")
+
                 return "Du darfst nocht nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
                        "%d Minute(n) wieder!" % (remainingDays, remainingHours, remainingMinutes)
 
         # win
         if random.randint(0, (100 / ExperienceParameter.SPIN_WIN_PERCENTAGE.value)) == 1:
+            logger.debug("won xp boost")
+
             boost = {
                 'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value,
                 'remaining': ExperienceParameter.XP_BOOST_SPIN_DURATION.value,
@@ -319,13 +334,15 @@ class ExperienceService:
 
                 cursor.execute(query, nones)
                 self.databaseConnection.commit()
+                logger.debug("saved new xp boost to database")
 
             return "Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du %d-Fach XP! Setze ihn über dein " \
                    "Inventar ein!" % (ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60,
                                       ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value
                                       )
-
         else:
+            logger.debug("did not win xp boost")
+
             days = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value
             xp['last_spin_for_boost'] = datetime.now()
 
@@ -338,6 +355,7 @@ class ExperienceService:
 
                 cursor.execute(query, nones)
                 self.databaseConnection.commit()
+                logger.debug("saved date to database")
 
             return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
 
@@ -348,6 +366,8 @@ class ExperienceService:
         :param dcUserDb:
         :return:
         """
+        logger.debug("requested xp from %s" % dcUserDb['username'])
+
         return self.__getExperience(dcUserDb['user_id'])
 
     @validateKeys
@@ -359,12 +379,11 @@ class ExperienceService:
         :param userTag: Tag of the requested user
         :return: string - answer
         """
-
         # lazy import to avoid circular import
         from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
-        logger.info("%s requested XP" % member.name)
 
-        # else:
+        logger.debug("%s requested XP" % member.name)
+
         if (userId := getUserIdByTag(userTag)) is None:
             return "Bitte tagge einen User korrekt!"
 
@@ -372,19 +391,21 @@ class ExperienceService:
         dcUserDb = getDiscordUser(self.databaseConnection, taggedMember)
 
         if dcUserDb is None:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!")
 
             return "Es ist ein Fehler aufgetreten!"
 
         xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            logger.warning("Couldn't fetch Experience!")
+            logger.warning("couldn't fetch Experience!")
 
             return "Es ist ein Fehler aufgetreten!"
 
         reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
         reply += getDoubleXpWeekendInformation()
+
+        logger.debug("replying xp amount")
 
         return reply
 
@@ -397,13 +418,13 @@ class ExperienceService:
         :param setting:
         :return:
         """
-        logger.info("%s requested a change of his / her double-xp-weekend notification" % member.name)
+        logger.debug("%s requested a change of his / her double-xp-weekend notification" % member.name)
 
         if setting == 'on':
             dcUserDb = getDiscordUser(self.databaseConnection, member)
 
             if dcUserDb is None:
-                logger.warning("Couldn't fetch DiscordUser!")
+                logger.warning("couldn't fetch DiscordUser!")
 
                 return "Es ist ein Fehler aufgetreten!"
 
@@ -414,13 +435,7 @@ class ExperienceService:
                 dcUserDb['id'],
                 dcUserDb
             )
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
-
-            return "Deine Einstellungen wurden gespeichert!"
-        elif setting == 'off':
+        else:
             dcUserDb = getDiscordUser(self.databaseConnection, member)
 
             if dcUserDb is None:
@@ -436,11 +451,13 @@ class ExperienceService:
                 dcUserDb
             )
 
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
+        with self.databaseConnection.cursor() as cursor:
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
 
-            return "Deine Einstellungen wurden gespeichert!"
+        logger.debug("saved setting to database")
+
+        return "Deine Einstellungen wurden gespeichert!"
 
     @validateKeys
     async def handleXpInventory(self, member: Member, action: str, row: str = None):
@@ -452,26 +469,30 @@ class ExperienceService:
         :param row: Optional row to choose boost from
         :return:
         """
-        logger.info("%s requested Xp-Inventory" % member.name)
+        logger.debug("%s requested Xp-Inventory" % member.name)
 
         dcUserDb: dict | None = getDiscordUser(self.databaseConnection, member)
 
         if dcUserDb is None:
-            logger.warning("Couldn't fetch DiscordUser")
+            logger.warning("couldn't fetch DiscordUser")
 
             return "Es ist ein Fehler aufgetreten!"
 
         xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            logger.warning("Couldn't fetch Experience")
+            logger.warning("couldn't fetch Experience")
 
             return "Es ist ein Fehler aufgetreten!"
 
         if action == 'list':
+            logger.debug("list-action used")
+
             reply = ""
 
             if xp['xp_boosts_inventory'] is None:
+                logger.debug("no boosts in inventory")
+
                 reply += "Du hast keine XP-Boosts in deinem Inventar!"
 
                 if xp['active_xp_boosts']:
@@ -484,14 +505,14 @@ class ExperienceService:
 
                 return reply
 
+            logger.debug("list all current and active boosts")
+
             reply = "__Du hast folgende XP-Boosts in deinem Inventar__:\n\n"
             inventory = json.loads(xp['xp_boosts_inventory'])
 
             for index, item in enumerate(inventory, start=1):
                 reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
                          (index, item['description'], item['remaining'], item['multiplier'])
-
-            replyWithoutActive = reply # TODO remove
 
             if xp['active_xp_boosts'] is not None:
                 reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
@@ -506,18 +527,26 @@ class ExperienceService:
             return reply
         # !inventory use
         else:
+            logger.debug("use-action used")
+
             # no xp boosts available
             if xp['xp_boosts_inventory'] is None:
+                logger.debug("no boosts in inventory")
+
                 return "Du hast keine XP-Boosts in deinem Inventar!"
 
             # too many xp boosts are active, cant activate another one
             if xp['active_xp_boosts'] is not None and len(
                     json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                logger.debug("too many boosts active")
+
                 return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere " \
                        "es erneut!"
 
             # inventory use all
             if row == 'all':
+                logger.debug("use all boosts")
+
                 # empty active boosts => can use all boosts at once
                 if xp['active_xp_boosts'] is None:
                     xp['active_xp_boosts'] = xp['xp_boosts_inventory']
@@ -532,6 +561,8 @@ class ExperienceService:
                     xp['xp_boosts_inventory'] = None
                 # not all xp-boosts fit into active ones
                 else:
+                    logger.debug("choosing fitting amount of boosts")
+
                     numXpBoosts = len(json.loads(xp['active_xp_boosts']))
                     currentPosInInventory = 0
                     xpBoostsInventory: list = json.loads(xp['xp_boosts_inventory'])
@@ -554,12 +585,18 @@ class ExperienceService:
                 answer = "Alle deine XP-Boosts wurden eingesetzt!"
             # !inventory use 1
             else:
+                logger.debug("using boosts in specific row")
+
                 # inventory empty
                 if xp['xp_boosts_inventory'] is None:
+                    logger.debug("no boosts in inventory")
+
                     return "Du hast keine XP-Boosts in deinem Inventar!"
                 # active inventory full
                 elif xp['active_xp_boosts'] is not None and len(
                         json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                    logger.debug("too many active boosts")
+
                     return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere es erneut!"
 
                 try:
@@ -567,6 +604,8 @@ class ExperienceService:
                         raise ValueError
                     row = int(row)
                 except ValueError:
+                    logger.debug("entered row was no number")
+
                     return "Bitte gib eine korrekte Zeilennummer ein!"
 
                 inventory: list = json.loads(xp['xp_boosts_inventory'])
@@ -592,6 +631,8 @@ class ExperienceService:
                     answer = "Dein XP-Boost wurde eingesetzt! Für die nächsten %s Minuten bekommst du %s-Fach XP!" % (
                         chosenXpBoost['remaining'], chosenXpBoost['multiplier'])
                 else:
+                    logger.debug("number out of range")
+
                     return "Deine Eingabe war unültig!"
 
         with self.databaseConnection.cursor() as cursor:
@@ -603,6 +644,8 @@ class ExperienceService:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+        logger.debug("saved changes to database")
 
         return answer
 
@@ -616,25 +659,27 @@ class ExperienceService:
         :return:
         """
         if dcUserDb:
-            logger.info("%s gets XP" % dcUserDb['username'])
+            logger.debug("%s gets XP" % dcUserDb['username'])
         elif member:
-            logger.info("%s gets XP" % member.name)
+            logger.debug("%s gets XP" % member.name)
         else:
             logger.warning("Someone is getting XP, but nothing is given!")
 
         if not dcUserDb:
             if member is None:
+                logger.warning("member and dcUserDb are None")
+
                 raise ValueError
 
             if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
-                logger.error("Couldn't fetch DiscordUser!")
+                logger.warning("couldn't fetch DiscordUser!")
 
                 return
 
         xp = self.__getExperience(dcUserDb['user_id'])
 
         if xp is None:
-            logger.warning("Couldn't fetch Experience")
+            logger.warning("couldn't fetch Experience")
 
             return
 
@@ -642,6 +687,8 @@ class ExperienceService:
         toBeAddedXpAmount = 0
 
         if xp['active_xp_boosts']:
+            logger.debug("multiply xp with active boosts")
+
             for boost in json.loads(xp['active_xp_boosts']):
                 toBeAddedXpAmount += experienceParameter * boost['multiplier']
 
@@ -665,8 +712,9 @@ class ExperienceService:
             )
 
             cursor.execute(query, nones)
-
             self.databaseConnection.commit()
+
+        logger.debug("saved changes to database")
 
     @validateKeys
     def sendXpLeaderboard(self, member: Member) -> string:
@@ -676,7 +724,8 @@ class ExperienceService:
         :param member: Member, who called the command
         :return:
         """
-        logger.info("%s requested XP-Leaderboard" % member.name)
+        logger.debug("%s requested XP-Leaderboard" % member.name)
+
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT d.username, e.xp_amount " \
                     "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
@@ -686,10 +735,8 @@ class ExperienceService:
 
             cursor.execute(query)
 
-            data = cursor.fetchall()
-
-            if data is None:
-                logger.warning("Couldn't fetch leaderboard-data!")
+            if (data := cursor.fetchall()) is None:
+                logger.warning("couldn't fetch leaderboard-data!")
 
                 return "Es ist ein Fehler aufgetreten!"
 

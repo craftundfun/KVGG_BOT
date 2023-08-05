@@ -36,6 +36,8 @@ class BackgroundServices(commands.Cog):
 
         :return:
         """
+        logger.warning("cancelling cogs")
+
         self.onlineTimeAchievement.cancel()
         self.streamTimeAchievement.cancel()
         self.xpAchievement.cancel()
@@ -43,6 +45,8 @@ class BackgroundServices(commands.Cog):
         self.refreshMembersInDatabase.cancel()
 
     async def cog_load(self):
+        logger.info("starting cogs")
+
         self.onlineTimeAchievement.start()
         self.streamTimeAchievement.start()
         self.xpAchievement.start()
@@ -77,7 +81,7 @@ class BackgroundServices(commands.Cog):
         channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
 
         if not channel:
-            logger.critical("Achievement-Channel not found!")
+            logger.error("Achievement-Channel not found!")
 
             return
 

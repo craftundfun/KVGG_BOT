@@ -8,6 +8,7 @@ import time
 import traceback
 from typing import List, Tuple
 
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
@@ -33,33 +34,33 @@ from src.Services.CommandService import CommandService, Commands
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
-
 nest_asyncio.apply()
 
-# configure Logger
 logger = logging.getLogger("KVGG_BOT")
-logger.setLevel(logging.INFO)
-
 # creates up to 5 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
-fileHandler.setLevel(logging.INFO)
 fileHandler.setFormatter(CustomFormatterFile())
-logger.addHandler(fileHandler)
 
-# set up Formatter for console
 handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(CustomFormatter())
 
+# docker container
 if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+    logger.setLevel(logging.INFO)
+    fileHandler.setLevel(logging.INFO)
     handler.setLevel(logging.WARNING)
 else:
-    handler.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
+    fileHandler.setLevel(logging.INFO)
+    handler.setLevel(logging.DEBUG)
 
-handler.setFormatter(CustomFormatter())
+logger.addHandler(fileHandler)
 logger.addHandler(handler)
 
 logger.info("\n\n----Initial bot start!----\n\n")
 
 
+@DeprecationWarning
 def thread_wrapper(func, args):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -102,9 +103,9 @@ class MyClient(discord.Client):
 
         await member.add_roles(roleMitglied, roleUni, reason="Automatic role by bot")
 
-        logger.info("%s received the following roles: %s, %s" % (
+        logger.debug("%s received the following roles: %s, %s" % (
             member.nick if member.nick else member.name, roleMitglied.name, roleUni.name)
-                    )
+                     )
 
     async def on_member_remove(self, member):
         pass
@@ -126,6 +127,7 @@ class MyClient(discord.Client):
         logger.info("Users fetched and updated")
 
         if len(sys.argv) > 1 and sys.argv[1] == "-clean":
+            logger.debug("Removing commands from guild")
             commandsTree = []
 
             for command in tree.walk_commands(guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))):
@@ -136,10 +138,10 @@ class MyClient(discord.Client):
                 tree.remove_command(command.name, guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 
             await tree.sync(guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-
             logger.critical("Removed commands from tree. You can end the bot now!")
         else:
             try:
+                logger.debug("Trying to sync commands to guild")
                 await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
             except Exception as e:
                 logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
@@ -148,6 +150,7 @@ class MyClient(discord.Client):
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         try:
+            logger.debug("Trying to set activity")
             await client.change_presence(
                 activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
             )
@@ -157,6 +160,7 @@ class MyClient(discord.Client):
             logger.info("Activity set")
 
         await self.fetch_guild(int(GuildId.GUILD_KVGG.value))
+        logger.debug("Fetched guild")
 
         global backgroundServices
 
@@ -169,6 +173,8 @@ class MyClient(discord.Client):
         :param message:
         :return:
         """
+        logger.debug("received new message")
+
         if not message.author.bot and not message.content == "":
             pui = ProcessUserInput.ProcessUserInput(self)
 
@@ -177,6 +183,8 @@ class MyClient(discord.Client):
             qm = QuotesManager.QuotesManager(self)
 
             await qm.checkForNewQuote(message)
+        else:
+            logger.debug("message empty or from a bot")
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -185,6 +193,8 @@ class MyClient(discord.Client):
         :param message: RawMessageDeleteEvent
         :return:
         """
+        logger.debug("received deleted message")
+
         qm = QuotesManager.QuotesManager(self)
 
         await qm.deleteQuote(message)
@@ -196,6 +206,8 @@ class MyClient(discord.Client):
         :param message: RawMessageUpdateEvent
         :return:
         """
+        logger.debug("received edited message")
+
         qm = QuotesManager.QuotesManager(self)
 
         await qm.updateQuote(message)
@@ -209,6 +221,8 @@ class MyClient(discord.Client):
         :param voiceStateAfter: VoiceState after the member triggered the event
         :return:
         """
+        logger.debug("received voicestate update")
+
         vsus = VoiceStateUpdateService.VoiceStateUpdateService(self)
 
         await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
@@ -528,7 +542,7 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
 
     :param interaction: Interaction object of the call
     :param action: Action that will be performed which is listing all boosts or use some
-    :param zeile: Optional row number to choose an Xp-Boost
+    :param zeile: Optional row number to choose a Xp-Boost
     :return:
     """
     await CommandService(client).runCommand(Commands.XP_INVENTORY,
@@ -586,6 +600,17 @@ async def getXpLeaderboard(interaction: discord.Interaction):
 ])
 @app_commands.describe(action="Wähle deine Einstellung")
 async def handleNotificationSettings(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
+    """
+    Lets the member change their notification settings, such as double-xp-weekend or welcome back message
+
+    :param interaction: Interaction from discord
+    :param category: Category of the notification
+    :param action: On or off switch
+    :return:
+    """
+    logger.debug("received command notification: category = %s, action = %s, by %d" % (category.value, action.value,
+                 interaction.user.id))
+
     if category.value == "xp":
         await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
                                                 interaction,
@@ -633,6 +658,14 @@ async def handleFelixTimer(interaction: discord.Interaction, user: str, action: 
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
               )
 async def shutdownCogs(interaction: discord.Interaction):
+    """
+    Disable the background services of the bot
+
+    :param interaction: Interaction by discord
+    :return:
+    """
+    logger.warning("received command disable_cogs by %d" % (interaction.user.id))
+
     member = interaction.user
 
     if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
@@ -650,7 +683,15 @@ async def shutdownCogs(interaction: discord.Interaction):
               description="Stellt die Achievement-Loops an",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
               )
-async def shutdownCogs(interaction: discord.Interaction):
+async def startCogs(interaction: discord.Interaction):
+    """
+    Starts the background services of the bot
+
+    :param interaction: Interaction by discordf
+    :return:
+    """
+    logger.warning("received command enable_cogs, by %d" % (interaction.user.id))
+
     member = interaction.user
 
     if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
@@ -758,7 +799,16 @@ async def convertCurrency(interaction: discord.interactions.Interaction, von: st
               description="Dein Text als QRCode",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
               )
-async def generateQRCode(ctx, text: str):
+async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
+    """
+    Creates a QR-Code from the given text
+
+    :param ctx: Interaction by discord
+    :param text: Text that will be converted into a QR-Code
+    :return:
+    """
+    logger.debug("received command qrcode: text = %s, by %d" % (text, ctx.user.id))
+
     await CommandService(client).runCommand(Commands.QRCODE, ctx, text=text)
 
 

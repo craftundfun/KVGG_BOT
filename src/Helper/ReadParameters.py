@@ -1,3 +1,4 @@
+import functools
 import string
 from enum import Enum
 from os import path
@@ -16,6 +17,7 @@ class Parameters(Enum):
     API_KEY = 9
 
 
+@functools.lru_cache(maxsize=32)
 def getParameter(param: Parameters) -> string:
     basepath = path.dirname(__file__)
     filepath = path.abspath(path.join(basepath, "..", "..", "parameters.yaml"))

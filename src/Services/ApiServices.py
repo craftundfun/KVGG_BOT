@@ -31,6 +31,7 @@ class ApiServices:
         }
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for weather")
             answerWeather = await client.get(
                 self.url + "weather",
                 params=payload,
@@ -39,6 +40,7 @@ class ApiServices:
                 }
             )
 
+            logger.debug("calling API for air-quality")
             answerAir = await client.get(
                 self.url + "airquality",
                 params=payload,
@@ -51,6 +53,8 @@ class ApiServices:
             logger.warning("API sent an invalid response!: " + answerWeather.content.decode('utf-8'))
             return "Es gab ein Problem! Vielleicht lag deine Stadt / dein Ort nicht in Deutschland? Wenn" \
                    " das Problem weiterhin auftreten sollte liegt es wohl nicht an dir."
+
+        logger.debug("retrieved data successfully")
 
         answerWeather = answerWeather.content.decode('utf-8')
         dataWeather = json.loads(answerWeather)
@@ -83,6 +87,7 @@ class ApiServices:
         }
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for currency-conversion")
             answer = await client.get(
                 self.url + "convertcurrency",
                 params=payload,
@@ -95,6 +100,8 @@ class ApiServices:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
             return "Es gab ein Problem! Existieren deine Währungscodes überhaupt? Wenn ja, dann liegt " \
                    "es nicht an dir."
+
+        logger.debug("retrieved data successfully")
 
         data = answer.content.decode('utf-8')
         data = json.loads(data)
@@ -118,6 +125,7 @@ class ApiServices:
         }
 
         async with httpx.AsyncClient() as client:
+            logger.debug("calling API for QR-Code generation")
             answer = await client.get(
                 "https://api.qrserver.com/v1/create-qr-code/",
                 params=payload,
@@ -127,5 +135,7 @@ class ApiServices:
         if answer.status_code != 200:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
             return "Es ist ein Problem aufgetreten!"
+
+        logger.debug("retrieved data successfully")
 
         return discord.File(BytesIO(answer.content), filename="qrcode.png")
