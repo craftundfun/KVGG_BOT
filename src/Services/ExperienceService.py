@@ -117,7 +117,7 @@ class ExperienceService:
             cursor.execute(query, (userId,))
 
             if not (data := cursor.fetchone()):
-                logger.debug("found no experience for %d" % userId)
+                logger.debug("found no experience for %s" % str(userId))
 
                 if not self.__createExperience(userId):
                     logger.warning("couldn't fetch Experience!")
@@ -142,7 +142,7 @@ class ExperienceService:
         :param userId: User of the Experience
         :return: bool - Whether creation of Experience was successful
         """
-        logger.debug("creating experience for %d" % userId)
+        logger.debug("creating experience for %s" % str(userId))
 
         xpAmount = self.__calculateXpFromPreviousData(userId)
         xpBoosts = self.__calculateXpBoostsFromPreviousData(userId)

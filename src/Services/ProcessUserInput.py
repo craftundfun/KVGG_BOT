@@ -97,7 +97,6 @@ class ProcessUserInput:
     def __init__(self, client: Client):
         self.databaseConnection = getDatabaseConnection()
         self.client = client
-        self.logHelper = LogHelper.LogHelper()
 
     @validateKeys
     def changeWelcomeBackNotificationSetting(self, member: Member, setting: bool) -> str:

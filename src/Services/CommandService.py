@@ -105,7 +105,8 @@ class CommandService:
         try:
             match command:
                 case Commands.LOGS:
-                    answer = await pui.sendLogs(**kwargs)
+                    # answer = await pui.sendLogs(**kwargs)
+                    answer = "Dieser Dienst wird aktuell nicht unterstüzt."
 
                 case Commands.JOKE:
                     answer = await pui.answerJoke(**kwargs)
