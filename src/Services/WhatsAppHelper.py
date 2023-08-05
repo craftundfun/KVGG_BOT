@@ -44,12 +44,12 @@ class WhatsAppHelper:
 
             cursor.execute(query)
 
-            data = cursor.fetchall()
-
-            if data is None:
-                logger.warning("Couldn't fetch users!")
+            if (data := cursor.fetchall()) is None:
+                logger.warning("couldn't fetch users!")
 
                 return None
+
+            logger.debug("fetched users for messages")
 
             return [dict(zip(cursor.column_names, date)) for date in data]
 
@@ -61,20 +61,24 @@ class WhatsAppHelper:
         :param update: VoiceStateUpdate
         :return:
         """
-        logger.info("Creating Online-Notification for %s" % member.name)
+        logger.debug("Creating Online-Notification for %s" % member.name)
 
         # if a channel does not count time
         if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
                 update.channel.id) not in ChannelIdUniversityTracking.getValues():
+            logger.debug("user was outside of tracked channels")
+
             return
 
         if member.bot:
+            logger.debug("user was a bot")
+
             return
 
         triggerDcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not triggerDcUserDb:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!")
 
             return
 
@@ -83,22 +87,30 @@ class WhatsAppHelper:
             if not self.__canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value):
                 self.__retractMessagesFromMessageQueue(triggerDcUserDb, False)
 
+            logger.debug("user left and joined to fast => no message queued")
+
             return
 
         if not (users := self.__getUsersForMessage()):
+            logger.debug("no users to send a message at")
+
             return
 
         for user in users:
             # dont send message to trigger user
             if user['discord_user_id'] == triggerDcUserDb['id']:
+                logger.debug("dont send message to user who triggered message")
+
                 continue
 
             if triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
                 'receive_join_notification']:
+                logger.debug("message for gaming channels")
                 # works correctly
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
             elif triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
                 'receive_uni_join_notification']:
+                logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
 
     def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
@@ -110,7 +122,7 @@ class WhatsAppHelper:
         :param member: Member that caused the notification
         :return:
         """
-        logger.info("Creating Offline-Notification for %s" % member.name)
+        logger.debug("Creating Offline-Notification for %s" % member.name)
 
         if lastOnline := dcUserDb['joined_at']:
             diff: timedelta = datetime.now() - lastOnline
@@ -118,25 +130,34 @@ class WhatsAppHelper:
             if diff.days <= 0:
                 if diff.seconds <= WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value * 60:
                     self.__retractMessagesFromMessageQueue(dcUserDb, True)
+                    logger.debug("retracted messages from database due to fast rejoin")
 
                     return
 
         if not self.__canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
+            logger.debug("cant send messages yet again")
+
             return
 
         if not (users := self.__getUsersForMessage()):
+            logger.debug("no users for messages")
+
             return
 
         for user in users:
             if user['discord_user_id'] == dcUserDb['id']:
+                logger.debug("dont sent message to trigger user")
+
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
             if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues() and user[
                 'receive_leave_notification']:
+                logger.debug("message for gaming channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
             elif str(update.channel.id) in ChannelIdUniversityTracking.getValues() and user[
                 'receive_uni_leave_notification']:
+                logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
@@ -147,12 +168,16 @@ class WhatsAppHelper:
         :param channelName: New Channel
         :return:
         """
-        logger.info("Editing message from %s caused by changing channels" % dcUserDb['username'])
+        logger.debug("editing message from %s caused by changing channels" % dcUserDb['username'])
 
         if (messages := getUnsentMessagesFromTriggerUser(self.databaseConnection, dcUserDb, True)) is None:
+            logger.debug("no messages to edit")
+
             return
 
         if len(messages) == 0:
+            logger.debug("no messages to edit")
+
             return
 
         with self.databaseConnection.cursor() as cursor:
@@ -168,6 +193,7 @@ class WhatsAppHelper:
                 cursor.execute(query, nones)
 
             self.databaseConnection.commit()
+            logger.debug("saved changes to database")
 
     def __canSendMessage(self, dcUserDb: dict, intervalTime: int) -> bool:
         """
@@ -198,12 +224,14 @@ class WhatsAppHelper:
         :param isJoinMessage: Specify looking for join or leave messages
         :return:
         """
-        logger.info("Retracting messages from Queue for %s" % dcUserDb['username'])
+        logger.debug("retracting messages from Queue for %s" % dcUserDb['username'])
 
         with self.databaseConnection.cursor() as cursor:
             messages = getUnsentMessagesFromTriggerUser(self.databaseConnection, dcUserDb, isJoinMessage)
 
             if messages is None:
+                logger.debug("no messages to retract")
+
                 return
 
             for message in messages:
@@ -212,6 +240,7 @@ class WhatsAppHelper:
                 cursor.execute(query, (message['id'],))
 
             self.databaseConnection.commit()
+            logger.debug("deleted messages(s) from database")
 
     def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, whatsappSetting: dict,
                                usernameFromTriggerUser: string):
@@ -224,7 +253,7 @@ class WhatsAppHelper:
         :param usernameFromTriggerUser: Who triggered the message
         :return:
         """
-        logger.info("Queueing message into database")
+        logger.debug("Queueing message into database")
 
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT channel_id FROM discord WHERE id = %s"
@@ -234,16 +263,20 @@ class WhatsAppHelper:
             data = cursor.fetchone()
 
             if data is None:
-                logger.warning("Couldn't fetch DiscordUser!")
+                logger.warning("couldn't fetch DiscordUser!")
 
                 return
 
             dcUserDbRecipient = dict(zip(cursor.column_names, data))
 
             if dcUserDbRecipient['channel_id'] == triggerDcUserDb['channel_id']:
+                logger.debug("dont send message to trigger user")
+
                 return
 
             if self.__hasReceiverSuspended(whatsappSetting):
+                logger.debug("receiver has suspended messages")
+
                 return
 
             delay = WhatsAppParameter.DELAY_JOIN_MESSAGE.value
@@ -274,6 +307,7 @@ class WhatsAppHelper:
             cursor.execute(query, (
                 text, whatsappSetting['id'], datetime.now(), timeToSent, triggerDcUserDb['id'], isJoinMessage))
             self.databaseConnection.commit()
+            logger.debug("saved new message to database")
 
     @validateKeys
     def addOrEditSuspendDay(self, member: Member, weekday: discord.app_commands.Choice, start: str, end: str):
@@ -291,9 +325,9 @@ class WhatsAppHelper:
 
             cursor.execute(query, (member.id,))
 
-            data = cursor.fetchone()
+            if not (data := cursor.fetchone()):
+                logger.debug("%s is no registered for whatsapp messages" % member.name)
 
-            if not data:
                 return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
             whatsappSetting = dict(zip(cursor.column_names, data))
@@ -304,17 +338,25 @@ class WhatsAppHelper:
             startTime: datetime = datetime.strptime(start, "%H:%M")
             startTime = startTime.replace(year=current.year, month=current.month, day=current.day)
         except ValueError:
+            logger.debug("starting time was incorrect")
+
             return "Bitte wähle eine korrekte Startzeit aus!"
 
         try:
             endTime: datetime = datetime.strptime(end, "%H:%M")
             endTime = endTime.replace(year=current.year, month=current.month, day=current.day)
         except ValueError:
+            logger.debug("ending time was incorrect")
+
             return "Bitte wähle eine korrekt Endzeit aus!"
 
         if endTime.hour < startTime.hour:
+            logger.debug("ending time was earlier than starting time")
+
             return "Deine Endzeit kann nicht früher als die Startzeit sein!"
         elif endTime == startTime:
+            logger.debug("interval was 0 minutes")
+
             return "Dein Intervall beträgt 0 Minuten!"
 
         suspendDay: dict = {
@@ -355,6 +397,8 @@ class WhatsAppHelper:
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
+        logger.debug("saved new suspend time to database")
+
         return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
             startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
 
@@ -372,9 +416,9 @@ class WhatsAppHelper:
 
             cursor.execute(query, (member.id,))
 
-            data = cursor.fetchone()
+            if not (data := cursor.fetchone()):
+                logger.debug("%s is no registered for whatsapp messages" % member.name)
 
-            if not data:
                 return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
             whatsappSetting = dict(zip(cursor.column_names, data))
@@ -382,6 +426,8 @@ class WhatsAppHelper:
             suspendTimes = whatsappSetting['suspend_times']
 
             if not suspendTimes:
+                logger.debug("no suspend times to reset")
+
                 return "Du hast keine Suspend-Zeiten zum zurücksetzen!"
 
             suspendTimes = json.loads(suspendTimes)
@@ -407,6 +453,7 @@ class WhatsAppHelper:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+            logger.debug("saved changes to database")
 
             if found:
                 return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten am %s." % weekday.name
@@ -422,6 +469,8 @@ class WhatsAppHelper:
         suspendTimes = whatsappSetting['suspend_times']
 
         if not suspendTimes:
+            logger.debug("no suspend times found")
+
             return False
 
         suspendTimes = json.loads(suspendTimes)
@@ -452,9 +501,9 @@ class WhatsAppHelper:
 
             cursor.execute(query, (member.id,))
 
-            data = cursor.fetchone()
+            if not (data := cursor.fetchone()):
+                logger.debug("%s is no registered for whatsapp messages" % member.name)
 
-            if not data:
                 return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
             whatsappSetting = dict(zip(cursor.column_names, data))
@@ -462,6 +511,8 @@ class WhatsAppHelper:
         suspendTimes = whatsappSetting['suspend_times']
 
         if not suspendTimes:
+            logger.debug("%s has no suspend times to list" % member.name)
+
             return "Du hast keine Suspend-Zeiten gesetzt!"
 
         suspendTimes = json.loads(suspendTimes)

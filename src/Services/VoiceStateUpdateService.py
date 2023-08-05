@@ -27,22 +27,28 @@ class VoiceStateUpdateService:
         self.waHelper = WhatsAppHelper()
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
-        logger.info("%s raised a VoiceStateUpdate" % member.name)
+        logger.debug("%s raised a VoiceStateUpdate" % member.name)
 
         if not member:
+            logger.debug("member was not a member")
+
             return
         elif member.bot:
+            logger.debug("member was a bot")
+
             return
 
         dcUserDb = getDiscordUser(self.databaseConnection, member)
 
         if not dcUserDb:
-            logger.error("Couldn't fetch DiscordUser from %s!" % member.name)
+            logger.error("couldn't fetch DiscordUser for %s!" % member.name)
 
             return
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
+            logger.debug("%s joined channel" % member.name)
+
             dcUserDb['channel_id'] = voiceStateAfter.channel.id
             dcUserDb['joined_at'] = datetime.now()
 
@@ -72,8 +78,12 @@ class VoiceStateUpdateService:
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
+            logger.debug("member changes status or voice channel")
+
             # status changed
             if voiceStateBefore.channel == voiceStateAfter.channel:
+                logger.debug("%s changed status" % member.name)
+
                 now = datetime.now()
 
                 # if a user is mute
@@ -105,6 +115,8 @@ class VoiceStateUpdateService:
                 self.__saveDiscordUser(dcUserDb)
             # channel changed
             else:
+                logger.debug("%s changed channel" % member.name)
+
                 dcUserDb['channel_id'] = voiceStateAfter.channel.id
 
                 self.__saveDiscordUser(dcUserDb)
@@ -112,6 +124,7 @@ class VoiceStateUpdateService:
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
+            logger.debug("%s left channel" % member.name)
             self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
 
             dcUserDb['channel_id'] = None
@@ -141,6 +154,8 @@ class VoiceStateUpdateService:
             cursor.execute(query, nones)
             self.databaseConnection.commit()
 
+        logger.debug("updated %s" % dcUserDb['username'])
+
     async def __checkFelixCounterAndSendStopMessage(self, dcUserDb: dict):
         """
         Check if the given DiscordUser had a Felix-Counter, if so it stops the timer
@@ -148,7 +163,7 @@ class VoiceStateUpdateService:
         :param dcUserDb:
         :return:
         """
-        logger.info("Checking Felix-Timer from %s" % dcUserDb['username'])
+        logger.debug("Checking Felix-Timer from %s" % dcUserDb['username'])
 
         if dcUserDb['felix_counter_start'] is not None:
             dcUserDb['felix_counter_start'] = None
@@ -162,11 +177,12 @@ class VoiceStateUpdateService:
             await member.create_dm()
 
             if not member.dm_channel:
-                logger.warning("Couldn't create DM!")
+                logger.warning("couldn't create DM!")
 
                 return
 
         await member.dm_channel.send("Dein Felix-Counter wurde beendet!")
+        logger.debug("sent dm to %s" % member.name)
 
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
@@ -180,6 +196,8 @@ class VoiceStateUpdateService:
         :return: Boolean if a message was sent
         """
         if not dcUserDb['last_online']:
+            logger.debug("%s has no last_online status" % member.name)
+
             return False
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 30:
@@ -187,14 +205,19 @@ class VoiceStateUpdateService:
                 await member.create_dm()
 
                 if not member.dm_channel:
+                    logger.warning("couldn't create dm for %s" % member.name)
+
                     return False
 
             await member.dm_channel.send("Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
                                          "und %d Minuten nicht mehr da." %
                                          (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
             await member.dm_channel.send(self.finallyAwake)
+            logger.debug("sent dm to %s" % member.name)
 
             return True
+
+        logger.debug("%s was less than %d days online ago" % (member.name, 30))
 
         return False
 
@@ -209,8 +232,12 @@ class VoiceStateUpdateService:
         optedIn = dcUserDb['welcome_back_notification']
 
         if not optedIn or optedIn is False:
+            logger.debug("%s is not opted in for welcome_back_notification" % member.name)
+
             return
         elif not dcUserDb['last_online']:
+            logger.debug("%s has no last_online" % member.name)
+
             return
 
         now = datetime.now()
@@ -230,6 +257,8 @@ class VoiceStateUpdateService:
         minutes: int = (lastOnlineDiff.seconds // 60) % 60
 
         if minutes < 30:
+            logger.debug("%s was online less than 30 minutes ago" % member.name)
+
             return
 
         onlineTime: str | None = dcUserDb['formated_time']
@@ -259,11 +288,12 @@ class VoiceStateUpdateService:
             await member.create_dm()
 
             if not member.dm_channel:
-                logger.warning("Couldnt create DM-Channel with %s" % member.name)
+                logger.warning("couldn't create DM-Channel with %s" % member.name)
                 
                 return
 
         await member.dm_channel.send(message)
+        logger.debug("sent dm to %s" % member.name)
 
     def __del__(self):
         self.databaseConnection.close()

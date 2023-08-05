@@ -864,7 +864,7 @@ class ProcessUserInput:
         dcUserDb = getDiscordUser(self.databaseConnection, memberCounter)
 
         if not dcUserDb:
-            logger.warning("couldn't fetch DiscordUser!") """###HIER WEITERMACHEN###"""
+            logger.warning("couldn't fetch DiscordUser!")
 
             return "Dieser Benutzer existiert (noch) nicht!"
 
@@ -874,9 +874,13 @@ class ProcessUserInput:
             try:
                 value = int(param)
             except ValueError:
+                logger.debug("parameter was not convertable to int")
+
                 return "Dein eingegebener Parameter war ungültig!"
 
             if int(dcUserDb['user_id']) == member.id and value < 0:
+                logger.debug("%s tried to reduce his own counter" % member.name)
+
                 return "Du darfst deinen eigenen Counter nicht verringern!"
 
             if counter.getCounterValue() + value < 0:
@@ -894,6 +898,8 @@ class ProcessUserInput:
                     cursor.execute(query, nones)
                     self.databaseConnection.commit()
 
+            logger.debug("saved changes to database")
+
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
                 counter.getNameOfCounter(), getTagStringFromId(tag), value)
         # param but no privileged user
@@ -901,11 +907,17 @@ class ProcessUserInput:
             try:
                 value = int(param)
             except ValueError:
+                logger.debug("parameter was not convertable to int")
+
                 return "Dein eingegebener Parameter war ungültig!"
 
             if int(dcUserDb['user_id']) == member.id and value < 0:
+                logger.debug("%s tried to reduce his own counter" % member.name)
+
                 return "Du darfst deinen eigenen Counter nicht verringern!"
             elif value == 0:
+                logger.debug("%s tried to reduce counter with 0" % member.name)
+
                 return "0 ist keine gültige Anpassung!"
 
             value = 1 if value > 0 else -1
@@ -924,6 +936,8 @@ class ProcessUserInput:
 
                     cursor.execute(query, nones)
                     self.databaseConnection.commit()
+
+            logger.debug("saved changes to database")
 
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
                 counter.getNameOfCounter(), getTagStringFromId(tag), value)
@@ -952,23 +966,27 @@ class ProcessUserInput:
         :param time: Optional time to start the timer at
         :return:
         """
-        logger.info("Handling Felix-Timer by %s" % member.name)
+        logger.debug("Handling Felix-Timer by %s" % member.name)
 
         userId = getUserIdByTag(tag)
         dcUserDb = getDiscordUserById(self.databaseConnection, userId)
 
         if not dcUserDb:
-            logger.warning("Couldn't fetch DiscordUser!")
+            logger.warning("couldn't fetch DiscordUser!")
 
             return "Bitte tagge deinen User korrekt!"
 
         counter = FelixCounter.FelixCounter(dcUserDb)
 
         if action == "start":
+            logger.debug("start chosen")
+
             if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
                 date = None
 
                 if not time:
+                    logger.debug("no time was given")
+
                     return "Bitte gib eine Zeit an!"
 
                 try:
@@ -985,6 +1003,8 @@ class ProcessUserInput:
                     try:
                         minutesFromNow = int(time)
                     except ValueError:
+                        logger.debug("no time or amount of minutes was given")
+
                         return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
                                "Timer um 09:04 Uhr zu starten!"
 
@@ -992,6 +1012,8 @@ class ProcessUserInput:
                     date = timeToStart
 
                 if not date:
+                    logger.debug("no date was given")
+
                     return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
                 link = FelixCounter.LIAR
@@ -1010,7 +1032,7 @@ class ProcessUserInput:
                 memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
 
                 if not memberDm:
-                    logger.warning("Couldn't fetch member from Guild!")
+                    logger.warning("couldn't fetch member from Guild!")
 
                     return
 
@@ -1018,7 +1040,7 @@ class ProcessUserInput:
                     await memberDm.create_dm()
 
                     if not memberDm.dm_channel:
-                        logger.warning("Couldn't create DM-Channel with %s!" % memberDm.name)
+                        logger.warning("couldn't create DM-Channel with %s!" % memberDm.name)
 
                         return answer
 
@@ -1032,22 +1054,29 @@ class ProcessUserInput:
                                                    counter.getNameOfCounter(),
                                                ))
                 await memberDm.dm_channel.send(link)
+                logger.debug("send dms to %s" % memberDm.name)
 
                 return answer
 
             elif dcUserDb['channel_id'] is not None:
+                logger.debug("%s is online" % tag)
+
                 return "%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!" % (
                     tag, counter.getNameOfCounter())
 
             elif counter.getFelixTimer() is not None:
+                logger.debug("Felix-Timer is already running")
+
                 return "Es läuft bereits ein Timer!"
 
             else:
-                logger.error("No matching condition were found for starting a Felix-Timer!")
+                logger.critical("No matching condition were found for starting a Felix-Timer!")
 
                 return "Es ist ein Fehler aufgetreten!"
 
         elif action == "stop":
+            logger.debug("stop chosen")
+
             if counter.getFelixTimer() is not None:
                 counter.setFelixTimer(None)
 
@@ -1063,7 +1092,7 @@ class ProcessUserInput:
                 memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
 
                 if not memberDm:
-                    logger.warning("Couldn't fetch member from Guild!")
+                    logger.warning("couldn't fetch member from Guild!")
 
                     return
 
@@ -1071,12 +1100,13 @@ class ProcessUserInput:
                     await memberDm.create_dm()
 
                     if not memberDm.dm_channel:
-                        logger.warning("Couldnt create DM-Channel with %s!" % member.name)
+                        logger.warning("couldn't create DM-Channel with %s!" % member.name)
 
                         return answer
 
                 await memberDm.dm_channel.send(
                     "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+                logger.debug("sent dm to %s" % memberDm.name)
 
                 return answer
 
@@ -1084,6 +1114,7 @@ class ProcessUserInput:
                 return "Es lief kein %s-Timer für %s!" % (
                     counter.getNameOfCounter(), tag)
 
+    @DeprecationWarning
     @validateKeys
     async def sendLogs(self, member: Member, amount: int) -> string:
         """
