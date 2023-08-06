@@ -81,7 +81,6 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 
     if not member.dm_channel:
         await member.create_dm()
-
         if not member.dm_channel:
             logger.warning("couldn't create dm channel with %s" % member.name)
             return
