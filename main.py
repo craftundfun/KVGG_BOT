@@ -248,8 +248,7 @@ backgroundServices = None
 
 @tree.command(name="logs",
               description="Sendet die von dir gewählte Menge von Logs.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(amount=[Choice(name="1", value=1), Choice(name="5", value=5), Choice(name="10", value=10)])
 async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice[int]):
     """
@@ -267,8 +266,7 @@ async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice
 
 @tree.command(name="joke",
               description="Antwortet dir einen (lustigen) Witz!",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(kategorie=[
     Choice(name="Flachwitze", value="flachwitze"),
     Choice(name="Lehrerwitze", value="lehrerwitze"),
@@ -329,8 +327,7 @@ async def channel_choices(interaction: discord.Interaction, current: str) -> Lis
 
 @tree.command(name="move",
               description="Moved alle User aus deinem Channel in den von dir angegebenen.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.autocomplete(channel=channel_choices)
 async def moveUsers(interaction: discord.Interaction, channel: str):
     """
@@ -348,8 +345,7 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
 
 @tree.command(name="zitat",
               description="Antwortet die ein zufälliges Zitat aus unserem Zitat-Channel.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def answerQuote(interaction: discord.Interaction):
     """
     Calls the answer quote fuction from QuotesManager from this interaction
@@ -365,8 +361,7 @@ async def answerQuote(interaction: discord.Interaction):
 
 @tree.command(name="zeit",
               description="Frage die Online-, Stream- oder Uni-Zeit an!",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(zeit=[
     Choice(name="Online-Zeit", value="online"),
     Choice(name="Stream-Zeit", value="stream"),
@@ -398,8 +393,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(counter=[
     Choice(name="Bjarne", value="Bjarne"),
     Choice(name="Carl", value="Carl"),
@@ -436,8 +430,7 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
 
 @tree.command(name="whatsapp",
               description="Lässt dich deine Benachrichtigunseinstellungen ändern.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(type=[
     Choice(name="Gaming", value="Gaming"),
     Choice(name="Uni", value="Uni"),
@@ -477,8 +470,7 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
 
 @tree.command(name="leaderboard",
               description="Listet dir unsere Bestenliste auf.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def sendLeaderboard(interaction: discord.Interaction):
     """
     Calls the send leaderboard from ProcessUserInput from this interaction
@@ -494,8 +486,7 @@ async def sendLeaderboard(interaction: discord.Interaction):
 
 @tree.command(name="registration",
               description="Sendet dir einen Link um einen Account auf unserer Website erstellen zu können.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def sendRegistration(interaction: discord.Interaction):
     """
     Calls the send registration from ProcessUserInput from this interaction
@@ -511,8 +502,7 @@ async def sendRegistration(interaction: discord.Interaction):
 
 @tree.command(name="xp_spin",
               description="XP-Spin alle " + str(ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value) + " Tage.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def spinForXpBoost(interaction: discord.Interaction):
     """
     Calls the Xp-Boost spin from ExperienceService from this interaction
@@ -528,8 +518,7 @@ async def spinForXpBoost(interaction: discord.Interaction):
 
 @tree.command(name="xp_inventory",
               description="Listet dir dein XP-Boost Inventory auf oder wähle welche zum Benutzen.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(action=[
     Choice(name="list", value="list"),
     Choice(name="use", value="use"),
@@ -557,8 +546,7 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
 
 @tree.command(name="xp",
               description="Gibt dir die XP eines Benutzers wieder.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
 async def handleXpRequest(interaction: discord.Interaction, user: str):
     """
@@ -576,8 +564,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
 
 @tree.command(name="xp_leaderboard",
               description="Listet dir unsere XP-Bestenliste auf.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def getXpLeaderboard(interaction: discord.Interaction):
     await CommandService(client).runCommand(Commands.XP_LEADERBOARD, interaction, member=interaction.user)
 
@@ -587,8 +574,7 @@ async def getXpLeaderboard(interaction: discord.Interaction):
 
 @tree.command(name="notifications",
               description="Lässt dich deine Benachrichtigungen einstellen.",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(category=[
     Choice(name="xp", value="xp"),
     Choice(name="welcome", value="welcome"),
@@ -609,7 +595,7 @@ async def handleNotificationSettings(interaction: discord.Interaction, category:
     :return:
     """
     logger.debug("received command notification: category = %s, action = %s, by %d" % (category.value, action.value,
-                 interaction.user.id))
+                                                                                       interaction.user.id))
 
     if category.value == "xp":
         await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
@@ -630,8 +616,7 @@ async def handleNotificationSettings(interaction: discord.Interaction, category:
 
 @tree.command(name="felix-timer",
               description="Lässt dich einen Felix-Timer für einen User starten / stoppen",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(action=[
     Choice(name="start", value="start"),
     Choice(name="stop", value="stop"),
@@ -655,8 +640,7 @@ async def handleFelixTimer(interaction: discord.Interaction, user: str, action: 
 
 @tree.command(name="disable_cogs",
               description="Stellt die Achievement-Loops aus",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def shutdownCogs(interaction: discord.Interaction):
     """
     Disable the background services of the bot
@@ -681,8 +665,7 @@ async def shutdownCogs(interaction: discord.Interaction):
 
 @tree.command(name="enable_cogs",
               description="Stellt die Achievement-Loops an",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def startCogs(interaction: discord.Interaction):
     """
     Starts the background services of the bot
@@ -710,8 +693,7 @@ async def startCogs(interaction: discord.Interaction):
 
 @tree.command(name="whatsapp_suspend_settings",
               description="Stelle einen Zeitraum ein in dem du keine WhatsApp-Nachrichten bekommen möchtest",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(day=[
     Choice(name="Montag", value="1"),
     Choice(name="Dienstag", value="2"),
@@ -754,8 +736,7 @@ async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Cho
 
 @tree.command(name="list_message_suspend_settings",
               description="Listet dir deine Suspend-Zeiten auf",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def listSuspendSettings(interaction: discord.Interaction):
     await CommandService(client).runCommand(Commands.LIST_WHATSAPP_SUSPEND_SETTINGS,
                                             interaction,
@@ -767,8 +748,7 @@ async def listSuspendSettings(interaction: discord.Interaction):
 
 @tree.command(name="weather",
               description="Frag das Wetter von einem Ort in Deutschland an",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.describe(stadt="Stadt / Ort in Deutschland")
 async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
     await CommandService(client).runCommand(Commands.WEATHER, interaction, city=stadt)
@@ -779,8 +759,7 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 
 @tree.command(name="currency_converter",
               description="Konvertiere eine Währung in die andere",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)),
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.describe(von="Startwährung: dreistelliger Währungscode, z.B. 'USD'")
 @app_commands.describe(nach="Zielwährung: dreistelliger Währungscode, z.B. 'EUR'")
 @app_commands.describe(betrag="Kommabeträge: 320,59")
@@ -797,8 +776,7 @@ async def convertCurrency(interaction: discord.interactions.Interaction, von: st
 
 @tree.command(name="qrcode",
               description="Dein Text als QRCode",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))
-              )
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     """
     Creates a QR-Code from the given text
@@ -810,6 +788,35 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     logger.debug("received command qrcode: text = %s, by %d" % (text, ctx.user.id))
 
     await CommandService(client).runCommand(Commands.QRCODE, ctx, text=text)
+
+
+"""REMINDER"""
+
+
+@tree.command(name="remind_me",
+              description="Erstelle eine persönliche Erinnerung",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+@app_commands.choices(art_der_zeit=[
+    Choice(name="Minuten", value="minutes"),
+    Choice(name="Stunden", value="hours"),
+    Choice(name="Tage", value="days"),
+])
+async def createReminder(ctx: discord.interactions.Interaction, reminder: str, art_der_zeit: Choice[str], dauer: int):
+    """
+    Creates a Reminder for the given time
+
+    :param ctx: Interaction from Discord
+    :param reminder: Content of a reminder
+    :param art_der_zeit: Time scope
+    :param dauer: Duration
+    :return:
+    """
+    await CommandService(client).runCommand(Commands.CREATE_REMINDER,
+                                            ctx,
+                                            member=ctx.user,
+                                            content=reminder,
+                                            timeType=art_der_zeit.value,
+                                            duration=dauer)
 
 
 # FUCK YOU

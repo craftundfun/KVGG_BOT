@@ -8,6 +8,7 @@ from src.Services.ApiServices import ApiServices
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuotesManager import QuotesManager
+from src.Services.ReminderService import ReminderService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -38,6 +39,7 @@ class Commands(Enum):
     CURRENCY_CONVERTER = 22
     QRCODE = 23
     NOTIFICATIONS_BACK = 24
+    CREATE_REMINDER = 25
 
 
 class CommandService:
@@ -101,6 +103,7 @@ class CommandService:
         xp = ExperienceService(self.client)
         wa = WhatsAppHelper()
         api = ApiServices()
+        rm = ReminderService(self.client)
 
         try:
             match command:
@@ -178,6 +181,9 @@ class CommandService:
                             logger.error("couldn't send qr-picture", exc_info=e)
 
                         return
+
+                case Commands.CREATE_REMINDER:
+                    answer = rm.createReminder(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"
