@@ -18,8 +18,6 @@ def getDatabaseConnection() -> MySQLConnection | None:
     databaseConnection = None
 
     try:
-        logger.debug("trying to create new database connection")
-
         databaseConnection = mysql.connector.connect(
             user=rp.getParameter(parameters.USER),
             password=rp.getParameter(parameters.PASSWORD),

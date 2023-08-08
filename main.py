@@ -819,6 +819,33 @@ async def createReminder(ctx: discord.interactions.Interaction, reminder: str, a
                                             duration=dauer)
 
 
+@tree.command(name="list_reminders",
+              description="Listet dir deine Reminders auf",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def listReminders(ctx: discord.interactions.Interaction):
+    """
+    Calls the listing of the users reminders
+
+    :param ctx:
+    :return:
+    """
+    await CommandService(client).runCommand(Commands.LIST_REMINDERS, ctx, member=ctx.user)
+
+
+@tree.command(name="delete_reminder",
+              description="Lösche einen aktiven Reminder",
+              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
+async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
+    """
+    Calls the deletion of one reminder
+
+    :param ctx:
+    :param id:
+    :return:
+    """
+    await CommandService(client).runCommand(Commands.DELETE_REMINDER, ctx, member=ctx.user, id=id)
+
+
 # FUCK YOU
 
 
