@@ -8,6 +8,7 @@ from src.Services.ApiServices import ApiServices
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuotesManager import QuotesManager
+from src.Services.ReminderService import ReminderService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -38,6 +39,9 @@ class Commands(Enum):
     CURRENCY_CONVERTER = 22
     QRCODE = 23
     NOTIFICATIONS_BACK = 24
+    CREATE_REMINDER = 25
+    LIST_REMINDERS = 26
+    DELETE_REMINDER = 27
 
 
 class CommandService:
@@ -67,7 +71,7 @@ class CommandService:
 
         return True
 
-    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str, pui: ProcessUserInput):
+    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
         """
         Sends the specified answer to the interaction
 
@@ -75,7 +79,7 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
-        pui.raiseMessageCounter(ctx.user, ctx.channel)
+        ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
 
         try:
             await ctx.followup.send(answer)
@@ -96,12 +100,6 @@ class CommandService:
         if not await self.__setLoading(interaction):
             return
 
-        pui = ProcessUserInput(self.client)
-        qm = QuotesManager(self.client)
-        xp = ExperienceService(self.client)
-        wa = WhatsAppHelper()
-        api = ApiServices()
-
         try:
             match command:
                 case Commands.LOGS:
@@ -109,67 +107,67 @@ class CommandService:
                     answer = "Dieser Dienst wird aktuell nicht unterstüzt."
 
                 case Commands.JOKE:
-                    answer = await pui.answerJoke(**kwargs)
+                    answer = await ProcessUserInput(self.client).answerJoke(**kwargs)
 
                 case Commands.MOVE:
-                    answer = await pui.moveUsers(**kwargs)
+                    answer = await ProcessUserInput(self.client).moveUsers(**kwargs)
 
                 case Commands.QUOTE:
-                    answer = qm.answerQuote(**kwargs)
+                    answer = QuotesManager(self.client).answerQuote(**kwargs)
 
                 case Commands.TIME:
-                    answer = await pui.accessTimeAndEdit(**kwargs)
+                    answer = await ProcessUserInput(self.client).accessTimeAndEdit(**kwargs)
 
                 case Commands.COUNTER:
-                    answer = await pui.accessNameCounterAndEdit(**kwargs)
+                    answer = await ProcessUserInput(self.client).accessNameCounterAndEdit(**kwargs)
 
                 case Commands.WHATSAPP:
-                    answer = await pui.manageWhatsAppSettings(**kwargs)
+                    answer = await ProcessUserInput(self.client).manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
-                    answer = await pui.sendLeaderboard(**kwargs)
+                    answer = await ProcessUserInput(self.client).sendLeaderboard(**kwargs)
 
                 case Commands.REGISTRATION:
-                    answer = await pui.sendRegistrationLink(**kwargs)
+                    answer = await ProcessUserInput(self.client).sendRegistrationLink(**kwargs)
 
                 case Commands.XP_SPIN:
-                    answer = await xp.spinForXpBoost(**kwargs)
+                    answer = await ExperienceService(self.client).spinForXpBoost(**kwargs)
 
                 case Commands.XP_INVENTORY:
-                    answer = await xp.handleXpInventory(**kwargs)
+                    answer = await ExperienceService(self.client).handleXpInventory(**kwargs)
 
                 case Commands.XP:
-                    answer = await xp.handleXpRequest(**kwargs)
+                    answer = await ExperienceService(self.client).handleXpRequest(**kwargs)
 
                 case Commands.XP_LEADERBOARD:
-                    answer = xp.sendXpLeaderboard(**kwargs)
+                    answer = ExperienceService(self.client).sendXpLeaderboard(**kwargs)
 
                 case Commands.NOTIFICATIONS_BACK:
-                    answer = pui.changeWelcomeBackNotificationSetting(**kwargs)
+                    answer = ProcessUserInput(self.client).changeWelcomeBackNotificationSetting(**kwargs)
 
                 case Commands.NOTIFICATIONS_XP:
-                    answer = xp.handleXpNotification(**kwargs)
+                    answer = ExperienceService(self.client).handleXpNotification(**kwargs)
 
                 case Commands.FELIX_TIMER:
-                    answer = await pui.handleFelixTimer(**kwargs)
+                    answer = await ProcessUserInput(self.client).handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                    answer = wa.addOrEditSuspendDay(**kwargs)
+                    answer = WhatsAppHelper().addOrEditSuspendDay(**kwargs)
 
                 case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = wa.resetSuspendSetting(**kwargs)
+                    answer = WhatsAppHelper().resetSuspendSetting(**kwargs)
 
                 case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = wa.listSuspendSettings(**kwargs)
+                    answer = WhatsAppHelper().listSuspendSettings(**kwargs)
 
                 case Commands.WEATHER:
-                    answer = await api.getWeather(**kwargs)
+                    answer = await ApiServices().getWeather(**kwargs)
 
                 case Commands.CURRENCY_CONVERTER:
-                    answer = await api.convertCurrency(**kwargs)
+                    answer = await ApiServices().convertCurrency(**kwargs)
 
                 case Commands.QRCODE:
-                    answer = await api.generateQRCode(**kwargs)
+                    answer = await ApiServices().generateQRCode(**kwargs)
 
                     if isinstance(answer, discord.File):
                         try:
@@ -178,6 +176,15 @@ class CommandService:
                             logger.error("couldn't send qr-picture", exc_info=e)
 
                         return
+
+                case Commands.CREATE_REMINDER:
+                    answer = ReminderService(self.client).createReminder(**kwargs)
+
+                case Commands.LIST_REMINDERS:
+                    answer = ReminderService(self.client).listReminders(**kwargs)
+
+                case Commands.DELETE_REMINDER:
+                    answer = ReminderService(self.client).deleteReminder(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"
@@ -189,4 +196,4 @@ class CommandService:
 
             logger.error("parameters arent matched with function parameters", exc_info=e)
 
-        await self.__sendAnswer(interaction, answer, pui)
+        await self.__sendAnswer(interaction, answer)

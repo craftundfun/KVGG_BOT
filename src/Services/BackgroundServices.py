@@ -8,6 +8,7 @@ from src.Id.ChannelId import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services import DatabaseRefreshService
+from src.Services.ReminderService import ReminderService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -21,14 +22,21 @@ class BackgroundServices(commands.Cog):
 
         self.onlineTimeAchievement.start()
         logger.info("onlineTimeAchievement started")
+
         self.streamTimeAchievement.start()
         logger.info("streamTimeAchievement started")
+
         self.xpAchievement.start()
         logger.info("xpAchievement started")
+
         self.refreshDatabaseWithDiscord.start()
         logger.info("refreshDatabaseWithDiscord started")
+
         self.refreshMembersInDatabase.start()
         logger.info("refreshMembersInDatabase started")
+
+        self.callReminder.start()
+        logger.info("callRemainder started")
 
     def cog_unload(self) -> None:
         """
@@ -43,6 +51,7 @@ class BackgroundServices(commands.Cog):
         self.xpAchievement.cancel()
         self.refreshDatabaseWithDiscord.cancel()
         self.refreshMembersInDatabase.cancel()
+        self.callReminder.cancel()
 
     async def cog_load(self):
         logger.info("starting cogs")
@@ -52,6 +61,7 @@ class BackgroundServices(commands.Cog):
         self.xpAchievement.start()
         self.refreshDatabaseWithDiscord.start()
         self.refreshMembersInDatabase.start()
+        self.callReminder.start()
 
     @tasks.loop(seconds=60)
     async def onlineTimeAchievement(self):
@@ -222,3 +232,11 @@ class BackgroundServices(commands.Cog):
         dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
 
         await dbr.updateAllMembers()
+
+    @tasks.loop(minutes=1)
+    async def callReminder(self):
+        logger.debug("running callReminder")
+
+        rs = ReminderService(self.client)
+
+        await rs.manageReminders()

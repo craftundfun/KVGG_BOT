@@ -16,7 +16,7 @@ from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
-from src.Helper.getFormattedTime import getFormattedTime
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id import ChannelId
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import string
 
-from src.Helper.getFormattedTime import getFormattedTime
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.InheritedCommands.Times.Time import Time
 
 
