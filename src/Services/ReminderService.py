@@ -48,7 +48,7 @@ class ReminderService:
 
             return "Bitte gib einen kürzeren Text ein!"
 
-        if (timeType == "days" and duration > 100) or (timeType == "hours" and duration > 2.400) or (
+        if (timeType == "days" and duration > 100) or (timeType == "hours" and duration > 2400) or (
                 timeType == "minutes" and duration > 144000):
             logger.debug("chosen duration was larger than 100 days")
 
