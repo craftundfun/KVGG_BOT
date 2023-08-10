@@ -801,10 +801,28 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     Choice(name="Stunden", value="hours"),
     Choice(name="Tage", value="days"),
 ])
-async def createReminder(ctx: discord.interactions.Interaction, reminder: str, art_der_zeit: Choice[str], dauer: int):
+@app_commands.choices(auch_whatsapp=[
+    Choice(name="ja", value="yes"),
+])
+@app_commands.describe(auch_whatsapp="wenn du den Reminder auch als Whatsapp erhalten möchtest")
+@app_commands.choices(wiederholen=[
+    Choice(name="ja", value="yes"),
+])
+@app_commands.describe(wiederholen="wenn der Reminder nach der Zeit jedes Mal erneut ausgeführt werden soll - " \
+                                   "stoppen durch Löschen des Reminders")
+@app_commands.describe(reminder="Inhalt des Reminders")
+@app_commands.describe(art_der_zeit="Zeitintervall")
+async def createReminder(ctx: discord.interactions.Interaction,
+                         reminder: str,
+                         art_der_zeit: Choice[str],
+                         dauer: int,
+                         auch_whatsapp: Choice[str] = None,
+                         wiederholen: Choice[str] = None):
     """
     Creates a Reminder for the given time
 
+    :param auch_whatsapp:
+    :param wiederholen:
     :param ctx: Interaction from Discord
     :param reminder: Content of a reminder
     :param art_der_zeit: Time scope
@@ -816,7 +834,9 @@ async def createReminder(ctx: discord.interactions.Interaction, reminder: str, a
                                             member=ctx.user,
                                             content=reminder,
                                             timeType=art_der_zeit.value,
-                                            duration=dauer)
+                                            duration=dauer,
+                                            whatsapp=auch_whatsapp.value if auch_whatsapp else None,
+                                            repeat=wiederholen.value if wiederholen else None, )
 
 
 @tree.command(name="list_reminders",
