@@ -21,10 +21,17 @@ class ReminderService:
         self.client = client
 
     @validateKeys
-    def createReminder(self, member: Member, content: str, timeType: str, duration: int, whatsapp: str) -> str:
+    def createReminder(self,
+                       member: Member,
+                       content: str,
+                       timeType: str,
+                       duration: int,
+                       whatsapp: str,
+                       repeat: str | None) -> str:
         """
         Creates a new Reminder in the database
 
+        :param repeat:
         :param whatsapp:
         :param member: Member, whose reminder this is
         :param content: Content of the reminder
@@ -55,7 +62,7 @@ class ReminderService:
 
             return "Es gab ein Problem!"
 
-        if whatsapp == "yes":
+        if whatsapp:
             with self.databaseConnection.cursor() as cursor:
                 query = "SELECT * " \
                         "FROM whatsapp_setting " \
@@ -73,6 +80,11 @@ class ReminderService:
 
                     whatsapp = True
 
+                # delete unnecessary data overhead
+                del data
+        else:
+            whatsapp = False
+
         match timeType:
             case "minutes":
                 minutesLeft = duration
@@ -89,15 +101,23 @@ class ReminderService:
                 return "Es gab ein Problem!"
 
         with self.databaseConnection.cursor() as cursor:
-            query = "INSERT INTO reminder (discord_user_id, content, minutes_left, sent_at, whatsapp) " \
-                    "VALUES (%s, %s, %s, %s, %s)"
+            query = "INSERT INTO reminder " \
+                    "(discord_user_id, content, minutes_left, sent_at, whatsapp, repeat_in_minutes) " \
+                    "VALUES (%s, %s, %s, %s, %s, %s)"
 
-            cursor.execute(query, (dcUserDb['id'], content, minutesLeft, None, whatsapp))
+            cursor.execute(query,
+                           (dcUserDb['id'],
+                            content,
+                            minutesLeft,
+                            None,
+                            whatsapp,
+                            minutesLeft if repeat else None),)
             self.databaseConnection.commit()
 
         logger.debug("saved new reminder to database")
 
-        return "Deine Erinnerung wurde erfolgreich gespeichert!"
+        return "Deine Erinnerung wurde erfolgreich gespeichert! " + \
+            (answerAppendix if 'answerAppendix' in locals() else "")
 
     @validateKeys
     def listReminders(self, member: Member) -> str:
@@ -125,7 +145,12 @@ class ReminderService:
         answer = "Du hast folgende Reminder: (die vorderen Zahlen sind die individuellen IDs)\n\n"
 
         for reminder in reminders:
-            answer += "%d: '%s' in %d Minuten\n" % (reminder['id'], reminder['content'], reminder['minutes_left'])
+            answer += "%d: '%s' in %d Minuten, Wiederholung: %s, Whatsapp: %s\n" % (
+                reminder['id'],
+                reminder['content'],
+                reminder['minutes_left'],
+                "aktiviert" if reminder['repeat_in_minutes'] else "deaktiviert",
+                "aktiviert" if reminder['whatsapp'] else "deaktiviert")
 
         logger.debug("listed all reminders from %s" % member.name)
         return answer
@@ -139,7 +164,7 @@ class ReminderService:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT r.*, d.user_id " \
                     "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
-                    "WHERE r.sent_at IS NULL and r.minutes_left >= 0 and r.error is FALSE"
+                    "WHERE minutes_left is NOT NULL and error IS FALSE"
 
             cursor.execute(query)
 
@@ -193,7 +218,7 @@ class ReminderService:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT r.* " \
                     "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
-                    "WHERE d.user_id = %s and r.minutes_left > 0 and r.sent_at IS NULL AND r.error IS FALSE"
+                    "WHERE d.user_id = %s AND r.minutes_left >= 0"
 
             cursor.execute(query, (member.id,))
 
@@ -252,9 +277,6 @@ class ReminderService:
         try:
             await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'])
 
-            reminder['minutes_left'] = None
-            reminder['sent_at'] = datetime.now()
-
             logger.debug("send remainder to %s" % member.name)
         except discord.HTTPException as e:
             logger.error("there was a problem sending the DM", exc_info=e)
@@ -262,9 +284,16 @@ class ReminderService:
             reminder['minutes_left'] = None
             reminder['error'] = True
         except Exception as e:
-            logger.error("there was a problem sending the message")
+            logger.error("there was a problem sending the message", exc_info=e)
 
             reminder['minutes_left'] = None
             reminder['error'] = True
+
+        if not reminder['repeat_in_minutes']:
+            reminder['minutes_left'] = None
+        else:
+            reminder['minutes_left'] = reminder['repeat_in_minutes']
+
+        reminder['sent_at'] = datetime.now()
 
         return reminder
