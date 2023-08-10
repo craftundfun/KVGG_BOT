@@ -21,10 +21,11 @@ class ReminderService:
         self.client = client
 
     @validateKeys
-    def createReminder(self, member: Member, content: str, timeType: str, duration: int) -> str:
+    def createReminder(self, member: Member, content: str, timeType: str, duration: int, whatsapp: str) -> str:
         """
         Creates a new Reminder in the database
 
+        :param whatsapp:
         :param member: Member, whose reminder this is
         :param content: Content of the reminder
         :param timeType: Scala of time
@@ -38,11 +39,6 @@ class ReminderService:
 
             return "Bitte gib eine (korrekte) Zahl ein!"
 
-        if not (dcUserDb := getDiscordUser(self.databaseConnection, member)):
-            logger.debug("cant proceed, no DiscordUser")
-
-            return "Es gab ein Problem!"
-
         if len(content) > 2000:
             logger.debug("content is too long")
 
@@ -53,6 +49,29 @@ class ReminderService:
             logger.debug("chosen duration was larger than 100 days")
 
             return "Bitte wähle eine kürzere Zeitspanne!"
+
+        if not (dcUserDb := getDiscordUser(self.databaseConnection, member)):
+            logger.debug("cant proceed, no DiscordUser")
+
+            return "Es gab ein Problem!"
+
+        if whatsapp == "yes":
+            with self.databaseConnection.cursor() as cursor:
+                query = "SELECT * " \
+                        "FROM whatsapp_setting " \
+                        "WHERE discord_user_id = %s"
+
+                cursor.execute(query, (dcUserDb['id'],))
+
+                if not (data := cursor.fetchone()):
+                    logger.debug("User cannot receive whatsapp notifications")
+
+                    answerAppendix = "Allerdings kannst du keine Whatsapp-Benachrichtigungen bekommen."
+                    whatsapp = False
+                else:
+                    logger.debug("user registered for whatsapp reminder as well")
+
+                    whatsapp = True
 
         match timeType:
             case "minutes":
@@ -70,10 +89,10 @@ class ReminderService:
                 return "Es gab ein Problem!"
 
         with self.databaseConnection.cursor() as cursor:
-            query = "INSERT INTO reminder (discord_user_id, content, minutes_left, sent_at) " \
-                    "VALUES (%s, %s, %s, %s)"
+            query = "INSERT INTO reminder (discord_user_id, content, minutes_left, sent_at, whatsapp) " \
+                    "VALUES (%s, %s, %s, %s, %s)"
 
-            cursor.execute(query, (dcUserDb['id'], content, minutesLeft, None,))
+            cursor.execute(query, (dcUserDb['id'], content, minutesLeft, None, whatsapp))
             self.databaseConnection.commit()
 
         logger.debug("saved new reminder to database")
@@ -201,17 +220,34 @@ class ReminderService:
 
     async def __sendReminder(self, reminder: dict) -> dict:
         """
-        Sends the remainder per DM to the user
+        Sends the remainder per DM (and WhatsApp) to the user
 
         :param reminder: Remainder entry from the database
         :return:
         """
-        member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(reminder["user_id"]))
+        member: Member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(reminder["user_id"]))
 
         if not member:
             logger.warning("couldn't fetch member with userId from Guild")
 
             return reminder
+
+        if reminder['whatsapp']:
+            with self.databaseConnection.cursor() as cursor:
+                query = "INSERT INTO message_queue (message, user_id, created_at, trigger_user_id, is_join_message) " \
+                        "VALUES (%s, " \
+                        "(SELECT id FROM user WHERE discord_user_id = " \
+                        "(SELECT id FROM discord WHERE user_id = %s LIMIT 1) LIMIT 1), " \
+                        "%s, " \
+                        "(SELECT id FROM discord WHERE user_id = %s LIMIT 1), " \
+                        "FALSE)"
+
+                cursor.execute(query, ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
+                                       member.id,
+                                       datetime.now(),
+                                       member.id,))
+                self.databaseConnection.commit()
+                logger.debug("saved whatsapp into message queue")
 
         try:
             await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'])

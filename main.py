@@ -801,7 +801,15 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     Choice(name="Stunden", value="hours"),
     Choice(name="Tage", value="days"),
 ])
-async def createReminder(ctx: discord.interactions.Interaction, reminder: str, art_der_zeit: Choice[str], dauer: int):
+@app_commands.choices(auch_whatsapp=[
+    Choice(name="ja", value="yes"),
+    Choice(name="nein", value="no"),
+])
+async def createReminder(ctx: discord.interactions.Interaction,
+                         reminder: str,
+                         art_der_zeit: Choice[str],
+                         dauer: int,
+                         auch_whatsapp: Choice[str]):
     """
     Creates a Reminder for the given time
 
@@ -816,7 +824,8 @@ async def createReminder(ctx: discord.interactions.Interaction, reminder: str, a
                                             member=ctx.user,
                                             content=reminder,
                                             timeType=art_der_zeit.value,
-                                            duration=dauer)
+                                            duration=dauer,
+                                            whatsapp=auch_whatsapp.value,)
 
 
 @tree.command(name="list_reminders",
