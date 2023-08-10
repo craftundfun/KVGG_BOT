@@ -131,7 +131,7 @@ class ReminderService:
             query = "SELECT * " \
                     "FROM reminder " \
                     "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
-                    "and minutes_left >= 0 and sent_at IS NULL and error = FALSE"
+                    "and minutes_left >= 0"
 
             cursor.execute(query, (int(member.id),))
 
