@@ -1,16 +1,16 @@
+import asyncio
 import logging
 from datetime import datetime
 from enum import Enum
 
-import discord
-from discord import ChannelType
+from discord import ChannelType, Member, VoiceState, Client
 
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUserById
+from src.Repository.DiscordUserRepository import getDiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -22,26 +22,67 @@ class RelationTypeEnum(Enum):
     MESSAGE = "message"
 
 
+# static lock
+lock = asyncio.Lock()
+
+
 class RelationService:
 
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: Client):
         self.databaseConnection = getDatabaseConnection()
         self.client = client
 
-    async def getRelationBetweenUsers(self, userId_1: int, userId_2: int, type: RelationTypeEnum) -> dict | None:
+    def __createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum) -> bool:
         """
-        Returns the relation of the given type and users
+        Creates a new relation between the two given members
 
-        :param userId_1:
-        :param userId_2:
+        :param member_1:
+        :param member_2:
         :param type:
         :return:
         """
-        dcUserDb_1 = getDiscordUserById(self.databaseConnection, userId_1)
-        dcUserDb_2 = getDiscordUserById(self.databaseConnection, userId_2)
+        member1 = getDiscordUser(self.databaseConnection, member_1)
+        member2 = getDiscordUser(self.databaseConnection, member_2)
+
+        if not member1 or not member2:
+            logger.debug("couldn't create relation")
+
+            return False
+        elif member1['id'] == member2['id']:
+            logger.debug("given member were the same one")
+
+            return False
+
+        with self.databaseConnection.cursor() as cursor:
+            query = "INSERT INTO relation " \
+                    "(discord_user_id_1, discord_user_id_2, type, created_at, last_time) " \
+                    "VALUES (%s, %s, %s, %s, %s)"
+
+            cursor.execute(query, (member1['id'], member2['id'], type.value, datetime.now(), datetime.now(),))
+            self.databaseConnection.commit()
+
+        return True
+
+    async def getRelationBetweenUsers(self, member_1: Member, member_2: Member, type: RelationTypeEnum) -> dict | None:
+        """
+        Returns the relation of the given type and users
+
+        :param member_2:
+        :param member_1:
+        :param type:
+        :return:
+        """
+        if member_1.id == member_2.id:
+            logger.debug("same member for relation")
+
+            return None
+
+        dcUserDb_1: dict | None = getDiscordUser(self.databaseConnection, member_1)
+        dcUserDb_2 = getDiscordUser(self.databaseConnection, member_2)
 
         if not dcUserDb_1 or not dcUserDb_2:
-            logger.warning("couldnt create relation, %d has no entity" % (userId_1 if not dcUserDb_1 else userId_2))
+            logger.warning(
+                "couldn't create relation, %s has no entity" % (member_1.name if not dcUserDb_1 else member_2.name))
 
             return None
 
@@ -55,42 +96,33 @@ class RelationService:
             cursor.execute(query, (type.value, dcUserDb_1['id'], dcUserDb_2['id'], dcUserDb_2['id'], dcUserDb_1['id'],))
 
             if not (data := cursor.fetchone()):
-                return None
+                if self.__createRelation(member_1, member_2, type):
+                    cursor.execute(query, (
+                        type.value, dcUserDb_1['id'], dcUserDb_2['id'], dcUserDb_2['id'], dcUserDb_1['id'],))
+
+                    if not (data := cursor.fetchone()):
+                        logger.warning("couldn't fetch relation for %s and %s" % (member_1.name, member_2.name))
+
+                        return None
+                    return dict(zip(cursor.column_names, data))
+                else:
+                    logger.warning("couldn't fetch relation for %s and %s" % (member_1.name, member_2.name))
+
+                    return None
             else:
                 return dict(zip(cursor.column_names, data))
 
-    async def increaseRelation(self, userId_1: int, userId_2: int, type: RelationTypeEnum, value: int = 1):
+    async def increaseRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, value: int = 1):
         """
         Raises a relation of a specific couple. It creates a new relation if possible and if there is none.
 
-        :param userId_1: ID of first user
-        :param userId_2: ID of second user
+        :param member_2:
+        :param member_1:
         :param type: Type of the relation
         :param value: Value to be increased
         :return:
         """
-        if not (relation := await self.getRelationBetweenUsers(userId_1, userId_2, type)):
-            dcUserDb_1 = getDiscordUserById(self.databaseConnection, userId_1)
-            dcUserDb_2 = getDiscordUserById(self.databaseConnection, userId_2)
-
-            if not dcUserDb_1 or not dcUserDb_2:
-                logger.warning("couldnt create relation, %d has no entity" % (userId_1 if not dcUserDb_1 else userId_2))
-
-                return
-
-            with self.databaseConnection.cursor() as cursor:
-                query = "INSERT INTO relation " \
-                        "(discord_user_id_1, discord_user_id_2, type, created_at, value, last_time) " \
-                        "VALUES ((SELECT id FROM discord WHERE user_id = %s), " \
-                        "(SELECT id FROM discord WHERE user_id = %s), %s, %s, %s, %s)"
-
-                cursor.execute(query, (userId_1, userId_2, type.value, datetime.now(), value, datetime.now(),))
-                self.databaseConnection.commit()
-
-                if not await self.getRelationBetweenUsers(userId_1, userId_2, type):
-                    logger.warning("couldnt create relation between %s and %s" % (
-                        dcUserDb_1['username'], dcUserDb_2['username']))
-        else:
+        if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
             relation['value'] = relation['value'] + value
 
             with self.databaseConnection.cursor() as cursor:
@@ -99,35 +131,67 @@ class RelationService:
                 cursor.execute(query, nones)
                 self.databaseConnection.commit()
                 logger.debug("saved increased relation to database")
+        else:
+            logger.debug("couldn't fetch relation")
 
-    async def setLastTime(self, userId_1: int, userId_2: int, *types: RelationTypeEnum):
+    async def manageLeavingMember(self, member: Member, voiceStateBefore: VoiceState):
         """
-        Changes the last_time of all given types of relations to now and increases the frequency counter by 1.
+        Sets the last parameters if one member leaves
 
-        :param userId_1: ID of first user
-        :param userId_2: ID of second user
-        :param types: List of relation types
+        :param member:
+        :param voiceStateBefore:
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            for type in types:
-                relation = await self.getRelationBetweenUsers(userId_1, userId_2, type)
+        await lock.acquire()
 
-                if not relation:
-                    logger.debug("relation %s between %d and %d skipped" % (type.value, userId_1, userId_2))
+        try:
+            otherMembersInChannel = voiceStateBefore.channel.members
 
-                    continue
+            if voiceStateBefore.channel.id in ChannelIdWhatsAppAndTracking.getValues():
+                type = RelationTypeEnum.ONLINE
+            elif voiceStateBefore.channel.id in ChannelIdUniversityTracking.getValues():
+                type = RelationTypeEnum.UNIVERSITY
+            else:
+                logger.debug("relation outside of allowed region")
 
-                relation['last_time'] = datetime.now()
-                relation['frequency'] = relation['frequency'] + 1
+                return
 
-                query, nones = writeSaveQuery('relation', relation['id'], relation)
+            with self.databaseConnection.cursor() as cursor:
+                for otherMember in otherMembersInChannel:
+                    relation = await self.getRelationBetweenUsers(member, otherMember, type)
 
-                cursor.execute(query, nones)
-                logger.debug("set relation of type %s in queue" % type.value)
+                    if not relation:
+                        logger.warning("couldn't fetch relation")
 
-            self.databaseConnection.commit()
-            logger.debug("saved relations into database")
+                        continue
+
+                    relation['last_time'] = datetime.now()
+                    relation['frequency'] = relation['frequency'] + 1
+                    query, nones = writeSaveQuery("relation", relation['id'], relation)
+
+                    cursor.execute(query, nones)
+
+                self.databaseConnection.commit()
+
+                if voiceStateBefore.self_video or voiceStateBefore.self_stream:
+                    for otherMember in otherMembersInChannel:
+                        if otherMember.voice.self_stream or otherMember.voice.self_video:
+                            relation = await self.getRelationBetweenUsers(member, otherMember, RelationTypeEnum.STREAM)
+
+                            if not relation:
+                                logger.warning("couldn't fetch relation")
+
+                                continue
+
+                            relation['last_time'] = datetime.now()
+                            relation['frequency'] = relation['frequency'] + 1
+                            query, nones = writeSaveQuery("relation", relation['id'], relation)
+
+                            cursor.execute(query, nones)
+
+                    self.databaseConnection.commit()
+        finally:
+            lock.release()
 
     async def increaseAllRelation(self):
         """
@@ -178,14 +242,14 @@ class RelationService:
 
                     # depending on the channel increase correct relation
                     if str(channel.id) in ChannelIdWhatsAppAndTracking.getValues():
-                        await self.increaseRelation(member_1.id, member_2.id, RelationTypeEnum.ONLINE)
+                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.ONLINE)
                     else:
-                        await self.increaseRelation(member_1.id, member_2.id, RelationTypeEnum.UNIVERSITY)
+                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.UNIVERSITY)
 
                     # increase streaming relation if both are streaming at the same time
                     if (member_1.voice.self_stream or member_1.voice.self_video) and \
                             (member_2.voice.self_stream or member_2.voice.self_video):
-                        await self.increaseRelation(member_1.id, member_2.id, RelationTypeEnum.STREAM)
+                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.STREAM)
 
             # clear looked pairs for next channel
             lookedPairs = []

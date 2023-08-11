@@ -10,6 +10,7 @@ from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import ExperienceService
+from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
@@ -136,6 +137,11 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
+
+            await RelationService(self.client).manageLeavingMember(member, voiceStateBefore)
+
+        else:
+            logger.warning("unexpected voice state update from %s" % member.name)
 
     def __saveDiscordUser(self, dcUserDb: dict):
         """
