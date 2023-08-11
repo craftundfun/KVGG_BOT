@@ -77,7 +77,7 @@ class VoiceStateUpdateService:
             if not await self.__xDaysOfflineMessage(member, dcUserDb):
                 await self.__welcomeBackMessage(member, dcUserDb)
 
-        # user changed channel or changed status
+        # user changed channel or changed status # TODO increase frequency for stream changes in RelationService
         elif voiceStateBefore.channel and voiceStateAfter.channel:
             logger.debug("member changes status or voice channel")
 

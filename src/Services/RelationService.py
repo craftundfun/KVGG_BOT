@@ -200,21 +200,22 @@ class RelationService:
         :return:
         """
         lookedPairs = []
+        whatsAppChannels: set = ChannelIdWhatsAppAndTracking.getValues()
+        allTrackedChannels: set = ChannelIdUniversityTracking.getValues() | whatsAppChannels
 
         for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
             # skip none voice channels
             if channel.type != ChannelType.voice:
                 continue
 
-            # skip none tracked channels
-            if str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues() or \
-                    str(channel.id) not in ChannelIdUniversityTracking.getValues():
-                continue
-
             # skip empty or less than 2 member channels
             if len(channel.members) <= 1:
                 logger.debug("channel %s empty or with less than 2" % channel.name)
 
+                continue
+
+            # skip none tracked channels
+            if str(channel.id) not in allTrackedChannels:
                 continue
 
             members = channel.members
@@ -227,21 +228,21 @@ class RelationService:
                         continue
 
                     # create tuple for later comparison
-                    couple = (member_1.id, member_2.id)
+                    couple = sorted((member_1.id, member_2.id))
 
                     # when a couple already existed, skip it
-                    if sorted(couple) in lookedPairs:
-                        logger.debug("skipping %s and %s" % couple)
+                    if couple in lookedPairs:
+                        logger.debug("skipping %s and %s" % (couple[0], couple[1]))
 
                         continue
 
-                    logger.debug("looking at %s and %s" % couple)
+                    logger.debug("looking at %s and %s" % (couple[0], couple[1]))
 
                     # append the couple to list
-                    lookedPairs.append(sorted(couple))
+                    lookedPairs.append(couple)
 
                     # depending on the channel increase correct relation
-                    if str(channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+                    if str(channel.id) in whatsAppChannels:
                         await self.increaseRelation(member_1, member_2, RelationTypeEnum.ONLINE)
                     else:
                         await self.increaseRelation(member_1, member_2, RelationTypeEnum.UNIVERSITY)
