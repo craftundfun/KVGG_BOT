@@ -2,7 +2,7 @@ import logging
 from enum import Enum
 
 import discord.interactions
-from discord import HTTPException, InteractionResponded, NotFound
+from discord import HTTPException, InteractionResponded
 
 from src.Services.ApiServices import ApiServices
 from src.Services.ExperienceService import ExperienceService

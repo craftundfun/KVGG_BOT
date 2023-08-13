@@ -28,6 +28,7 @@ from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
+from src.Services.RelationService import RelationService
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)

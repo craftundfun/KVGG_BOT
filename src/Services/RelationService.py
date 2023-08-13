@@ -19,7 +19,6 @@ class RelationTypeEnum(Enum):
     ONLINE = "online"
     STREAM = "stream"
     UNIVERSITY = "university"
-    MESSAGE = "message"
 
 
 # static lock
@@ -199,7 +198,6 @@ class RelationService:
 
         :return:
         """
-        lookedPairs = []
         whatsAppChannels: set = ChannelIdWhatsAppAndTracking.getValues()
         allTrackedChannels: set = ChannelIdUniversityTracking.getValues() | whatsAppChannels
 
@@ -223,23 +221,7 @@ class RelationService:
             # for every member with every member
             for i in range(len(members)):
                 for j in range(i + 1, len(members)):
-                    # skip the same member
-                    #if members[i] == members[j]:
-                    #    continue
-
-                    # create tuple for later comparison
-                    #couple = sorted((member_1.id, member_2.id))
-
-                    # when a couple already existed, skip it
-                    #if couple in lookedPairs:
-                    #    logger.debug("skipping %s and %s" % (couple[0], couple[1]))
-
-                    #    continue
-
                     logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
-
-                    # append the couple to list
-                    #lookedPairs.append(couple)
 
                     # depending on the channel increase correct relation
                     if str(channel.id) in whatsAppChannels:
@@ -252,5 +234,3 @@ class RelationService:
                             (members[j].voice.self_stream or members[j].voice.self_video):
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
 
-            # clear looked pairs for next channel
-            # lookedPairs = []
