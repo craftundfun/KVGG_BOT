@@ -15,6 +15,7 @@ from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.SendDM import sendDM
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -79,16 +80,10 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
     await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
     member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
 
-    if not member.dm_channel:
-        await member.create_dm()
+    await sendDM(member, "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
+                         "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
+                         "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
 
-        if not member.dm_channel:
-            logger.warning("couldn't create dm channel with %s" % member.name)
-            return
-
-    await member.dm_channel.send("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
-                                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                                 "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
     logger.debug("sent double xp notification")
 
 
