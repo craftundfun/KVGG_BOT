@@ -37,25 +37,26 @@ time.tzset()
 nest_asyncio.apply()
 
 logger = logging.getLogger("KVGG_BOT")
+
 # creates up to 5 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setFormatter(CustomFormatterFile())
 
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(CustomFormatter())
+consoleHandler = logging.StreamHandler(sys.stdout)
+consoleHandler.setFormatter(CustomFormatter())
 
 # docker container
 if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-    logger.setLevel(logging.INFO)
-    fileHandler.setLevel(logging.INFO)
-    handler.setLevel(logging.WARNING)
+    logger.setLevel(logging.DEBUG)
+    fileHandler.setLevel(logging.DEBUG)
+    consoleHandler.setLevel(logging.WARNING)
 else:
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.INFO)
-    handler.setLevel(logging.DEBUG)
+    consoleHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
-logger.addHandler(handler)
+logger.addHandler(consoleHandler)
 
 logger.info("\n\n----Initial bot start!----\n\n")
 
