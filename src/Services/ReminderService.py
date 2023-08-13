@@ -46,6 +46,11 @@ class ReminderService:
 
             return "Bitte gib eine (korrekte) Zahl ein!"
 
+        if duration < 1:
+            logger.debug("time for reminder was less than 1")
+
+            return "Bitte gib einen größeren Zeitraum an!"
+
         if len(content) > 2000:
             logger.debug("content is too long")
 
