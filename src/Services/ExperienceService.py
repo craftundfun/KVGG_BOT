@@ -15,11 +15,12 @@ from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.SendDM import sendDM
 
 logger = logging.getLogger("KVGG_BOT")
 
 
-def isDoubleWeekend(date: datetime = datetime.now()) -> bool:
+def isDoubleWeekend(date: datetime) -> bool:
     """
     Returns whether it is currently double-xp-weekend
 
@@ -56,7 +57,7 @@ def getDoubleXpWeekendInformation() -> string:
 
     :return:
     """
-    if isDoubleWeekend():
+    if isDoubleWeekend(datetime.now()):
         return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
     else:
         diff: timedelta = getDiffUntilNextDoubleXpWeekend()
@@ -73,22 +74,16 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
     :param client: Bot
     :return:
     """
-    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend():
+    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend(datetime.now()):
         return
 
     await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
     member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
 
-    if not member.dm_channel:
-        await member.create_dm()
+    await sendDM(member, "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
+                         "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
+                         "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
 
-        if not member.dm_channel:
-            logger.warning("couldn't create dm channel with %s" % member.name)
-            return
-
-    await member.dm_channel.send("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
-                                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                                 "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
     logger.debug("sent double xp notification")
 
 
@@ -693,12 +688,12 @@ class ExperienceService:
                 toBeAddedXpAmount += experienceParameter * boost['multiplier']
 
         if toBeAddedXpAmount == 0:
-            if isDoubleWeekend():
+            if isDoubleWeekend(datetime.now()):
                 xp['xp_amount'] = currentXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
                 xp['xp_amount'] = currentXpAmount + experienceParameter
         else:
-            if isDoubleWeekend():
+            if isDoubleWeekend(datetime.now()):
                 xp[
                     'xp_amount'] = currentXpAmount + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:

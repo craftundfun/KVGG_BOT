@@ -13,6 +13,7 @@ from src.Services import ExperienceService
 from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.SendDM import sendDM
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -197,8 +198,8 @@ class VoiceStateUpdateService:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
-        :param member:
-        :param dcUserDb:
+        :param member: Member, who the condition is tested against
+        :param dcUserDb: DiscordUser from the database
         :return: Boolean if a message was sent
         """
         if not dcUserDb['last_online']:
@@ -207,18 +208,11 @@ class VoiceStateUpdateService:
             return False
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 30:
-            if not member.dm_channel:
-                await member.create_dm()
+            await sendDM(member, "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
+                                 "und %d Minuten nicht mehr da." %
+                         (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
+            await sendDM(member, self.finallyAwake)
 
-                if not member.dm_channel:
-                    logger.warning("couldn't create dm for %s" % member.name)
-
-                    return False
-
-            await member.dm_channel.send("Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
-                                         "und %d Minuten nicht mehr da." %
-                                         (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
-            await member.dm_channel.send(self.finallyAwake)
             logger.debug("sent dm to %s" % member.name)
 
             return True
@@ -262,7 +256,7 @@ class VoiceStateUpdateService:
         hours: int = lastOnlineDiff.seconds // 3600
         minutes: int = (lastOnlineDiff.seconds // 60) % 60
 
-        if minutes < 30:
+        if days < 1 and hours < 1 and minutes < 30:
             logger.debug("%s was online less than 30 minutes ago" % member.name)
 
             return
@@ -290,15 +284,8 @@ class VoiceStateUpdateService:
 
         message += "\n\nViel Spaß!"
 
-        if not member.dm_channel:
-            await member.create_dm()
+        await sendDM(member, message)
 
-            if not member.dm_channel:
-                logger.warning("couldn't create DM-Channel with %s" % member.name)
-                
-                return
-
-        await member.dm_channel.send(message)
         logger.debug("sent dm to %s" % member.name)
 
     def __del__(self):
