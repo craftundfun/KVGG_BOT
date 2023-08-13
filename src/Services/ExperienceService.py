@@ -19,7 +19,7 @@ from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 logger = logging.getLogger("KVGG_BOT")
 
 
-def isDoubleWeekend(date: datetime = datetime.now()) -> bool:
+def isDoubleWeekend(date: datetime) -> bool:
     """
     Returns whether it is currently double-xp-weekend
 
@@ -56,7 +56,7 @@ def getDoubleXpWeekendInformation() -> string:
 
     :return:
     """
-    if isDoubleWeekend():
+    if isDoubleWeekend(datetime.now()):
         return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
     else:
         diff: timedelta = getDiffUntilNextDoubleXpWeekend()
@@ -73,7 +73,7 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
     :param client: Bot
     :return:
     """
-    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend():
+    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend(datetime.now()):
         return
 
     await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
@@ -693,12 +693,12 @@ class ExperienceService:
                 toBeAddedXpAmount += experienceParameter * boost['multiplier']
 
         if toBeAddedXpAmount == 0:
-            if isDoubleWeekend():
+            if isDoubleWeekend(datetime.now()):
                 xp['xp_amount'] = currentXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
                 xp['xp_amount'] = currentXpAmount + experienceParameter
         else:
-            if isDoubleWeekend():
+            if isDoubleWeekend(datetime.now()):
                 xp[
                     'xp_amount'] = currentXpAmount + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
