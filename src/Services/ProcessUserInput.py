@@ -1077,6 +1077,11 @@ class ProcessUserInput:
             logger.debug("stop chosen")
 
             if counter.getFelixTimer() is not None:
+                if counter.getDiscordUser()['user_id'] == str(member.id):
+                    logger.debug("user wanted to stop his / her own Felix-Timer")
+
+                    return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
+
                 counter.setFelixTimer(None)
 
                 if member.nick:
