@@ -221,36 +221,36 @@ class RelationService:
             members = channel.members
 
             # for every member with every member
-            for member_1 in members:
-                for member_2 in members:
+            for i in range(len(members)):
+                for j in range(i + 1, len(members)):
                     # skip the same member
-                    if member_1 == member_2:
-                        continue
+                    #if members[i] == members[j]:
+                    #    continue
 
                     # create tuple for later comparison
-                    couple = sorted((member_1.id, member_2.id))
+                    #couple = sorted((member_1.id, member_2.id))
 
                     # when a couple already existed, skip it
-                    if couple in lookedPairs:
-                        logger.debug("skipping %s and %s" % (couple[0], couple[1]))
+                    #if couple in lookedPairs:
+                    #    logger.debug("skipping %s and %s" % (couple[0], couple[1]))
 
-                        continue
+                    #    continue
 
-                    logger.debug("looking at %s and %s" % (couple[0], couple[1]))
+                    logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
 
                     # append the couple to list
-                    lookedPairs.append(couple)
+                    #lookedPairs.append(couple)
 
                     # depending on the channel increase correct relation
                     if str(channel.id) in whatsAppChannels:
-                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.ONLINE)
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
                     else:
-                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.UNIVERSITY)
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)
 
                     # increase streaming relation if both are streaming at the same time
-                    if (member_1.voice.self_stream or member_1.voice.self_video) and \
-                            (member_2.voice.self_stream or member_2.voice.self_video):
-                        await self.increaseRelation(member_1, member_2, RelationTypeEnum.STREAM)
+                    if (members[i].voice.self_stream or members[i].voice.self_video) and \
+                            (members[j].voice.self_stream or members[j].voice.self_video):
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
 
             # clear looked pairs for next channel
-            lookedPairs = []
+            # lookedPairs = []
