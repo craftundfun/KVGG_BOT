@@ -55,10 +55,10 @@ class RelationService:
 
         with self.databaseConnection.cursor() as cursor:
             query = "INSERT INTO discord_user_relation " \
-                    "(discord_user_id_1, discord_user_id_2, type, created_at, last_time) " \
-                    "VALUES (%s, %s, %s, %s, %s)"
+                    "(discord_user_id_1, discord_user_id_2, type, created_at) " \
+                    "VALUES (%s, %s, %s, %s)"
 
-            cursor.execute(query, (member1['id'], member2['id'], type.value, datetime.now(), datetime.now(),))
+            cursor.execute(query, (member1['id'], member2['id'], type.value, datetime.now(),))
             self.databaseConnection.commit()
 
         return True
@@ -142,19 +142,29 @@ class RelationService:
         :param voiceStateBefore:
         :return:
         """
+        logger.debug("managing leaving member for relation")
         await lock.acquire()
+        logger.debug("lock acquired")
 
         try:
             otherMembersInChannel = voiceStateBefore.channel.members
+            whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
+            allTrackedChannels: set = whatsappChannels | ChannelIdUniversityTracking.getValues()
 
-            if voiceStateBefore.channel.id in ChannelIdWhatsAppAndTracking.getValues():
-                type = RelationTypeEnum.ONLINE
-            elif voiceStateBefore.channel.id in ChannelIdUniversityTracking.getValues():
-                type = RelationTypeEnum.UNIVERSITY
-            else:
+            if len(otherMembersInChannel) <= 0:
+                logger.debug("last member in channel, relations were handled by their partners")
+
+                return
+
+            if str(voiceStateBefore.channel.id) not in allTrackedChannels:
                 logger.debug("relation outside of allowed region")
 
                 return
+
+            if str(voiceStateBefore.channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+                type = RelationTypeEnum.ONLINE
+            else:
+                type = RelationTypeEnum.UNIVERSITY
 
             with self.databaseConnection.cursor() as cursor:
                 for otherMember in otherMembersInChannel:
@@ -167,10 +177,11 @@ class RelationService:
 
                     relation['last_time'] = datetime.now()
                     relation['frequency'] = relation['frequency'] + 1
-                    query, nones = writeSaveQuery("relation", relation['id'], relation)
+                    query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
                     cursor.execute(query, nones)
 
+                logger.debug("edited all relations for leave")
                 self.databaseConnection.commit()
 
                 if voiceStateBefore.self_video or voiceStateBefore.self_stream:
@@ -189,8 +200,10 @@ class RelationService:
 
                             cursor.execute(query, nones)
 
+                    logger.debug("edited all relations for leave")
                     self.databaseConnection.commit()
         finally:
+            logger.debug("lock will be released")
             lock.release()
 
     async def increaseAllRelation(self):
