@@ -258,7 +258,9 @@ class RelationService:
             if data:
                 relations = [dict(zip(cursor.column_names, date)) for date in data]
 
+                logger.debug("fetched top three relations from database")
                 cursor.reset()
+
                 query = "SELECT username FROM discord WHERE id = %s"
 
                 for index, relation in enumerate(relations, 1):
@@ -266,6 +268,8 @@ class RelationService:
 
                     if not (dcUserDb_1 := cursor.fetchone()):
                         answer += "\t%d: Es gab hier einen Fehler!\n" % index
+
+                        logger.debug("couldn't fetch the first DiscordUser for relation %d" % relation['id'])
 
                         continue
 
@@ -277,6 +281,8 @@ class RelationService:
                     if not (dcUserDb_2 := cursor.fetchone()):
                         answer += "\t%d: Es gab hier einen Fehler!\n" % index
 
+                        logger.debug("couldn't fetch the second DiscordUser for relation %d" % relation['id'])
+
                         continue
 
                     dcUserDb_2 = dict(zip(cursor.column_names, dcUserDb_2))
@@ -285,7 +291,11 @@ class RelationService:
                         index, dcUserDb_1['username'], dcUserDb_2['username'], getFormattedTime(relation['value']))
 
                 if answer == "":
+                    logger.warning("there was a problem with the DiscordUsers everytime")
+
                     return None
                 return answer
             else:
+                logger.debug("couldn't fetch data from database, type: %s" % type.value)
+
                 return None

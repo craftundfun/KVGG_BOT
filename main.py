@@ -49,7 +49,8 @@ consoleHandler.setFormatter(CustomFormatter())
 if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.DEBUG)
-    consoleHandler.setLevel(logging.WARNING)
+    consoleHandler.setLevel(logging.INFO)
+# IDE
 else:
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.INFO)
