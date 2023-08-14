@@ -28,7 +28,7 @@ from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
 from src.Services import ExperienceService, QuotesManager, LogHelper
-from src.Services.RelationService import RelationService
+from src.Services.RelationService import RelationService, RelationTypeEnum
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
@@ -607,6 +607,8 @@ class ProcessUserInput:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
+        rs = RelationService(self.client)
+
         with self.databaseConnection.cursor() as cursor:
             # online time
             query = "SELECT username, formated_time " \
@@ -737,11 +739,21 @@ class ProcessUserInput:
             for index, user in enumerate(usersOnlineTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
 
+        if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE):
+            answer += "\n- __Online-Pärchen__:\n"
+            answer += relationAnswer
+
+        del relationAnswer
+
         answer += "\n- __Stream-Zeit__:\n"
 
         if len(usersStreamTime) != 0:
             for index, user in enumerate(usersStreamTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+
+        if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM):
+            answer += "\n- __Stream-Pärchen__:\n"
+            answer += relationAnswer
 
         answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
 
