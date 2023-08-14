@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 import discord
@@ -8,6 +9,7 @@ from src.Id.ChannelId import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services import DatabaseRefreshService
+from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -38,6 +40,9 @@ class BackgroundServices(commands.Cog):
         self.callReminder.start()
         logger.info("callRemainder started")
 
+        self.increaseRelations.start()
+        logger.info("increaseRelations started")
+
     def cog_unload(self) -> None:
         """
         Cancels all running tasks
@@ -52,6 +57,7 @@ class BackgroundServices(commands.Cog):
         self.refreshDatabaseWithDiscord.cancel()
         self.refreshMembersInDatabase.cancel()
         self.callReminder.cancel()
+        self.increaseRelations.cancel()
 
     async def cog_load(self):
         logger.info("starting cogs")
@@ -62,6 +68,7 @@ class BackgroundServices(commands.Cog):
         self.refreshDatabaseWithDiscord.start()
         self.refreshMembersInDatabase.start()
         self.callReminder.start()
+        self.increaseRelations.start()
 
     @tasks.loop(seconds=60)
     async def onlineTimeAchievement(self):
@@ -240,3 +247,11 @@ class BackgroundServices(commands.Cog):
         rs = ReminderService(self.client)
 
         await rs.manageReminders()
+
+    @tasks.loop(minutes=1)
+    async def increaseRelations(self):
+        logger.debug("running increaseRelations")
+
+        rs = RelationService(self.client)
+
+        await rs.increaseAllRelation()

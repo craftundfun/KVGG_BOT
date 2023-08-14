@@ -49,7 +49,8 @@ consoleHandler.setFormatter(CustomFormatter())
 if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.DEBUG)
-    consoleHandler.setLevel(logging.WARNING)
+    consoleHandler.setLevel(logging.INFO)
+# IDE
 else:
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.INFO)
@@ -152,9 +153,14 @@ class MyClient(discord.Client):
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         try:
             logger.debug("Trying to set activity")
-            await client.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
-            )
+            if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+                await client.change_presence(
+                    activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
+                )
+            else:
+                await client.change_presence(
+                    activity=discord.Activity(type=discord.ActivityType.watching, name=", dass alles läuft")
+                )
         except Exception as e:
             logger.warning("Activity couldn't be set!", exc_info=e)
         else:

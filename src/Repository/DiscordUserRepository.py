@@ -112,7 +112,7 @@ def getDiscordUserById(databaseConnection: MySQLConnection, userId: int) -> dict
     Doesn't create one if missing or else.
 
     :param databaseConnection: DatabaseConnection to execute the query
-    :param userId: Id of the user
+    :param userId: int - Id of the user
     :return: dict | None
     """
     with databaseConnection.cursor() as cursor:

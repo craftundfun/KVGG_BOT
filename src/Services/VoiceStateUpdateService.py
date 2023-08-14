@@ -10,6 +10,7 @@ from src.Helper import WriteSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import ExperienceService
+from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.SendDM import sendDM
@@ -77,7 +78,7 @@ class VoiceStateUpdateService:
             if not await self.__xDaysOfflineMessage(member, dcUserDb):
                 await self.__welcomeBackMessage(member, dcUserDb)
 
-        # user changed channel or changed status
+        # user changed channel or changed status # TODO increase frequency for stream changes in RelationService
         elif voiceStateBefore.channel and voiceStateAfter.channel:
             logger.debug("member changes status or voice channel")
 
@@ -137,6 +138,11 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
+
+            await RelationService(self.client).manageLeavingMember(member, voiceStateBefore)
+
+        else:
+            logger.warning("unexpected voice state update from %s" % member.name)
 
     def __saveDiscordUser(self, dcUserDb: dict):
         """
