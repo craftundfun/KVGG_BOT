@@ -248,15 +248,10 @@ class BackgroundServices(commands.Cog):
 
         await rs.manageReminders()
 
-    @tasks.loop(minutes=1, )
+    @tasks.loop(minutes=1)
     async def increaseRelations(self):
         logger.debug("running increaseRelations")
 
-        start = datetime.datetime.now()
         rs = RelationService(self.client)
 
         await rs.increaseAllRelation()
-
-        end = datetime.datetime.now()
-
-        print("elapsed time: " + str((end - start).microseconds) + " microseconds, " + str((end - start).seconds) + " seconds")
