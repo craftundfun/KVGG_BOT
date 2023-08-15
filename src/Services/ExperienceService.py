@@ -366,12 +366,12 @@ class ExperienceService:
         return self.__getExperience(dcUserDb['user_id'])
 
     @validateKeys
-    async def handleXpRequest(self, member: Member, userTag: str) -> string:
+    async def handleXpRequest(self, member: Member, user: Member) -> string:
         """
         Handles the XP-Request of the given tag
 
+        :param user: Tag of the requested user
         :param member: Member, who called the command
-        :param userTag: Tag of the requested user
         :return: string - answer
         """
         # lazy import to avoid circular import
@@ -379,11 +379,7 @@ class ExperienceService:
 
         logger.debug("%s requested XP" % member.name)
 
-        if (userId := getUserIdByTag(userTag)) is None:
-            return "Bitte tagge einen User korrekt!"
-
-        taggedMember = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(userId)
-        dcUserDb = getDiscordUser(self.databaseConnection, taggedMember)
+        dcUserDb = getDiscordUser(self.databaseConnection, user)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")

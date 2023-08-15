@@ -10,13 +10,14 @@ from datetime import datetime, timedelta
 
 import discord
 import requests
-from discord import Message, Client, Member
+from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetFormattedTime import getFormattedTime
+from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
@@ -117,7 +118,7 @@ class ProcessUserInput:
 
         dcUserDb['welcome_back_notification'] = 1 if setting else 0
 
-        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        self.__saveDiscordUserToDatabase(dcUserDb)
         logger.debug("saved changes to database")
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
@@ -160,7 +161,7 @@ class ProcessUserInput:
         es = ExperienceService.ExperienceService(self.client)
         es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
-        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        self.__saveDiscordUserToDatabase(dcUserDb)
 
     def raiseMessageCounter(self, member: Member, channel):
         """
@@ -191,7 +192,7 @@ class ProcessUserInput:
             xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
         logger.debug("saved changes to database")
-        self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+        self.__saveDiscordUserToDatabase(dcUserDb)
 
     @DeprecationWarning
     def __getDiscordUserFromDatabase(self, userId: int) -> dict | None:
@@ -207,18 +208,17 @@ class ProcessUserInput:
 
             return dict(zip(cursor.column_names, dcUserDb[0]))
 
-    def __saveDiscordUserToDatabase(self, primaryKey: string, data):
+    def __saveDiscordUserToDatabase(self, data):
         """
         Helper to save a DiscordUser from this class into the database
 
-        :param primaryKey: Primary key of the user
         :param data: Data
         :return:
         """
         with self.databaseConnection.cursor() as cursor:
             query, nones = WriteSaveQuery.writeSaveQuery(
                 "discord",
-                primaryKey,
+                data['id'],
                 data
             )
 
@@ -287,46 +287,35 @@ class ProcessUserInput:
         return data[0]['text']
 
     @validateKeys
-    async def moveUsers(self, channelName: string, member: Member) -> string:
+    async def moveUsers(self, channel: VoiceChannel, member: Member) -> string:
         """
         Moves all users from the initiator channel to the given one
 
-        :param channelName: Chosen channel to move user to
+        :param channel: Chosen channel to move user to
         :param member: Member who initiated the move
         :return:
         """
-        logger.debug("%s requested to move users into %s" % (member.name, channelName))
+        logger.debug("%s requested to move users into %s" % (member.name, channel.name))
 
         if not member.voice or not (channelStart := member.voice.channel):
             logger.debug("member is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
-        elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues():
+        elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
+                                                                                                             RoleId.ADMIN,
+                                                                                                             RoleId.MOD):
             logger.debug("starting channel is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
-        channelDestination = None
-        channels = self.client.get_all_channels()
-
-        for channel in channels:
-            if isinstance(channel, discord.VoiceChannel):
-                if channel.name.lower() == channelName.lower():
-                    channelDestination = channel
-
-                    break
-
-        if channelDestination is None:
-            logger.warning("couldn't fetch channel!")
-
-            return "Channel konnte nicht gefunden werden!"
-
-        if channelStart.id == channelDestination.id:
+        if channelStart == channel:
             logger.debug("starting and destination channel are the same")
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if str(channelDestination.id) not in ChannelIdWhatsAppAndTracking.getValues():
+        if str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
+                                                                                                      RoleId.ADMIN,
+                                                                                                      RoleId.MOD):
             logger.debug("destination channel is outside of the allowed moving range")
 
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -334,7 +323,7 @@ class ProcessUserInput:
         canProceed = False
 
         for role in member.roles:
-            permissions = channelDestination.permissions_for(role)
+            permissions = channel.permissions_for(role)
             if permissions.view_channel and permissions.connect:
                 canProceed = True
 
@@ -350,9 +339,9 @@ class ProcessUserInput:
 
         async def asyncioGenerator():
             try:
-                await asyncio.gather(*[member.move_to(channelDestination) for member in membersInStartVc])
+                await asyncio.gather(*[member.move_to(channel) for member in membersInStartVc])
             except discord.Forbidden:
-                logger.error("I dont have rights move the users!")
+                logger.error("dont have rights move the users!")
 
                 return "Ich habe dazu leider keine Berechtigung!"
             except discord.HTTPException as e:
@@ -372,12 +361,12 @@ class ProcessUserInput:
         return "Alle User wurden erfolgreich verschoben!"
 
     @validateKeys
-    async def accessTimeAndEdit(self, timeName: str, userTag: string, member: Member, param: str | None) -> str:
+    async def accessTimeAndEdit(self, timeName: str, user: Member, member: Member, param: int | None) -> str:
         """
         Answering given Time from given User or adds (subtracts) given amount
 
+        :param user: Requested user
         :param timeName: Time-type
-        :param userTag: Requested user
         :param member: Requesting Member
         :param param: Optional amount of time added or subtracted
         :return:
@@ -394,6 +383,7 @@ class ProcessUserInput:
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
         # all users
+        """
         if userTag == 'all' and param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             logger.debug("increasing time of all online users")
 
@@ -435,13 +425,8 @@ class ProcessUserInput:
                 self.__saveDiscordUserToDatabase(user['id'], user)
 
             return reply
-
-        if (tag := getUserIdByTag(userTag)) is None:
-            logger.debug("tag couldn't be converted to userId")
-
-            return "Bitte tagge einen User korrekt!"
-
-        dcUserDb = getDiscordUserById(self.databaseConnection, tag)
+        """
+        dcUserDb = getDiscordUser(self.databaseConnection, user)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -466,7 +451,7 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+            self.__saveDiscordUserToDatabase(dcUserDb)
 
             logger.debug("saved changes to database")
 
@@ -825,12 +810,13 @@ class ProcessUserInput:
         return "Dir wurde das Formular privat gesendet!"
 
     @validateKeys
-    async def accessNameCounterAndEdit(self, counterName: str, userTag: str, member: Member, param: str) -> string:
+    async def accessNameCounterAndEdit(self, counterName: str, user: Member, member: Member,
+                                       param: int | None) -> string:
         """
         Answering given Counter from given User or adds (subtracts) given amount
 
+        :param user: User which counter was requested
         :param counterName: Chosen counter-type
-        :param userTag: User which counter was requested
         :param member: Member who requested the counter
         :param param: Optional amount of time to add / subtract
         :return:
@@ -860,20 +846,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
-        if (tag := getUserIdByTag(userTag)) is None:
-            logger.debug("tag was not correct")
-
-            return "Bitte tagge einen User korrekt!"
-
-        # get requested user as member from guild
-        try:
-            memberCounter = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(tag)
-        except discord.errors.HTTPException:
-            logger.warning("couldn't fetch member from guild!")
-
-            return "Entweder existiert der Nutzer / die Nutzerin nicht oder es gab einen Fehler!"
-
-        dcUserDb = getDiscordUser(self.databaseConnection, memberCounter)
+        dcUserDb = getDiscordUser(self.databaseConnection, user)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -913,7 +886,7 @@ class ProcessUserInput:
             logger.debug("saved changes to database")
 
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(tag), value)
+                counter.getNameOfCounter(), getTagStringFromId(user.id), value)
         # param but no privileged user
         elif param:
             try:
@@ -952,7 +925,7 @@ class ProcessUserInput:
             logger.debug("saved changes to database")
 
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(tag), value)
+                counter.getNameOfCounter(), getTagStringFromId(user.id), value)
         else:
             with self.databaseConnection.cursor() as cursor:
                 query, nones = WriteSaveQuery.writeSaveQuery(
@@ -965,23 +938,22 @@ class ProcessUserInput:
                 self.databaseConnection.commit()
 
             return "%s hat einen %s-Counter von %d!" % (
-                getTagStringFromId(tag), counter.getNameOfCounter(), counter.getCounterValue())
+                getTagStringFromId(user.id), counter.getNameOfCounter(), counter.getCounterValue())
 
     @validateKeys
-    async def handleFelixTimer(self, member: Member, tag: string, action: string, time: string = None):
+    async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None):
         """
         Handles the Feli-Timer for the given user
 
+        :param user: User whose timer will be edited
         :param member: Member, who raised the command
-        :param tag: Tag of the user whose timer will be edited
         :param action: Chosen action, start or stop
         :param time: Optional time to start the timer at
         :return:
         """
         logger.debug("Handling Felix-Timer by %s" % member.name)
 
-        userId = getUserIdByTag(tag)
-        dcUserDb = getDiscordUserById(self.databaseConnection, userId)
+        dcUserDb = getDiscordUser(self.databaseConnection, user)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -996,32 +968,30 @@ class ProcessUserInput:
             if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
                 date = None
 
-                if not time:
-                    logger.debug("no time was given")
-
-                    return "Bitte gib eine Zeit an!"
-
-                try:
-                    timeToStart = datetime.strptime(time, "%H:%M")
-                    current = datetime.now()
-                    timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
-
-                    # if the time is set to the next day
-                    if timeToStart < datetime.now():
-                        timeToStart = timeToStart + timedelta(days=1)
-
-                    date = timeToStart
-                except ValueError:
+                if time:
                     try:
-                        minutesFromNow = int(time)
+                        timeToStart = datetime.strptime(time, "%H:%M")
+                        current = datetime.now()
+                        timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
+
+                        # if the time is set to the next day
+                        if timeToStart < datetime.now():
+                            timeToStart = timeToStart + timedelta(days=1)
+
+                        date = timeToStart
                     except ValueError:
-                        logger.debug("no time or amount of minutes was given")
+                        try:
+                            minutesFromNow = int(time)
+                        except ValueError:
+                            logger.debug("no time or amount of minutes was given")
 
-                        return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
-                               "Timer um 09:04 Uhr zu starten!"
+                            return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
+                                   "Timer um 09:04 Uhr zu starten!"
 
-                    timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
-                    date = timeToStart
+                        timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
+                        date = timeToStart
+                else:
+                    date = datetime.now()
 
                 if not date:
                     logger.debug("no date was given")
@@ -1036,45 +1006,31 @@ class ProcessUserInput:
                     username = member.name
 
                 counter.setFelixTimer(date)
-                self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+                self.__saveDiscordUserToDatabase(dcUserDb)
 
                 answer = "Der %s-Timer von %s wird um %s Uhr gestartet!" % (
-                    counter.getNameOfCounter(), tag, date.strftime("%H:%M"))
+                    counter.getNameOfCounter(), getTagStringFromId(user.id), date.strftime("%H:%M"))
 
-                memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
+                await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
+                                   "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
+                                   "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
+                                   "Minuten!\n"
+                             % (
+                                 counter.getNameOfCounter(),
+                                 username, date.strftime("%H:%M"),
+                                 counter.getNameOfCounter(),
+                             ))
+                await sendDM(user, link)
 
-                if not memberDm:
-                    logger.warning("couldn't fetch member from Guild!")
-
-                    return
-
-                if not memberDm.dm_channel:
-                    await memberDm.create_dm()
-
-                    if not memberDm.dm_channel:
-                        logger.warning("couldn't create DM-Channel with %s!" % memberDm.name)
-
-                        return answer
-
-                await memberDm.dm_channel.send("Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
-                                               "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
-                                               "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                               "Minuten!\n"
-                                               % (
-                                                   counter.getNameOfCounter(),
-                                                   username, date.strftime("%H:%M"),
-                                                   counter.getNameOfCounter(),
-                                               ))
-                await memberDm.dm_channel.send(link)
-                logger.debug("send dms to %s" % memberDm.name)
+                logger.debug("send dms to %s" % user.name)
 
                 return answer
 
             elif dcUserDb['channel_id'] is not None:
-                logger.debug("%s is online" % tag)
+                logger.debug("%s is online" % user.name)
 
                 return "%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!" % (
-                    tag, counter.getNameOfCounter())
+                    getTagStringFromId(user.id), counter.getNameOfCounter())
 
             elif counter.getFelixTimer() is not None:
                 logger.debug("Felix-Timer is already running")
@@ -1102,34 +1058,19 @@ class ProcessUserInput:
                 else:
                     username = member.name
 
-                answer = "Der %s-Timer von %s wurde beendet!" % (counter.getNameOfCounter(), tag)
+                answer = "Der %s-Timer von %s wurde beendet!" % (counter.getNameOfCounter(), user.name)
 
-                self.__saveDiscordUserToDatabase(dcUserDb['id'], dcUserDb)
+                self.__saveDiscordUserToDatabase(dcUserDb)
 
-                memberDm = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(userId)
+                await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
 
-                if not memberDm:
-                    logger.warning("couldn't fetch member from Guild!")
-
-                    return
-
-                if not memberDm.dm_channel:
-                    await memberDm.create_dm()
-
-                    if not memberDm.dm_channel:
-                        logger.warning("couldn't create DM-Channel with %s!" % member.name)
-
-                        return answer
-
-                await memberDm.dm_channel.send(
-                    "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
-                logger.debug("sent dm to %s" % memberDm.name)
+                logger.debug("sent dm to %s" % user.name)
 
                 return answer
 
             else:
                 return "Es lief kein %s-Timer für %s!" % (
-                    counter.getNameOfCounter(), tag)
+                    counter.getNameOfCounter(), getTagStringFromId(user.id))
 
     @DeprecationWarning
     @validateKeys
