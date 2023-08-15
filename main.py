@@ -8,7 +8,8 @@ import time
 import traceback
 from typing import List, Tuple
 
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook, \
+    VoiceChannel
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
@@ -301,42 +302,10 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
 """MOVE ALL USERS"""
 
 
-async def channel_choices(interaction: discord.Interaction, current: str) -> List[Choice[str]]:
-    """
-    Returns the matching autocomplete results
-
-    :param interaction: Interaction, but gets ignored
-    :param current: Current input from the user to filter autocomplete
-    :return: List of Choices excluding forbidden channels
-    """
-    channels = client.get_all_channels()
-    voiceChannels: List[str] = []
-
-    for channel in channels:
-        if not isinstance(channel, discord.VoiceChannel):
-            continue
-
-        if str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues():
-            continue
-
-        for role in interaction.user.roles:
-            permissions = channel.permissions_for(role)
-
-            if permissions.view_channel and permissions.connect:
-                voiceChannels.append(channel.name)
-
-                break
-
-    return [
-        Choice(name=name, value=name) for name in voiceChannels if current.lower() in name.lower()
-    ]
-
-
 @tree.command(name="move",
               description="Moved alle User aus deinem Channel in den von dir angegebenen.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-@app_commands.autocomplete(channel=channel_choices)
-async def moveUsers(interaction: discord.Interaction, channel: str):
+async def moveUsers(interaction: discord.Interaction, channel: VoiceChannel):
     """
     Calls the move users from ProcessUserInput from this function
 
@@ -344,7 +313,7 @@ async def moveUsers(interaction: discord.Interaction, channel: str):
     :param channel: Destination channel
     :return:
     """
-    await CommandService(client).runCommand(Commands.MOVE, interaction, channelName=channel, member=interaction.user)
+    await CommandService(client).runCommand(Commands.MOVE, interaction, channel=channel, member=interaction.user)
 
 
 """ANSWER QUOTE"""
@@ -377,7 +346,7 @@ async def answerQuote(interaction: discord.Interaction):
 @app_commands.describe(zeit="Wähle die Zeit aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
-async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: str, param: str = None):
+async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: Member, param: int = None):
     """
     Calls the access time function in ProcessUserInput from this interaction
 
@@ -390,7 +359,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     await CommandService(client).runCommand(Commands.TIME,
                                             interaction,
                                             timeName=zeit.value,
-                                            userTag=user,
+                                            user=user,
                                             member=interaction.user,
                                             param=param)
 
@@ -414,7 +383,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
-async def counter(interaction: discord.Interaction, counter: Choice[str], user: str, param: str = None):
+async def counter(interaction: discord.Interaction, counter: Choice[str], user: Member, param: int = None):
     """
     Calls the access name counter with the correct counter
 
@@ -427,7 +396,7 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     await CommandService(client).runCommand(Commands.COUNTER,
                                             interaction,
                                             counterName=counter.value,
-                                            userTag=user,
+                                            user=user,
                                             member=interaction.user,
                                             param=param)
 
@@ -555,7 +524,7 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
               description="Gibt dir die XP eines Benutzers wieder.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.describe(user="Tagge den User von dem du die XP wissen möchtest!")
-async def handleXpRequest(interaction: discord.Interaction, user: str):
+async def handleXpRequest(interaction: discord.Interaction, user: Member):
     """
     Calls the XP request from ExperienceService from this interaction
 
@@ -563,7 +532,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: str):
     :param user: Entered user to read XP from
     :return:
     """
-    await CommandService(client).runCommand(Commands.XP, interaction, member=interaction.user, userTag=user)
+    await CommandService(client).runCommand(Commands.XP, interaction, member=interaction.user, user=user)
 
 
 """XP LEADERBOARD"""
@@ -633,11 +602,11 @@ async def handleNotificationSettings(interaction: discord.Interaction, category:
 @app_commands.describe(
     zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
 )
-async def handleFelixTimer(interaction: discord.Interaction, user: str, action: Choice[str], zeit: str = None):
+async def handleFelixTimer(interaction: discord.Interaction, user: Member, action: Choice[str], zeit: str = None):
     await CommandService(client).runCommand(Commands.FELIX_TIMER,
                                             interaction,
                                             member=interaction.user,
-                                            tag=user,
+                                            user=user,
                                             action=action.value,
                                             time=zeit)
 
