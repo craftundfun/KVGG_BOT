@@ -6,32 +6,24 @@ import os
 import sys
 import time
 import traceback
-from typing import List, Tuple
 
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, Webhook, \
-    VoiceChannel
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
+from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
 from src.Helper.CustomFormatter import CustomFormatter
 from src.Helper.CustomFormatterFile import CustomFormatterFile
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
-from src.InheritedCommands.NameCounter import ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
-    OlegCounter, JjCounter, CookieCounter, CarlCounter
-from src.InheritedCommands.Times import OnlineTime, StreamTime, UniversityTime
-from src.Services import ApiServices
 from src.Services import BackgroundServices
-from src.Services import ExperienceService, WhatsAppHelper
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
+from src.Services.CommandService import CommandService, Commands
 from src.Services.EmailService import send_exception_mail
 from src.Services.ProcessUserInput import hasUserWantedRoles
-from src.Services.CommandService import CommandService, Commands
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -781,38 +773,40 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     Choice(name="ja", value="yes"),
 ])
 @app_commands.describe(auch_whatsapp="wenn du den Reminder auch als Whatsapp erhalten möchtest")
-@app_commands.choices(wiederholen=[
-    Choice(name="ja", value="yes"),
-])
-@app_commands.describe(wiederholen="wenn der Reminder nach der Zeit jedes Mal erneut ausgeführt werden soll - " \
-                                   "stoppen durch Löschen des Reminders")
 @app_commands.describe(reminder="Inhalt des Reminders")
-@app_commands.describe(art_der_zeit="Zeitintervall")
+@app_commands.describe(art_der_zeit="Zeiteinheit deines Wertes für die Wiederholung")
+@app_commands.describe(wiederhole_alle="Zahl an Zeiteinheiten - bitte benutze auch 'art_der_zeit'! Deaktivieren durch "
+                                       "Löschen des Reminders.")
+@app_commands.describe(datum="Datum der Erinnerung, z.B. 09.09.2023")
+@app_commands.describe(uhrzeit="Uhrzeit der Erinnerung, z.B. 09:09")
 async def createReminder(ctx: discord.interactions.Interaction,
                          reminder: str,
-                         art_der_zeit: Choice[str],
-                         dauer: int,
-                         auch_whatsapp: Choice[str] = None,
-                         wiederholen: Choice[str] = None):
+                         datum: str,
+                         uhrzeit: str,
+                         wiederhole_alle: int = None,
+                         art_der_zeit: Choice[str] = None,
+                         auch_whatsapp: Choice[str] = None):
     """
     Creates a Reminder for the given time
 
+    :param wiederhole_alle:
+    :param uhrzeit:
+    :param datum:
     :param auch_whatsapp:
-    :param wiederholen:
     :param ctx: Interaction from Discord
     :param reminder: Content of a reminder
     :param art_der_zeit: Time scope
-    :param dauer: Duration
     :return:
     """
     await CommandService(client).runCommand(Commands.CREATE_REMINDER,
                                             ctx,
                                             member=ctx.user,
                                             content=reminder,
-                                            timeType=art_der_zeit.value,
-                                            duration=dauer,
+                                            date=datum,
+                                            time=uhrzeit,
                                             whatsapp=auch_whatsapp.value if auch_whatsapp else None,
-                                            repeat=wiederholen.value if wiederholen else None, )
+                                            repeatTime=wiederhole_alle,
+                                            repeatType=art_der_zeit.value, )
 
 
 @tree.command(name="list_reminders",

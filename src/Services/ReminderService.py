@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import discord
 from discord import Member
@@ -10,6 +10,7 @@ from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -24,43 +25,72 @@ class ReminderService:
     def createReminder(self,
                        member: Member,
                        content: str,
-                       timeType: str,
-                       duration: int,
-                       whatsapp: str,
-                       repeat: str | None) -> str:
+                       date: str,
+                       time: str,
+                       whatsapp: str | None,
+                       repeatTime: str | None,
+                       repeatType: str | None, ) -> str:
         """
         Creates a new Reminder in the database
 
-        :param repeat:
+        :param repeatType:
+        :param repeatTime:
         :param whatsapp:
         :param member: Member, whose reminder this is
         :param content: Content of the reminder
-        :param timeType: Scala of time
-        :param duration: Duration in scala
+        :param date: Date of the Remider
+        :param time: Time of the Reminder
         :return:
         """
+        if not checkDateAgainstRegex(date):
+            logger.debug("the given date had a incorrect format")
+
+            return ("Dein Datum war falsch! Bitte halte dich an das korrekt Format: 'dd/mm/yyyy', 'dd-mm-yyyy' oder "
+                    "'dd.mm.yyyy'.")
+
+        if not checkTimeAgainstRegex(time):
+            logger.debug("the given time had a incorrect format")
+
+            return "Deine Uhrzeit war falsch! Bitte halte dich an das korrekte Format: 'HH:MM' oder 'H:MM'."
+
+        # replace / with .
+        date = date.replace("/", ".")
+        # replace - with . incase the user didn't use /
+        date = date.replace("-", ".")
+        completeDate = date + " " + time
+
         try:
-            duration = int(duration)
+            date = datetime.strptime(completeDate, "%d.%m.%Y %H:%M")
+
         except ValueError:
-            logger.debug("the given string was not a number")
+            logger.debug("%s couldnt be translated to a datetime object" % completeDate)
 
-            return "Bitte gib eine (korrekte) Zahl ein!"
+            return "Es ist ein Fehler beim konvertieren des Datums aufgetreten!"
 
-        if duration < 1:
-            logger.debug("time for reminder was less than 1")
+        if date < datetime.now():
+            logger.debug("user chose a date in the past")
 
-            return "Bitte gib einen größeren Zeitraum an!"
+            return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
 
         if len(content) > 2000:
             logger.debug("content is too long")
 
             return "Bitte gib einen kürzeren Text ein!"
 
-        if (timeType == "days" and duration > 100) or (timeType == "hours" and duration > 2400) or (
-                timeType == "minutes" and duration > 144000):
-            logger.debug("chosen duration was larger than 100 days")
+        if repeatTime and repeatType:
+            minutesLeft = 0
 
-            return "Bitte wähle eine kürzere Zeitspanne!"
+            match repeatType:
+                case 'minutes':
+                    minutesLeft = int(repeatTime)
+                case 'hours':
+                    minutesLeft = repeatTime * 60
+                case 'days':
+                    minutesLeft = repeatTime * 60 * 24
+                case _:
+                    logger.debug("unexpected enum entry encountered!")
+
+                    return "Es ist ein Fehler aufgetreten!"
 
         if not (dcUserDb := getDiscordUser(self.databaseConnection, member)):
             logger.debug("cant proceed, no DiscordUser")
@@ -90,33 +120,18 @@ class ReminderService:
         else:
             whatsapp = False
 
-        match timeType:
-            case "minutes":
-                minutesLeft = duration
-
-            case "hours":
-                minutesLeft = duration * 60
-
-            case "days":
-                minutesLeft = duration * 24 * 60
-
-            case _:
-                logger.warning("undefined enum-entry was used")
-
-                return "Es gab ein Problem!"
-
         with self.databaseConnection.cursor() as cursor:
             query = "INSERT INTO reminder " \
-                    "(discord_user_id, content, minutes_left, sent_at, whatsapp, repeat_in_minutes) " \
+                    "(discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes) " \
                     "VALUES (%s, %s, %s, %s, %s, %s)"
 
             cursor.execute(query,
                            (dcUserDb['id'],
                             content,
-                            minutesLeft,
+                            date,
                             None,
                             whatsapp,
-                            minutesLeft if repeat else None),)
+                            minutesLeft if repeatTime and repeatType else None), )
             self.databaseConnection.commit()
 
         logger.debug("saved new reminder to database")
@@ -136,7 +151,7 @@ class ReminderService:
             query = "SELECT * " \
                     "FROM reminder " \
                     "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
-                    "and minutes_left >= 0"
+                    "and time_to_sent IS NOT NULL"
 
             cursor.execute(query, (int(member.id),))
 
@@ -150,10 +165,10 @@ class ReminderService:
         answer = "Du hast folgende Reminder: (die vorderen Zahlen sind die individuellen IDs)\n\n"
 
         for reminder in reminders:
-            answer += "%d: '%s' in %d Minuten, Wiederholung: %s, Whatsapp: %s\n" % (
+            answer += "%d: '%s' am %s, Wiederholung: %s, Whatsapp: %s\n" % (
                 reminder['id'],
                 reminder['content'],
-                reminder['minutes_left'],
+                reminder['time_to_sent'].strftime("%d.%m.%Y %H:%M"),
                 "aktiviert" if reminder['repeat_in_minutes'] else "deaktiviert",
                 "aktiviert" if reminder['whatsapp'] else "deaktiviert")
 
@@ -169,7 +184,7 @@ class ReminderService:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT r.*, d.user_id " \
                     "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
-                    "WHERE minutes_left is NOT NULL and error IS FALSE"
+                    "WHERE time_to_sent is NOT NULL"
 
             cursor.execute(query)
 
@@ -183,9 +198,7 @@ class ReminderService:
         tempReminders = []
 
         for reminder in reminders:
-            reminder['minutes_left'] = reminder['minutes_left'] - 1
-
-            if reminder['minutes_left'] <= 0:
+            if reminder['time_to_sent'] < datetime.now():
                 reminder = await self.__sendReminder(reminder)
 
             tempReminders.append(reminder)
@@ -286,18 +299,16 @@ class ReminderService:
         except discord.HTTPException as e:
             logger.error("there was a problem sending the DM", exc_info=e)
 
-            reminder['minutes_left'] = None
             reminder['error'] = True
         except Exception as e:
             logger.error("there was a problem sending the message", exc_info=e)
 
-            reminder['minutes_left'] = None
             reminder['error'] = True
 
         if not reminder['repeat_in_minutes']:
-            reminder['minutes_left'] = None
+            reminder['time_to_sent'] = None
         else:
-            reminder['minutes_left'] = reminder['repeat_in_minutes']
+            reminder['time_to_sent'] = datetime.now() + timedelta(minutes=reminder['repeat_in_minutes'])
 
         reminder['sent_at'] = datetime.now()
 
