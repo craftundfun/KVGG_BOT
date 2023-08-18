@@ -123,7 +123,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def streamTimeAchievement(self):
-        logger.debug("Running streamTimeAchievement")
+        logger.debug("running streamTimeAchievement")
 
         try:
             databaseConnection = getDatabaseConnection()
@@ -174,7 +174,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def xpAchievement(self):
-        logger.debug("Running xpAchievement")
+        logger.debug("running xpAchievement")
 
         try:
             databaseConnection = getDatabaseConnection()
@@ -226,7 +226,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
-        logger.debug("Running refreshDatabaseWithDiscord")
+        logger.debug("running refreshDatabaseWithDiscord")
 
         dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
 
@@ -234,13 +234,13 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(hours=24)
     async def refreshMembersInDatabase(self):
-        logger.debug("Running refreshMembersInDatabase")
+        logger.debug("running refreshMembersInDatabase")
 
         dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
 
         await dbr.updateAllMembers()
 
-    @tasks.loop(minutes=1)
+    @tasks.loop(seconds=30)
     async def callReminder(self):
         logger.debug("running callReminder")
 

@@ -773,10 +773,12 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     Choice(name="ja", value="yes"),
 ])
 @app_commands.describe(auch_whatsapp="wenn du den Reminder auch als Whatsapp erhalten möchtest")
-@app_commands.describe(wiederhole_alle="wenn der Reminder nach x Minuten / Stunden / Tagen jedes Mal erneut ausgeführt "
-                                       "werden soll - stoppen durch Löschen des Reminders")
 @app_commands.describe(reminder="Inhalt des Reminders")
-@app_commands.describe(art_der_zeit="Zeitintervall")
+@app_commands.describe(art_der_zeit="Zeiteinheit deines Wertes für die Wiederholung")
+@app_commands.describe(wiederhole_alle="Zahl an Zeiteinheiten - bitte benutze auch 'art_der_zeit'! Deaktivieren durch "
+                                       "Löschen des Reminders.")
+@app_commands.describe(datum="Datum der Erinnerung, z.B. 09.09.2023")
+@app_commands.describe(uhrzeit="Uhrzeit der Erinnerung, z.B. 09:09")
 async def createReminder(ctx: discord.interactions.Interaction,
                          reminder: str,
                          datum: str,

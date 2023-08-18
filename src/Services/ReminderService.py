@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import discord
 from discord import Member
@@ -184,7 +184,7 @@ class ReminderService:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT r.*, d.user_id " \
                     "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
-                    "WHERE minutes_left is NOT NULL and error IS FALSE"
+                    "WHERE time_to_sent is NOT NULL"
 
             cursor.execute(query)
 
@@ -198,9 +198,7 @@ class ReminderService:
         tempReminders = []
 
         for reminder in reminders:
-            reminder['minutes_left'] = reminder['minutes_left'] - 1
-
-            if reminder['minutes_left'] <= 0:
+            if reminder['time_to_sent'] < datetime.now():
                 reminder = await self.__sendReminder(reminder)
 
             tempReminders.append(reminder)
@@ -301,18 +299,16 @@ class ReminderService:
         except discord.HTTPException as e:
             logger.error("there was a problem sending the DM", exc_info=e)
 
-            reminder['minutes_left'] = None
             reminder['error'] = True
         except Exception as e:
             logger.error("there was a problem sending the message", exc_info=e)
 
-            reminder['minutes_left'] = None
             reminder['error'] = True
 
         if not reminder['repeat_in_minutes']:
-            reminder['minutes_left'] = None
+            reminder['time_to_sent'] = None
         else:
-            reminder['minutes_left'] = reminder['repeat_in_minutes']
+            reminder['time_to_sent'] = datetime.now() + timedelta(minutes=reminder['repeat_in_minutes'])
 
         reminder['sent_at'] = datetime.now()
 
