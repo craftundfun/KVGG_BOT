@@ -236,7 +236,7 @@ class ReminderService:
         with self.databaseConnection.cursor() as cursor:
             query = "SELECT r.* " \
                     "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
-                    "WHERE d.user_id = %s AND r.minutes_left >= 0"
+                    "WHERE d.user_id = %s AND r.time_to_sent IS NOT NULL"
 
             cursor.execute(query, (member.id,))
 
@@ -308,7 +308,7 @@ class ReminderService:
         if not reminder['repeat_in_minutes']:
             reminder['time_to_sent'] = None
         else:
-            reminder['time_to_sent'] = datetime.now() + timedelta(minutes=reminder['repeat_in_minutes'])
+            reminder['time_to_sent'] = reminder['time_to_sent'] + timedelta(minutes=reminder['repeat_in_minutes'])
 
         reminder['sent_at'] = datetime.now()
 

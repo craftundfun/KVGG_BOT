@@ -82,7 +82,7 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 
     await sendDM(member, "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
                          "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                         "auf dem Server mit '!xp off' (oder '!xp on') de- bzw. aktivieren!")
+                         "auf dem Server mit '/notifications' de- bzw. aktivieren!")
 
     logger.debug("sent double xp notification")
 
