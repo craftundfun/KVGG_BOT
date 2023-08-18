@@ -805,8 +805,8 @@ async def createReminder(ctx: discord.interactions.Interaction,
                                             date=datum,
                                             time=uhrzeit,
                                             whatsapp=auch_whatsapp.value if auch_whatsapp else None,
-                                            repeatTime=wiederhole_alle,
-                                            repeatType=art_der_zeit.value, )
+                                            repeatTime=wiederhole_alle if wiederhole_alle else None,
+                                            repeatType=art_der_zeit.value if art_der_zeit else None, )
 
 
 @tree.command(name="list_reminders",
