@@ -583,41 +583,16 @@ class ProcessUserInput:
         return "Deine Einstellung wurde übernommen!"
 
     @validateKeys
-    async def sendLeaderboard(self, member: Member, type: str = None) -> string:
+    async def sendLeaderboard(self, member: Member) -> string:
         """
         Returns the leaderboard of our stats in the database
 
-        :param type:
         :param member: Member, who requested the leaderboard
         :return:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
         rs = RelationService(self.client)
-
-        if type == "relations":
-            logger.debug("leaderboard for relations")
-
-            answer = "----------------------------\n"
-            answer += "__**Leaderboard - Relationen**__\n"
-            answer += "----------------------------\n\n"
-
-            if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                answer += "- __Online-Pärchen__:\n"
-                answer += online
-                answer += "\n"
-
-            if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                answer += "- __Stream-Pärchen__:\n"
-                answer += stream
-                answer += "\n"
-
-            if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                answer += "- __Lern-Pärchen__:\n"
-                answer += university
-                answer += "\n"
-
-            return answer
 
         with self.databaseConnection.cursor() as cursor:
             # online time
