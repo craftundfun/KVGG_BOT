@@ -439,14 +439,19 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
 @tree.command(name="leaderboard",
               description="Listet dir unsere Bestenliste auf.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def sendLeaderboard(interaction: discord.Interaction):
+@app_commands.choices(typ=[
+    Choice(name="relationen", value="relations"),
+])
+async def sendLeaderboard(interaction: discord.Interaction, typ: Choice[str] = None):
     """
     Calls the send leaderboard from ProcessUserInput from this interaction
 
     :param interaction: Interaction object of the call
     :return:
     """
-    await CommandService(client).runCommand(Commands.LEADERBOARD, interaction, member=interaction.user)
+    await CommandService(client).runCommand(Commands.LEADERBOARD, interaction,
+                                            member=interaction.user,
+                                            type=typ.value if typ else None, )
 
 
 """SEND REGISTRATION"""
