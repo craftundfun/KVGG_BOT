@@ -248,7 +248,7 @@ class RelationService:
                             (members[j].voice.self_stream or members[j].voice.self_video):
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
 
-    async def getLeaderboardFromType(self, type: RelationTypeEnum, limit: int = 3) -> str | None:
+    async def getLeaderboardFromType(self, type: RelationTypeEnum) -> str | None:
         """
         Returns the top 3 relations from the given type
 
@@ -262,9 +262,9 @@ class RelationService:
                     "FROM discord_user_relation " \
                     "WHERE type = %s AND value > 0 " \
                     "ORDER BY value DESC " \
-                    "LIMIT %s"
+                    "LIMIT 3"
 
-            cursor.execute(query, (type.value, limit,))
+            cursor.execute(query, (type.value,))
 
             data = cursor.fetchall()
 
