@@ -70,7 +70,7 @@ class BackgroundServices(commands.Cog):
         self.callReminder.start()
         self.increaseRelations.start()
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=45)
     async def onlineTimeAchievement(self):
         logger.debug("Running onlineTimeAchievement")
 
@@ -121,7 +121,7 @@ class BackgroundServices(commands.Cog):
 
         self.onlineTimeAchievementMemberList = tempList
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=45)
     async def streamTimeAchievement(self):
         logger.debug("running streamTimeAchievement")
 
@@ -172,7 +172,7 @@ class BackgroundServices(commands.Cog):
 
         self.streamTimeAchievementMemberList = tempList
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=45)
     async def xpAchievement(self):
         logger.debug("running xpAchievement")
 
