@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime
 
 import discord
@@ -43,6 +44,10 @@ class BackgroundServices(commands.Cog):
 
         self.increaseRelations.start()
         logger.info("increaseRelations started")
+
+        if os.path.exists("Logs/startTimes.txt"):
+            os.remove("Logs/startTimes.txt")
+            logger.debug("removed file startTimes.txt")
 
         self.trackCommandStartTimes.start()
         logger.info("trackCommandStartTimes started")
