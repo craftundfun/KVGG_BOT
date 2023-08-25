@@ -1,14 +1,15 @@
-import datetime
 import logging
+from datetime import datetime
 
 import discord
 from discord.ext import tasks, commands
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Id.ChannelId import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
-from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services import DatabaseRefreshService
+from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 
@@ -43,6 +44,9 @@ class BackgroundServices(commands.Cog):
         self.increaseRelations.start()
         logger.info("increaseRelations started")
 
+        self.trackCommandStartTimes.start()
+        logger.info("trackCommandStartTimes started")
+
     def cog_unload(self) -> None:
         """
         Cancels all running tasks
@@ -69,6 +73,11 @@ class BackgroundServices(commands.Cog):
         self.refreshMembersInDatabase.start()
         self.callReminder.start()
         self.increaseRelations.start()
+
+    @tasks.loop(minutes=1)
+    async def trackCommandStartTimes(self):
+        with open("Logs/startTimes.txt", 'a') as file:
+            file.write(datetime.now().strftime("%H:%M:%S:%f") + "\n")
 
     @tasks.loop(seconds=45)
     async def onlineTimeAchievement(self):
@@ -240,7 +249,7 @@ class BackgroundServices(commands.Cog):
 
         await dbr.updateAllMembers()
 
-    @tasks.loop(seconds=30)
+    @tasks.loop(seconds=45)
     async def callReminder(self):
         logger.debug("running callReminder")
 
