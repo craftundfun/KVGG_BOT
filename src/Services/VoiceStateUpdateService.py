@@ -276,7 +276,8 @@ class VoiceStateUpdateService:
 
         if streamTime:
             message += ", deine Stream-Zeit %s Stunden. " % streamTime
-        else:
+
+        if onlineTime and not streamTime:
             message += ". "
 
         if xp:

@@ -9,13 +9,16 @@ import discord
 
 from discord import Client, Member
 from datetime import datetime, timedelta
+
+from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
+from src.Services.AchievementService import AchievementService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -90,8 +93,9 @@ async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
 class ExperienceService:
 
     def __init__(self, client: Client):
-        self.databaseConnection = getDatabaseConnection()
         self.client = client
+        self.databaseConnection = getDatabaseConnection()
+        self.achievementService = AchievementService(self.client)
 
     def __getExperience(self, userId: int) -> dict | None:
         """
@@ -115,14 +119,14 @@ class ExperienceService:
                 logger.debug("found no experience for %s" % str(userId))
 
                 if not self.__createExperience(userId):
-                    logger.warning("couldn't fetch Experience!")
+                    logger.warning("couldn't fetch experience!")
 
                     return None
 
                 cursor.execute(query, (userId,))
 
                 if not (data := cursor.fetchone()):
-                    logger.warning("couldn't fetch Experience!")
+                    logger.warning("couldn't fetch experience!")
 
                     return None
 
@@ -169,7 +173,7 @@ class ExperienceService:
         logger.debug("calculating xp boosts from previous data")
 
         with self.databaseConnection.cursor() as cursor:
-            query = "SELECT time_online FROM discord WHERE user_id = %s"
+            query = "SELECT time_online, time_streamed FROM discord WHERE user_id = %s"
 
             cursor.execute(query, (dcUserDbId,))
 
@@ -178,19 +182,22 @@ class ExperienceService:
 
                 return None
 
-            timeOnline = dict(zip(cursor.column_names, data))['time_online']
+            times = dict(zip(cursor.column_names, data))
+            timeOnline = times['time_online']
+            timeStreamed = times['time_streamed']
 
         if not timeOnline:
             return None
 
         # get a floored number of grant-able boosts
-        numberAchievementBoosts = timeOnline / (ExperienceParameter.XP_BOOST_FOR_EVERY_X_HOURS.value * 60)
+        numberAchievementBoosts = timeOnline / (AchievementParameter.ONLINE_TIME_HOURS.value * 60)
         flooredNumberAchievementBoosts = math.floor(numberAchievementBoosts)
         intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
 
         if intNumberAchievementBoosts == 0:
             logger.debug("no boosts to grant")
 
+            # no time = no streams, so we don't have to check for that as well
             return None
 
         if intNumberAchievementBoosts > ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
@@ -200,14 +207,41 @@ class ExperienceService:
 
         for i in range(intNumberAchievementBoosts):
             boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ACHIEVEMENT.value,
-                'remaining': ExperienceParameter.XP_BOOST_ACHIEVEMENT_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_ACHIEVEMENT.value,
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
             }
 
             boosts.append(boost)
 
-        logger.debug("%d boosts granted" % intNumberAchievementBoosts)
+        # if the user never streamed or inventory is already full return it
+        if not timeStreamed or len(boosts) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            logger.debug("%d online boosts granted" % intNumberAchievementBoosts)
+
+            return json.dumps(boosts)
+
+        numberAchievementBoosts = timeStreamed / (AchievementParameter.STREAM_TIME_HOURS.value * 60)
+        flooredNumberAchievementBoosts = math.floor(numberAchievementBoosts)
+        intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
+
+        if intNumberAchievementBoosts == 0:
+            logger.debug("no boosts to grant")
+
+            return json.dumps(boosts)
+
+        if len(boosts) + intNumberAchievementBoosts >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            intNumberAchievementBoosts = ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value - len(boosts)
+
+        for i in range(intNumberAchievementBoosts):
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+            }
+
+            boosts.append(boost)
+
+        logger.debug("%d online and stream boosts granted" % intNumberAchievementBoosts)
 
         return json.dumps(boosts)
 
@@ -249,9 +283,61 @@ class ExperienceService:
 
         return amount
 
-    @DeprecationWarning
-    def checkAndGrantXpBoost(self):
-        pass  # only necessary for cronjob
+    def grantXpBoost(self, member: Member, kind: AchievementParameter):
+        """
+        Grants the member the specified xp-boost
+
+        :param member: Member who earned the boost
+        :param kind: Kind of boost
+        :return:
+        """
+        if type(kind.value) != str:
+            raise TypeError
+
+        if not (xp := self.__getExperience(member.id)):
+            logger.debug("couldn't fetch xp for %s" % member.name)
+
+            return
+
+        if kind == AchievementParameter.ONLINE:
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
+            }
+        elif kind == AchievementParameter.STREAM:
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+            }
+        else:
+            return
+
+        if xp['xp_boosts_inventory']:
+            inventory = json.loads(xp['xp_boosts_inventory'])
+
+            if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                logger.debug("cant grant boost, too many inactive xp boosts")
+
+                return
+        else:
+            inventory = []
+
+        inventory.append(boost)
+        xp['xp_boosts_inventory'] = json.dumps(inventory)
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = writeSaveQuery(
+                'experience',
+                xp['id'],
+                xp,
+            )
+
+            cursor.execute(query, nones)
+            self.databaseConnection.commit()
+
+        logger.debug("saved granted boost to database")
 
     @validateKeys
     async def spinForXpBoost(self, member: Member) -> string:
@@ -321,7 +407,7 @@ class ExperienceService:
             xp['last_spin_for_boost'] = datetime.now()
 
             with self.databaseConnection.cursor() as cursor:
-                query, nones = WriteSaveQuery.writeSaveQuery(
+                query, nones = writeSaveQuery(
                     'experience',
                     xp['id'],
                     xp,
@@ -342,7 +428,7 @@ class ExperienceService:
             xp['last_spin_for_boost'] = datetime.now()
 
             with self.databaseConnection.cursor() as cursor:
-                query, nones = WriteSaveQuery.writeSaveQuery(
+                query, nones = writeSaveQuery(
                     'experience',
                     xp['id'],
                     xp,
@@ -421,7 +507,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 1
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -436,7 +522,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 0
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -627,7 +713,7 @@ class ExperienceService:
                     return "Deine Eingabe war unültig!"
 
         with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
                 xp,
@@ -640,63 +726,47 @@ class ExperienceService:
 
         return answer
 
-    def addExperience(self, experienceParameter: int, dcUserDb: dict = None, member: Member = None):
+    async def addExperience(self, experienceParameter: int, member: Member = None):
         """
         Adds the given amount of xp to the given user
 
         :param member: Optional Member if DiscordUser is not used
-        :param dcUserDb: DiscordUser, who receives the xp
         :param experienceParameter: Amount of xp
         :return:
         """
-        if dcUserDb:
-            logger.debug("%s gets XP" % dcUserDb['username'])
-        elif member:
-            logger.debug("%s gets XP" % member.name)
-        else:
-            logger.warning("Someone is getting XP, but nothing is given!")
+        logger.debug("%s gets XP" % member.name)
 
-        if not dcUserDb:
-            if member is None:
-                logger.warning("member and dcUserDb are None")
-
-                raise ValueError
-
-            if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
-                logger.warning("couldn't fetch DiscordUser!")
-
-                return
-
-        xp = self.__getExperience(dcUserDb['user_id'])
+        xp = self.__getExperience(member.id)
 
         if xp is None:
             logger.warning("couldn't fetch Experience")
 
             return
 
-        currentXpAmount = xp['xp_amount']
-        toBeAddedXpAmount = 0
+        xpAmountBefore = xp['xp_amount']
+        toBeAddedXpAmount = experienceParameter
 
         if xp['active_xp_boosts']:
             logger.debug("multiply xp with active boosts")
 
             for boost in json.loads(xp['active_xp_boosts']):
-                toBeAddedXpAmount += experienceParameter * boost['multiplier']
+                # don't add the base experience everytime
+                toBeAddedXpAmount += experienceParameter * boost['multiplier'] - experienceParameter
 
-        if toBeAddedXpAmount == 0:
+        if toBeAddedXpAmount == experienceParameter:
             if isDoubleWeekend(datetime.now()):
-                xp['xp_amount'] = currentXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+                xp['xp_amount'] = xpAmountBefore + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
-                xp['xp_amount'] = currentXpAmount + experienceParameter
+                xp['xp_amount'] = xpAmountBefore + experienceParameter
         else:
             if isDoubleWeekend(datetime.now()):
                 xp[
-                    'xp_amount'] = currentXpAmount + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+                    'xp_amount'] = xpAmountBefore + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
-                xp['xp_amount'] = currentXpAmount + toBeAddedXpAmount
+                xp['xp_amount'] = xpAmountBefore + toBeAddedXpAmount
 
         with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
                 xp
@@ -704,6 +774,16 @@ class ExperienceService:
 
             cursor.execute(query, nones)
             self.databaseConnection.commit()
+
+        # 99 mod 10 > 101 mod 10 -> achievement for 100
+        if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
+                > xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value):
+            print("xp: %d" % xp['xp_amount'])
+            print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
+
+            await self.achievementService.sendAchievement(member, AchievementParameter.XP,
+                                                          (xp['xp_amount']
+                                                           - (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
 
         logger.debug("saved changes to database")
 
@@ -738,6 +818,48 @@ class ExperienceService:
             reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
 
         return reply
+
+    def reduceXpBoostsTime(self, member: Member):
+        with self.databaseConnection.cursor() as cursor:
+            query = "SELECT * " \
+                    "FROM experience " \
+                    "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
+                    "(SELECT id FROM discord WHERE user_id = %s)"
+
+            cursor.execute(query, (member.id,))
+
+            if not (data := cursor.fetchone()):
+                logger.debug("no boosts to reduce")
+
+                return
+
+            xp = dict(zip(cursor.column_names, data))
+
+            if not xp['active_xp_boosts']:
+                logger.debug("no boosts to reduce")
+
+                return
+
+            boosts = json.loads(xp['active_xp_boosts'])
+            editedBoosts = []
+
+            for boost in boosts:
+                boost['remaining'] = boost['remaining'] - 1
+
+                if boost['remaining'] > 0:
+                    editedBoosts.append(boost)
+
+            if len(editedBoosts) == 0:
+                boosts = None
+            else:
+                boosts = json.dumps(editedBoosts)
+
+            xp['active_xp_boosts'] = boosts
+            query, nones = writeSaveQuery('experience', xp['id'], xp)
+
+            cursor.execute(query, nones)
+
+        self.databaseConnection.commit()
 
     def __del__(self):
         self.databaseConnection.close()

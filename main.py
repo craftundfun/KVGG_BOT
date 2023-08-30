@@ -178,7 +178,7 @@ class MyClient(discord.Client):
         if not message.author.bot and not message.content == "":
             pui = ProcessUserInput.ProcessUserInput(self)
 
-            pui.raiseMessageCounter(message.author, message.channel)
+            await pui.raiseMessageCounter(message.author, message.channel)
 
             qm = QuotesManager.QuotesManager(self)
 
@@ -606,59 +606,6 @@ async def handleFelixTimer(interaction: discord.Interaction, user: Member, actio
                                             user=user,
                                             action=action.value,
                                             time=zeit)
-
-
-"""OVERWRITE COGS"""
-
-
-@tree.command(name="disable_cogs",
-              description="Stellt die Achievement-Loops aus",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def shutdownCogs(interaction: discord.Interaction):
-    """
-    Disable the background services of the bot
-
-    :param interaction: Interaction by discord
-    :return:
-    """
-    logger.warning("received command disable_cogs by %d" % (interaction.user.id))
-
-    member = interaction.user
-
-    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
-
-    if backgroundServices:
-        backgroundServices.cog_unload()
-        logger.warning("Cogs were ended!")
-        await interaction.response.send_message("Alle Cogs wurden beendet!")
-    else:
-        await interaction.response.send_message("Es gab keine Loops zum beenden!")
-
-
-@tree.command(name="enable_cogs",
-              description="Stellt die Achievement-Loops an",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def startCogs(interaction: discord.Interaction):
-    """
-    Starts the background services of the bot
-
-    :param interaction: Interaction by discordf
-    :return:
-    """
-    logger.warning("received command enable_cogs, by %d" % (interaction.user.id))
-
-    member = interaction.user
-
-    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
-
-    if backgroundServices:
-        await backgroundServices.cog_load()
-        logger.warning("Cogs were started!")
-        await interaction.response.send_message("Alle Cogs wurden gestartet!")
-    else:
-        await interaction.response.send_message("Es gab keine Loops zum starten!")
 
 
 """WHATSAPP SUSPEND SETTING"""

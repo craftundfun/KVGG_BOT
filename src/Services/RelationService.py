@@ -222,7 +222,7 @@ class RelationService:
 
             # skip empty or less than 2 member channels
             if len(channel.members) <= 1:
-                logger.debug("channel %s empty or with less than 2" % channel.name)
+                # logger.debug("channel %s empty or with less than 2" % channel.name)
 
                 continue
 
