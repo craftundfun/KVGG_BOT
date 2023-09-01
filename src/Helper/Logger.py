@@ -4,6 +4,9 @@ from logging.handlers import TimedRotatingFileHandler
 
 
 class Handler(StreamHandler):
+    """
+    Logs errors in the file in "Logs/log.txt" and the stderr
+    """
 
     def __init__(self, test: TimedRotatingFileHandler):
         StreamHandler.__init__(self)
