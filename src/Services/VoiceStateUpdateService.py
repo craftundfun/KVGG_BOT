@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 import discord
-
-from datetime import datetime, timedelta
 from discord import Member, VoiceState
-from src.Helper import WriteSaveQuery
-from src.Id.GuildId import GuildId
+
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services import ExperienceService
 from src.Services.NotificationService import NotificationService
 from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Helper.SendDM import sendDM
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -141,7 +138,6 @@ class VoiceStateUpdateService:
             self.__saveDiscordUser(dcUserDb)
 
             await RelationService(self.client).manageLeavingMember(member, voiceStateBefore)
-
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 
@@ -153,7 +149,7 @@ class VoiceStateUpdateService:
         :return:
         """
         with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb

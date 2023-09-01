@@ -25,7 +25,8 @@ from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
-from src.Services import ExperienceService, QuotesManager
+from src.Services import QuotesManager
+from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
 
 logger = logging.getLogger("KVGG_BOT")
@@ -185,7 +186,7 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
-            xp = ExperienceService.ExperienceService(self.client)
+            xp = ExperienceService(self.client)
             await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
         logger.debug("saved changes to database")
