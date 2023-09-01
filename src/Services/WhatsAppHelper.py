@@ -122,7 +122,7 @@ class WhatsAppHelper:
         :param member: Member that caused the notification
         :return:
         """
-        logger.debug("Creating Offline-Notification for %s" % member.name)
+        logger.debug("creating Offline-Notification for %s" % member.name)
 
         if lastOnline := dcUserDb['joined_at']:
             diff: timedelta = datetime.now() - lastOnline
