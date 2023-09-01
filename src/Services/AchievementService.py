@@ -30,9 +30,13 @@ class AchievementService:
         from src.Services.ExperienceService import ExperienceService
 
         if type(kind.value) != str:
-            raise TypeError
+            logger.critical("false argument type")
+
+            return
         elif not self.channel:
-            raise ValueError
+            logger.critical("cant reach channel")
+
+            return
 
         tag = getTagStringFromId(str(member.id))
         hours = int(value / 60)

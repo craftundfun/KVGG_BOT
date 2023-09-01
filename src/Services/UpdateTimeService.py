@@ -53,6 +53,13 @@ class UpdateTimeService:
                 yield channel
 
     def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
+        """
+        Checks for the given user if he / she can receive online time (and XP)
+
+        :param dcUserDbAndChannelType:
+        :param channel:
+        :return:
+        """
         # ignore all restrictions except for at least two members for uni counting
         if dcUserDbAndChannelType[1] == "uni" and len(channel.members) > 1:
             return True
@@ -111,63 +118,46 @@ class UpdateTimeService:
                 if not self.__eligibleForGettingTime((dcUserDb, channelType), channel):
                     continue
 
-                try:
-                    if channelType == "gaming":
-                        # time_online can be None -> None-safe operation
-                        if not dcUserDb['time_online']:
-                            dcUserDb['time_online'] = 1
-                        else:
-                            dcUserDb['time_online'] = dcUserDb['time_online'] + 1
-
-                        # online time achievement
-                        if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
-                            await self.achievementService.sendAchievement(member,
-                                                                          AchievementParameter.ONLINE,
-                                                                          dcUserDb['time_online'])
-
-                        # safely increase xp for online
-                        try:
-                            await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value,
-                                                                       member=member)
-                        except Exception as error:
-                            logger.critical("couldn't give xp to %s" % member.name, exc_info=error)
-
-                            send_exception_mail(traceback.format_exc())
-
-                        dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
-
-                        # increase time for streaming
-                        if member.voice.self_video or member.voice.self_stream:
-                            dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
-                            dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
-
-                            if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
-                                await self.achievementService.sendAchievement(member,
-                                                                              AchievementParameter.STREAM,
-                                                                              dcUserDb['time_streamed'])
-
-                            # safely increase xp for streaming
-                            try:
-                                await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
-                                                                           member=member)
-                            except Exception as error:
-                                logger.critical("couldn't give xp to %s" % member.name, exc_info=error)
-
-                                send_exception_mail(traceback.format_exc())
+                if channelType == "gaming":
+                    # time_online can be None -> None-safe operation
+                    if not dcUserDb['time_online']:
+                        dcUserDb['time_online'] = 1
                     else:
-                        # university_time_online can be None -> None-safe operation
-                        if not dcUserDb['university_time_online']:
-                            dcUserDb['university_time_online'] = 1
-                        else:
-                            dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + 1
+                        dcUserDb['time_online'] = dcUserDb['time_online'] + 1
 
-                        dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
-                except Exception as error:
-                    logger.critical("couldn't apply changes to dcUserDb", exc_info=error)
+                    dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
-                    send_exception_mail(traceback.format_exc())
+                    # online time achievement
+                    if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievement(member,
+                                                                      AchievementParameter.ONLINE,
+                                                                      dcUserDb['time_online'])
 
-                    continue
+                    await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
+
+                    # increase time for streaming
+                    if member.voice.self_video or member.voice.self_stream:
+                        # don't check for None here, default value is 0
+                        dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
+                        dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
+
+                        if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
+                            await self.achievementService.sendAchievement(member,
+                                                                          AchievementParameter.STREAM,
+                                                                          dcUserDb['time_streamed'])
+
+                        await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
+                                                                   member=member)
+
+                    self.experienceService.reduceXpBoostsTime(member)
+                else:
+                    # university_time_online can be None -> None-safe operation
+                    if not dcUserDb['university_time_online']:
+                        dcUserDb['university_time_online'] = 1
+                    else:
+                        dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + 1
+
+                    dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
 
                 with self.databaseConnection.cursor() as cursor:
                     query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
@@ -181,11 +171,6 @@ class UpdateTimeService:
                         send_exception_mail(traceback.format_exc())
 
                         continue
-
-                try:
-                    self.experienceService.reduceXpBoostsTime(member)
-                except:
-                    logger.critical("couldnt reduce xp boost time from %s" % member.name)
 
     def __del__(self):
         self.databaseConnection.close()

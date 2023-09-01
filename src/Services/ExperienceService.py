@@ -104,9 +104,9 @@ class ExperienceService:
 
                     return None
 
-        logger.debug("fetched experience")
+            logger.debug("fetched experience")
 
-        return dict(zip(cursor.column_names, data))
+            return dict(zip(cursor.column_names, data))
 
     def __createExperience(self, userId: int) -> bool:
         """
@@ -266,7 +266,9 @@ class ExperienceService:
         :return:
         """
         if type(kind.value) != str:
-            raise TypeError
+            logger.critical("false argument given")
+
+            return
 
         if not (xp := self.__getExperience(member.id)):
             logger.debug("couldn't fetch xp for %s" % member.name)
@@ -308,8 +310,11 @@ class ExperienceService:
                 xp,
             )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
+            try:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+            except Exception as error:
+                logger.error("couldn't save new xp boost to database for %s" % member.name, exc_info=error)
 
         logger.debug("saved granted boost to database")
 
@@ -734,8 +739,8 @@ class ExperienceService:
                 xp['xp_amount'] = xpAmountBefore + experienceParameter
         else:
             if isDoubleWeekend(datetime.now()):
-                xp[
-                    'xp_amount'] = xpAmountBefore + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+                xp['xp_amount'] = (xpAmountBefore + toBeAddedXpAmount
+                                   + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value)
             else:
                 xp['xp_amount'] = xpAmountBefore + toBeAddedXpAmount
 
@@ -746,8 +751,11 @@ class ExperienceService:
                 xp
             )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
+            try:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+            except Exception as error:
+                logger.error("couldn't save changes to database", exc_info=error)
 
         # 99 mod 10 > 101 mod 10 -> achievement for 100
         if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
@@ -794,46 +802,49 @@ class ExperienceService:
         return reply
 
     def reduceXpBoostsTime(self, member: Member):
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * " \
-                    "FROM experience " \
-                    "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
-                    "(SELECT id FROM discord WHERE user_id = %s)"
+        try:
+            with self.databaseConnection.cursor() as cursor:
+                query = "SELECT * " \
+                        "FROM experience " \
+                        "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
+                        "(SELECT id FROM discord WHERE user_id = %s)"
 
-            cursor.execute(query, (member.id,))
+                cursor.execute(query, (member.id,))
 
-            if not (data := cursor.fetchone()):
-                logger.debug("no boosts to reduce")
+                if not (data := cursor.fetchone()):
+                    logger.debug("no boosts to reduce")
 
-                return
+                    return
 
-            xp = dict(zip(cursor.column_names, data))
+                xp = dict(zip(cursor.column_names, data))
 
-            if not xp['active_xp_boosts']:
-                logger.debug("no boosts to reduce")
+                if not xp['active_xp_boosts']:
+                    logger.debug("no boosts to reduce")
 
-                return
+                    return
 
-            boosts = json.loads(xp['active_xp_boosts'])
-            editedBoosts = []
+                boosts = json.loads(xp['active_xp_boosts'])
+                editedBoosts = []
 
-            for boost in boosts:
-                boost['remaining'] = boost['remaining'] - 1
+                for boost in boosts:
+                    boost['remaining'] = boost['remaining'] - 1
 
-                if boost['remaining'] > 0:
-                    editedBoosts.append(boost)
+                    if boost['remaining'] > 0:
+                        editedBoosts.append(boost)
 
-            if len(editedBoosts) == 0:
-                boosts = None
-            else:
-                boosts = json.dumps(editedBoosts)
+                if len(editedBoosts) == 0:
+                    boosts = None
+                else:
+                    boosts = json.dumps(editedBoosts)
 
-            xp['active_xp_boosts'] = boosts
-            query, nones = writeSaveQuery('experience', xp['id'], xp)
+                xp['active_xp_boosts'] = boosts
+                query, nones = writeSaveQuery('experience', xp['id'], xp)
 
-            cursor.execute(query, nones)
+                cursor.execute(query, nones)
 
-        self.databaseConnection.commit()
+                self.databaseConnection.commit()
+        except Exception as error:
+            logger.error("couldnt reduce xp boost time for %s" % member.name, exc_info=error)
 
     def __del__(self):
         self.databaseConnection.close()
