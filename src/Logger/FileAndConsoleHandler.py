@@ -3,14 +3,14 @@ from logging import StreamHandler
 from logging.handlers import TimedRotatingFileHandler
 
 
-class Handler(StreamHandler):
+class FileAndConsoleHandler(StreamHandler):
     """
     Logs errors in the file in "Logs/log.txt" and the stderr
     """
 
-    def __init__(self, test: TimedRotatingFileHandler):
+    def __init__(self, fileHandler: TimedRotatingFileHandler):
         StreamHandler.__init__(self)
-        self.test = test
+        self.fileHandler = fileHandler
 
     def emit(self, record):
         self.format(record)
@@ -19,4 +19,4 @@ class Handler(StreamHandler):
             sys.stderr.write(record.message + "\n")
             sys.stderr.write(record.exc_text)
 
-        self.test.emit(record)
+        self.fileHandler.emit(record)

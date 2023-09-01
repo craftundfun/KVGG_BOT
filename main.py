@@ -6,7 +6,6 @@ import os
 import sys
 import time
 import traceback
-from typing import Any
 
 import discord
 import nest_asyncio
@@ -15,16 +14,16 @@ from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import ReadParameters, Logger
-from src.Helper.CustomFormatter import CustomFormatter
-from src.Helper.CustomFormatterFile import CustomFormatterFile
+from src.Helper import ReadParameters
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
+from src.Logger.CustomFormatter import CustomFormatter
+from src.Logger.CustomFormatterFile import CustomFormatterFile
+from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
 from src.Services.CommandService import CommandService, Commands
 from src.Services.EmailService import send_exception_mail
-from src.Services.ProcessUserInput import hasUserWantedRoles
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -36,7 +35,7 @@ logger = logging.getLogger("KVGG_BOT")
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setFormatter(CustomFormatterFile())
 
-clientHandler = Logger.Handler(fileHandler)
+clientHandler = FileAndConsoleHandler(fileHandler)
 clientHandler.setFormatter(CustomFormatterFile())
 
 consoleHandler = logging.StreamHandler(sys.stdout)
@@ -52,8 +51,6 @@ else:
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.INFO)
     consoleHandler.setLevel(logging.DEBUG)
-
-# clientHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
 logger.addHandler(consoleHandler)
