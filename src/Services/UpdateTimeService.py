@@ -89,6 +89,11 @@ class UpdateTimeService:
         return True
 
     async def updateTimesAndExperience(self):
+        """
+        Updates the time online, stream (if the member is streaming) and writes new formatted values
+
+        :return:
+        """
         for channel in self.__getChannels():
             # specify a type of channel for easier distinguishing later
             if str(channel.id) in self.uniChannels:
@@ -115,7 +120,7 @@ class UpdateTimeService:
                             dcUserDb['time_online'] = dcUserDb['time_online'] + 1
 
                         # online time achievement
-                        if (dcUserDb['time_online'] % AchievementParameter.ONLINE_TIME_HOURS.value * 60) == 0:
+                        if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
                             await self.achievementService.sendAchievement(member,
                                                                           AchievementParameter.ONLINE,
                                                                           dcUserDb['time_online'])
@@ -136,7 +141,7 @@ class UpdateTimeService:
                             dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
                             dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
-                            if (dcUserDb['time_streamed'] % AchievementParameter.STREAM_TIME_HOURS.value * 60) == 0:
+                            if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
                                 await self.achievementService.sendAchievement(member,
                                                                               AchievementParameter.STREAM,
                                                                               dcUserDb['time_streamed'])
@@ -177,7 +182,10 @@ class UpdateTimeService:
 
                         continue
 
-                self.experienceService.reduceXpBoostsTime(member)
+                try:
+                    self.experienceService.reduceXpBoostsTime(member)
+                except:
+                    logger.critical("couldnt reduce xp boost time from %s" % member.name)
 
     def __del__(self):
         self.databaseConnection.close()

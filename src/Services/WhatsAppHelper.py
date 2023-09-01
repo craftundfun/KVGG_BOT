@@ -103,13 +103,13 @@ class WhatsAppHelper:
 
                 continue
 
-            if triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
-                'receive_join_notification']:
+            if (triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues()
+                    and user['receive_join_notification']):
                 logger.debug("message for gaming channels")
                 # works correctly
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
-            elif triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
-                'receive_uni_join_notification']:
+            elif (triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues()
+                  and user['receive_uni_join_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
 

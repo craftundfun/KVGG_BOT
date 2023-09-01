@@ -5,19 +5,16 @@ import logging
 import math
 import random
 import string
-import discord
+from datetime import datetime, timedelta
 
 from discord import Client, Member
-from datetime import datetime, timedelta
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
-from src.Helper.SendDM import sendDM
+from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Services.AchievementService import AchievementService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -33,69 +30,46 @@ def isDoubleWeekend(date: datetime) -> bool:
     return date.isocalendar()[1] % 2 == 0 and (date.weekday() == 5 or date.weekday() == 6)
 
 
-def getDiffUntilNextDoubleXpWeekend() -> timedelta:
-    """
-    Gets the time until the next double-xp-weekend
-
-    :return: Timedelta of duration
-    """
-    now = datetime.now()  # get current time
-    weekday = now.weekday()  # get current weekday
-    daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
-    nextSaturday = now + timedelta(days=daysUntilSaturday)  # get date of next saturday
-    nextSaturday = nextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)  # set to midnight
-
-    if isDoubleWeekend(nextSaturday):
-        return nextSaturday - now
-    else:
-        nextNextSaturday = now + timedelta(days=daysUntilSaturday + 7)  # get next weeks saturday
-        nextNextSaturday = nextNextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        return nextNextSaturday - now
-
-
-def getDoubleXpWeekendInformation() -> string:
-    """
-    Returns a string with information about this or the upcoming double-xp-weekend
-
-    :return:
-    """
-    if isDoubleWeekend(datetime.now()):
-        return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
-    else:
-        diff: timedelta = getDiffUntilNextDoubleXpWeekend()
-
-        return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
-            (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
-
-
-async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
-    """
-    Sends a DM to the given user to inform him about the currently active double-xp-weekend
-
-    :param dcUserDb: DiscordUser, who will be informed
-    :param client: Bot
-    :return:
-    """
-    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend(datetime.now()):
-        return
-
-    await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
-    member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
-
-    await sendDM(member, "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
-                         "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                         "auf dem Server mit '/notifications' de- bzw. aktivieren!")
-
-    logger.debug("sent double xp notification")
-
-
 class ExperienceService:
 
     def __init__(self, client: Client):
         self.client = client
         self.databaseConnection = getDatabaseConnection()
         self.achievementService = AchievementService(self.client)
+
+    def __getDoubleXpWeekendInformation(self) -> string:
+        """
+        Returns a string with information about this or the upcoming double-xp-weekend
+
+        :return:
+        """
+        if isDoubleWeekend(datetime.now()):
+            return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
+        else:
+            diff: timedelta = self.__getDiffUntilNextDoubleXpWeekend()
+
+            return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
+                (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
+
+    def __getDiffUntilNextDoubleXpWeekend(self) -> timedelta:
+        """
+        Gets the time until the next double-xp-weekend
+
+        :return: Timedelta of duration
+        """
+        now = datetime.now()  # get current time
+        weekday = now.weekday()  # get current weekday
+        daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
+        nextSaturday = now + timedelta(days=daysUntilSaturday)  # get date of next saturday
+        nextSaturday = nextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)  # set to midnight
+
+        if isDoubleWeekend(nextSaturday):
+            return nextSaturday - now
+        else:
+            nextNextSaturday = now + timedelta(days=daysUntilSaturday + 7)  # get next weeks saturday
+            nextNextSaturday = nextNextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            return nextNextSaturday - now
 
     def __getExperience(self, userId: int) -> dict | None:
         """
@@ -461,7 +435,7 @@ class ExperienceService:
         :return: string - answer
         """
         # lazy import to avoid circular import
-        from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
+        from src.Services.ProcessUserInput import getTagStringFromId
 
         logger.debug("%s requested XP" % member.name)
 
@@ -480,7 +454,7 @@ class ExperienceService:
             return "Es ist ein Fehler aufgetreten!"
 
         reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
-        reply += getDoubleXpWeekendInformation()
+        reply += self.__getDoubleXpWeekendInformation()
 
         logger.debug("replying xp amount")
 

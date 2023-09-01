@@ -8,4 +8,4 @@ class AchievementParameter(Enum):
 
     ONLINE = "online"
     STREAM = "stream"
-    XP = "XP"
+    XP = "xp"

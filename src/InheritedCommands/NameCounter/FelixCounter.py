@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from discord import Client
+from discord import Client, Member
 
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.SendDM import sendDM
@@ -76,6 +76,7 @@ class FelixCounter(Counter):
             dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
 
             for dcUserDb in dcUsersDb:
+                # timer still active
                 if (dcUserDb['felix_counter_start'] + timedelta(minutes=FELIX_COUNTER_MINUTES)) >= datetime.now():
                     dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
                 else:
@@ -95,3 +96,25 @@ class FelixCounter(Counter):
 
                 cursor.execute(query, nones)
             databaseConnection.commit()
+
+    async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: dict):
+        """
+        Check if the given DiscordUser had a Felix-Counter, if so it stops the timer
+
+        :param member: Member of the counter to send the message
+        :param dcUserDb: Database user of the member
+        :return:
+        """
+        logger.debug("Checking Felix-Timer from %s" % dcUserDb['username'])
+
+        if dcUserDb['felix_counter_start'] is not None:
+            dcUserDb['felix_counter_start'] = None
+        else:
+            return
+
+        try:
+            await sendDM(member, "Dein Felix-Counter wurde beendet!")
+        except Exception as error:
+            logger.error("couldnt send DM to %s" % member.name, exc_info=error)
+        else:
+            logger.debug("sent dm to %s" % member.name)

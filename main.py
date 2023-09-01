@@ -152,7 +152,7 @@ class MyClient(discord.Client):
                 )
             else:
                 await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name=", dass alles läuft")
+                    activity=discord.Activity(type=discord.ActivityType.watching, name="ob alles läuft")
                 )
         except Exception as e:
             logger.warning("Activity couldn't be set!", exc_info=e)

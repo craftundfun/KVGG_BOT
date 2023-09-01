@@ -1,4 +1,5 @@
 import logging
+import traceback
 from datetime import datetime
 
 import discord
@@ -6,6 +7,7 @@ from discord.ext import tasks, commands
 
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Services import DatabaseRefreshService
+from src.Services.EmailService import send_exception_mail
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService
@@ -28,7 +30,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
-        logger.info("running minutely-job, %s" % datetime.now().strftime("%H:%M:%S:%f"))
+        logger.info("running minutely-job")
 
         try:
             logger.debug("running updateTimesAndExperience")
@@ -39,6 +41,8 @@ class BackgroundServices(commands.Cog):
         except Exception as e:
             logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 
+            send_exception_mail(traceback.format_exc())
+
         try:
             logger.debug("running callReminder")
 
@@ -47,6 +51,8 @@ class BackgroundServices(commands.Cog):
             await rs.manageReminders()
         except Exception as e:
             logger.critical("encountered exception while executing reminderService", exc_info=e)
+
+            send_exception_mail(traceback.format_exc())
 
         try:
             logger.debug("running increaseRelations")
@@ -57,6 +63,8 @@ class BackgroundServices(commands.Cog):
         except Exception as e:
             logger.critical("encountered exception while executing relationService", exc_info=e)
 
+            send_exception_mail(traceback.format_exc())
+
         try:
             logger.debug("running updateFelixCounter")
 
@@ -65,6 +73,8 @@ class BackgroundServices(commands.Cog):
             await fc.updateFelixCounter(self.client)
         except Exception as e:
             logger.critical("encountered exception while executing updateFelixCounter", exc_info=e)
+
+            send_exception_mail(traceback.format_exc())
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
