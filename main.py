@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import traceback
+from typing import Any
 
 import discord
 import nest_asyncio
@@ -827,7 +828,7 @@ def run():
     global restartTrys
 
     try:
-        client.run(token=token, reconnect=True)
+        client.run(token=token, reconnect=True, log_handler=fileHandler, log_level=logging.INFO)
     except Exception as e:
         logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
 
