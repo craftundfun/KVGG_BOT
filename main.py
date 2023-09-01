@@ -15,7 +15,7 @@ from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import ReadParameters
+from src.Helper import ReadParameters, Logger
 from src.Helper.CustomFormatter import CustomFormatter
 from src.Helper.CustomFormatterFile import CustomFormatterFile
 from src.Id.GuildId import GuildId
@@ -36,6 +36,9 @@ logger = logging.getLogger("KVGG_BOT")
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setFormatter(CustomFormatterFile())
 
+clientHandler = Logger.Handler(fileHandler)
+clientHandler.setFormatter(CustomFormatterFile())
+
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(CustomFormatter())
 
@@ -49,6 +52,8 @@ else:
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.INFO)
     consoleHandler.setLevel(logging.DEBUG)
+
+# clientHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
 logger.addHandler(consoleHandler)
@@ -828,7 +833,7 @@ def run():
     global restartTrys
 
     try:
-        client.run(token=token, reconnect=True, log_handler=fileHandler, log_level=logging.INFO)
+        client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
     except Exception as e:
         logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
 
