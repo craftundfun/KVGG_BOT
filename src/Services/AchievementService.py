@@ -41,22 +41,29 @@ class AchievementService:
         tag = getTagStringFromId(str(member.id))
         hours = int(value / 60)
 
+        try:
+            xpService = ExperienceService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start ExperienceService", exc_info=error)
+
+            return
+
         if kind == AchievementParameter.ONLINE:
             message = tag + ", du bist nun schon " + str(hours) + (" Stunden online gewesen. Weiter so :cookie:"
                                                                    "\n\nAußerdem hast du einen neuen XP-Boost "
                                                                    "bekommen, schau mal nach!")
 
-            ExperienceService(self.client).grantXpBoost(member, AchievementParameter.ONLINE)
+            xpService.grantXpBoost(member, AchievementParameter.ONLINE)
         elif kind == AchievementParameter.STREAM:
             message = tag + ", du hast nun schon " + str(hours) + (" Stunden gestreamt. Weiter so :cookie:"
                                                                    "\n\nAußerdem hast du einen neuen XP-Boost "
                                                                    "bekommen, schau mal nach!")
 
-            ExperienceService(self.client).grantXpBoost(member, AchievementParameter.STREAM)
+            xpService.grantXpBoost(member, AchievementParameter.STREAM)
         else:
             message = tag + ", du hast bereits " + str(value) + " XP gefarmt. Weiter so :cookie: :video_game:"
 
         try:
             await self.channel.send(message)
         except Exception as error:
-            logger.critical("the achievement couldn't be sent", exc_info=error)
+            logger.error("the achievement couldn't be sent", exc_info=error)

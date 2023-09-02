@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import string
 
-from src.Helper import GetFormattedTime
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.InheritedCommands.Times.Time import Time
 
 
@@ -15,7 +15,7 @@ class UniversityTime(Time):
         dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + value
 
         if updateFormattedTime:
-            dcUserDb['formated_university_time'] = getFormattedTime.getFormattedTime(dcUserDb['university_time_online'])
+            dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
 
     def getTime(self, dcUserDb) -> int | None:
         return dcUserDb['university_time_online']

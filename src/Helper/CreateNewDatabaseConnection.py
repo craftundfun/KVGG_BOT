@@ -10,6 +10,7 @@ from src.Helper import ReadParameters as rp
 logger = logging.getLogger("KVGG_BOT")
 
 
+@DeprecationWarning
 def getDatabaseConnection() -> MySQLConnection:
     """
     :return: New database connection

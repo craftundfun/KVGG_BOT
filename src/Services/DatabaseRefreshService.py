@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
-
 from datetime import datetime
+
 from discord import Client, ChannelType
+
 from src.Helper import WriteSaveQuery
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Helper.Database import Database
+from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 
@@ -15,30 +17,26 @@ logger = logging.getLogger("KVGG_BOT")
 class DatabaseRefreshService:
 
     def __init__(self, client: Client):
-        self.databaseConnection = getDatabaseConnection()
+        """
+        :param client:
+        :raise ConnectionError:
+        """
+        self.database = Database()
         self.client = client
 
     async def startUp(self):
         """
         Brings the database up to the current state of the server
 
-        :param client: Discord client
         :return:
         """
         logger.debug("Beginning fetching data")
 
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord"
+        query = "SELECT * FROM discord"
+        dcUsersDb = self.database.queryAllResults(query)
 
-            cursor.execute(query)
-
-            data = cursor.fetchall()
-
-            if not data:
-                logger.critical("found not entries in discord database")
-                return
-
-            dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
+        if dcUsersDb is None:
+            return
 
         logger.debug("compare database against discord")
 
@@ -100,20 +98,16 @@ class DatabaseRefreshService:
                 user['full_muted_at'] = None
 
             # update nick
-            if (member := self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(user['user_id']))):
+            if member := self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(user['user_id'])):
                 user['username'] = member.nick if member.nick else member.name
 
-        with self.databaseConnection.cursor() as cursor:
-            for user in dcUsersDb:
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'discord',
-                    user['id'],
-                    user,
-                )
-
-                cursor.execute(query, nones)
-
-        self.databaseConnection.commit()
+            query, nones = writeSaveQuery(
+                'discord',
+                user['id'],
+                user,
+            )
+            if not self.database.saveChangesToDatabase(query, nones):
+                logger.critical("couldn't save changes to database")
 
         # check for new members that aren't in our database
         for channel in self.client.get_all_channels():
@@ -121,12 +115,10 @@ class DatabaseRefreshService:
                 continue
 
             for member in channel.members:
-                dcUserDb = getDiscordUser(self.databaseConnection, member)
+                dcUserDb = getDiscordUser(member)
 
                 if dcUserDb is None:
-                    logger.error("Couldnt create new entry for %s!" % member.name)
-
-        self.databaseConnection.commit()
+                    logger.error("couldn't create new entry for %s!" % member.name)
 
     async def updateDatabaseToServerState(self):
         """
@@ -146,90 +138,82 @@ class DatabaseRefreshService:
             if channel.type != ChannelType.voice:
                 continue
 
-            with self.databaseConnection.cursor() as cursor:
-                query = "SELECT * FROM discord WHERE user_id = %s"
+            query = "SELECT * FROM discord WHERE user_id = %s"
 
-                # check every member per channel
-                for member in channel.members:
-                    onlineMembers[str(member.id)] = member
-                    cursor.execute(query, (member.id,))
+            # check every member per channel
+            for member in channel.members:
+                onlineMembers[str(member.id)] = member
 
-                    if not (data := cursor.fetchone()):
-                        continue
-
-                    dcUserDb = dict(zip(cursor.column_names, data))
-                    voiceState = channel.voice_states[member.id]
-
-                    # can change, has no side effect
-                    dcUserDb['channel_id'] = channel.id
-                    dcUserDb['username'] = member.nick if member.nick else member.name
-
-                    if not dcUserDb['joined_at']:
-                        dcUserDb['joined_at'] = datetime.now()
-
-                    if voiceState.self_stream and not dcUserDb['started_stream_at']:
-                        dcUserDb['started_stream_at'] = datetime.now()
-                    elif not voiceState.self_stream and dcUserDb['started_stream_at']:
-                        dcUserDb['started_stream_at'] = None
-
-                    if voiceState.self_video and not dcUserDb['started_webcam_at']:
-                        dcUserDb['started_webcam_at'] = datetime.now()
-                    elif not voiceState.self_video and dcUserDb['started_webcam_at']:
-                        dcUserDb['started_webcam_at'] = None
-
-                    if (voiceState.self_mute or voiceState.mute) and not dcUserDb['muted_at']:
-                        dcUserDb['muted_at'] = datetime.now()
-                    elif not voiceState.self_mute and dcUserDb['muted_at']:
-                        dcUserDb['muted_at'] = None
-
-                    if (voiceState.self_deaf or voiceState.deaf) and not dcUserDb['full_muted_at']:
-                        dcUserDb['full_muted_at'] = datetime.now()
-                    elif not voiceState.self_deaf and dcUserDb['full_muted_at']:
-                        dcUserDb['full_muted_at'] = None
-
-                    saveQuery, nones = WriteSaveQuery.writeSaveQuery(
-                        'discord',
-                        dcUserDb['id'],
-                        dcUserDb,
-                    )
-
-                    cursor.execute(saveQuery, nones)
-
-                self.databaseConnection.commit()
-
-        with self.databaseConnection.cursor() as cursor:
-            # only look for still online members c.f. doc
-            query = "SELECT * FROM discord WHERE channel_id IS NOT NULL"
-
-            cursor.execute(query)
-
-            if not (data := cursor.fetchall()):
-                return
-
-            dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
-
-            for dcUserDb in dcUsersDb:
-                # if a member gets returned, we know that he / she was served already
-                if str(dcUserDb['user_id']) in onlineMembers:
+                if not (dcUserDb := self.database.queryOneResult(query, (member.id,))):
                     continue
 
-                dcUserDb['last_online'] = datetime.now()
-                dcUserDb['channel_id'] = None
-                dcUserDb['joined_at'] = None
-                dcUserDb['started_stream_at'] = None
-                dcUserDb['started_webcam_at'] = None
-                dcUserDb['muted_at'] = None
-                dcUserDb['full_muted_at'] = None
+                voiceState = channel.voice_states[member.id]
 
-                saveQuery, nones = WriteSaveQuery.writeSaveQuery(
+                # can change, has no side effect
+                dcUserDb['channel_id'] = channel.id
+                dcUserDb['username'] = member.nick if member.nick else member.name
+
+                if not dcUserDb['joined_at']:
+                    dcUserDb['joined_at'] = datetime.now()
+
+                if voiceState.self_stream and not dcUserDb['started_stream_at']:
+                    dcUserDb['started_stream_at'] = datetime.now()
+                elif not voiceState.self_stream and dcUserDb['started_stream_at']:
+                    dcUserDb['started_stream_at'] = None
+
+                if voiceState.self_video and not dcUserDb['started_webcam_at']:
+                    dcUserDb['started_webcam_at'] = datetime.now()
+                elif not voiceState.self_video and dcUserDb['started_webcam_at']:
+                    dcUserDb['started_webcam_at'] = None
+
+                if (voiceState.self_mute or voiceState.mute) and not dcUserDb['muted_at']:
+                    dcUserDb['muted_at'] = datetime.now()
+                elif not voiceState.self_mute and dcUserDb['muted_at']:
+                    dcUserDb['muted_at'] = None
+
+                if (voiceState.self_deaf or voiceState.deaf) and not dcUserDb['full_muted_at']:
+                    dcUserDb['full_muted_at'] = datetime.now()
+                elif not voiceState.self_deaf and dcUserDb['full_muted_at']:
+                    dcUserDb['full_muted_at'] = None
+
+                saveQuery, nones = writeSaveQuery(
                     'discord',
                     dcUserDb['id'],
                     dcUserDb,
                 )
 
-                cursor.execute(saveQuery, nones)
+                if not self.database.saveChangesToDatabase(saveQuery, nones):
+                    logger.critical("couldn't save changes to database")
 
-            self.databaseConnection.commit()
+        # only look for still online members c.f. doc
+        query = "SELECT * FROM discord WHERE channel_id IS NOT NULL"
+
+        dcUsersDb = self.database.queryAllResults(query)
+
+        if not dcUsersDb:
+            return
+
+        for dcUserDb in dcUsersDb:
+            # if a member gets returned, we know that he / she was served already
+            if str(dcUserDb['user_id']) in onlineMembers:
+                continue
+
+            dcUserDb['last_online'] = datetime.now()
+            dcUserDb['channel_id'] = None
+            dcUserDb['joined_at'] = None
+            dcUserDb['started_stream_at'] = None
+            dcUserDb['started_webcam_at'] = None
+            dcUserDb['muted_at'] = None
+            dcUserDb['full_muted_at'] = None
+
+            saveQuery, nones = writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb,
+            )
+
+            if not self.database.saveChangesToDatabase(saveQuery, nones):
+                logger.critical("couldn't save changes to database")
 
     async def updateAllMembers(self):
         """
@@ -237,35 +221,29 @@ class DatabaseRefreshService:
 
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord"
+        query = "SELECT * FROM discord"
 
-            cursor.execute(query)
+        dcUsersDb = self.database.queryAllResults(query)
 
-            if not (data := cursor.fetchall()):
-                logger.warning("Couldn't fetch members from database!")
-                
-                return
+        if not dcUsersDb:
+            return
 
-            dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
-            logger.debug("Fetched %s members from database" % len(dcUsersDb))
+        logger.debug("fetched %s members from database" % len(dcUsersDb))
 
-            for dcUserDb in dcUsersDb:
-                member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+        for dcUserDb in dcUsersDb:
+            member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
 
-                if not member:
-                    continue
+            if not member:
+                continue
 
-                dcUserDb['username'] = member.nick if member.nick else member.name
-                dcUserDb['profile_picture_discord'] = member.display_avatar
+            dcUserDb['username'] = member.nick if member.nick else member.name
+            dcUserDb['profile_picture_discord'] = member.display_avatar
 
-                query, nones = WriteSaveQuery.writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
+            query, nones = WriteSaveQuery.writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
-                cursor.execute(query, nones)
-                logger.debug("Updated %s" % dcUserDb['username'])
+            if self.database.saveChangesToDatabase(query, nones):
+                logger.debug("updated %s" % dcUserDb['username'])
+            else:
+                logger.critical("couldn't save changes to database")
 
-            self.databaseConnection.commit()
-            logger.debug("Uploaded changes to database")
-
-    def __del__(self):
-        self.databaseConnection.close()
+        logger.debug("Uploaded changes to database")

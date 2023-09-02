@@ -79,7 +79,10 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
-        await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
+        try:
+            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
+        except ConnectionError as error:
+            logger.error("failure to start ProcessUserInput", exc_info=error)
 
         try:
             await ctx.followup.send(answer)
@@ -107,49 +110,141 @@ class CommandService:
                     answer = "Dieser Dienst wird aktuell nicht unterstüzt."
 
                 case Commands.JOKE:
-                    answer = await ProcessUserInput(self.client).answerJoke(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.answerJoke(**kwargs)
 
                 case Commands.MOVE:
-                    answer = await ProcessUserInput(self.client).moveUsers(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.moveUsers(**kwargs)
 
                 case Commands.QUOTE:
-                    answer = QuotesManager(self.client).answerQuote(**kwargs)
+                    try:
+                        qm = QuotesManager(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start QuotesManager", exc_info=error)
+                    else:
+                        answer = qm.answerQuote(**kwargs)
 
                 case Commands.TIME:
-                    answer = await ProcessUserInput(self.client).accessTimeAndEdit(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.accessTimeAndEdit(**kwargs)
 
                 case Commands.COUNTER:
-                    answer = await ProcessUserInput(self.client).accessNameCounterAndEdit(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.accessNameCounterAndEdit(**kwargs)
 
                 case Commands.WHATSAPP:
-                    answer = await ProcessUserInput(self.client).manageWhatsAppSettings(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
-                    answer = await ProcessUserInput(self.client).sendLeaderboard(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.sendLeaderboard(**kwargs)
 
                 case Commands.REGISTRATION:
-                    answer = await ProcessUserInput(self.client).sendRegistrationLink(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.sendRegistrationLink(**kwargs)
 
                 case Commands.XP_SPIN:
-                    answer = await ExperienceService(self.client).spinForXpBoost(**kwargs)
+                    try:
+                        answer = await ExperienceService(self.client).spinForXpBoost(**kwargs)
+                    except ConnectionError as error:
+                        logger.error("failure to start ExperienceService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
 
                 case Commands.XP_INVENTORY:
-                    answer = await ExperienceService(self.client).handleXpInventory(**kwargs)
+                    try:
+                        answer = await ExperienceService(self.client).handleXpInventory(**kwargs)
+                    except ConnectionError as error:
+                        logger.error("failure to start ExperienceService", exc_info=error)
 
+                        answer = "Es ist ein Fehler aufgetreten."
                 case Commands.XP:
-                    answer = await ExperienceService(self.client).handleXpRequest(**kwargs)
+                    try:
+                        answer = await ExperienceService(self.client).handleXpRequest(**kwargs)
+                    except ConnectionError as error:
+                        logger.error("failure to start ExperienceService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
 
                 case Commands.XP_LEADERBOARD:
-                    answer = ExperienceService(self.client).sendXpLeaderboard(**kwargs)
+                    try:
+                        answer = ExperienceService(self.client).sendXpLeaderboard(**kwargs)
+                    except ConnectionError as error:
+                        logger.error("failure to start ExperienceService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
 
                 case Commands.NOTIFICATIONS_BACK:
-                    answer = ProcessUserInput(self.client).changeWelcomeBackNotificationSetting(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = pui.changeWelcomeBackNotificationSetting(**kwargs)
 
                 case Commands.NOTIFICATIONS_XP:
-                    answer = ExperienceService(self.client).handleXpNotification(**kwargs)
+                    try:
+                        answer = ExperienceService(self.client).handleXpNotification(**kwargs)
+                    except ConnectionError as error:
+                        logger.error("failure to start ExperienceService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
 
                 case Commands.FELIX_TIMER:
-                    answer = await ProcessUserInput(self.client).handleFelixTimer(**kwargs)
+                    try:
+                        pui = ProcessUserInput(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ProcessUserInput", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = await pui.handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
                     answer = WhatsAppHelper().addOrEditSuspendDay(**kwargs)

@@ -51,6 +51,7 @@ class ApiServices:
 
         if answerWeather.status_code != 200 or answerAir.status_code != 200:
             logger.warning("API sent an invalid response!: " + answerWeather.content.decode('utf-8'))
+
             return "Es gab ein Problem! Vielleicht lag deine Stadt / dein Ort nicht in Deutschland? Wenn" \
                    " das Problem weiterhin auftreten sollte liegt es wohl nicht an dir."
 
@@ -98,6 +99,7 @@ class ApiServices:
 
         if answer.status_code != 200:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
+
             return "Es gab ein Problem! Existieren deine Währungscodes überhaupt? Wenn ja, dann liegt " \
                    "es nicht an dir."
 
@@ -105,6 +107,7 @@ class ApiServices:
 
         data = answer.content.decode('utf-8')
         data = json.loads(data)
+
         return "%s %s sind %s %s." % (
             data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
 
@@ -134,6 +137,7 @@ class ApiServices:
 
         if answer.status_code != 200:
             logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
+
             return "Es ist ein Problem aufgetreten!"
 
         logger.debug("retrieved data successfully")

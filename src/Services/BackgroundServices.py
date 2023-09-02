@@ -1,13 +1,12 @@
 import logging
 import traceback
-from datetime import datetime
 
 import discord
 from discord.ext import tasks, commands
 
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Services import DatabaseRefreshService
-from src.Services.EmailService import send_exception_mail
+from src.Helper.EmailService import send_exception_mail
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService

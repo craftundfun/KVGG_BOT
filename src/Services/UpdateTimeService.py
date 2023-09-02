@@ -12,7 +12,7 @@ from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
-from src.Services.EmailService import send_exception_mail
+from src.Helper.EmailService import send_exception_mail
 from src.DiscordParameters.MuteParameter import MuteParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Services.ExperienceService import ExperienceService
@@ -31,6 +31,7 @@ class UpdateTimeService:
         self.allowedChannels: set = self.uniChannels | self.whatsappChannels
 
         self.experienceService = ExperienceService(self.client)
+        # TODO ^^
         self.achievementService = AchievementService(self.client)
 
         try:
