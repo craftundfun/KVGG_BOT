@@ -158,10 +158,3 @@ class Database:
 
     def __del__(self):
         self.connection.close()
-
-        try:
-            database = Database()
-        except ConnectionError as error:
-            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-            return

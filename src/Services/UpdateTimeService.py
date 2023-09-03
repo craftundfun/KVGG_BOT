@@ -1,19 +1,16 @@
 import logging
-import traceback
 from datetime import datetime
 
 from discord import Client, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
-from src.Helper.EmailService import send_exception_mail
 from src.DiscordParameters.MuteParameter import MuteParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Services.ExperienceService import ExperienceService
@@ -107,7 +104,7 @@ class UpdateTimeService:
                 channelType = "gaming"
 
             for member in channel.members:
-                if not (dcUserDb := getDiscordUser(self.databaseConnection, member)):
+                if not (dcUserDb := getDiscordUser(member)):
                     logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id))
 
                     continue

@@ -5,7 +5,7 @@ from enum import Enum
 
 from discord import ChannelType, Member, VoiceState, Client
 
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking

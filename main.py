@@ -21,7 +21,8 @@ from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
-from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService
+from src.Services import ProcessUserInput, QuotesManager
+from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 from src.Services.QuotesManager import QuotesManager
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.CommandService import CommandService, Commands
@@ -145,7 +146,7 @@ class MyClient(discord.Client):
             logger.critical("Removed commands from tree. You can end the bot now!")
         else:
             try:
-                logger.debug("Trying to sync commands to guild")
+                logger.debug("trying to sync commands to guild")
                 await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
             except Exception as e:
                 logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
@@ -244,9 +245,12 @@ class MyClient(discord.Client):
         """
         logger.debug("received voicestate update")
 
-        vsus = VoiceStateUpdateService.VoiceStateUpdateService(self)
-
-        await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        try:
+            vsus = VoiceStateUpdateService(self)
+        except ConnectionError as error:
+            logger.error("failure to start VoiceStateUpdateService", exc_info=error)
+        else:
+            await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
 # reads the token

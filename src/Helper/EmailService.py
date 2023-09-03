@@ -14,6 +14,7 @@ logger = logging.getLogger("KVGG_BOT")
 def send_exception_mail(message: string):
     # check if we are in docker -> if yes send email
     SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+
     if not SECRET_KEY:
         return
 

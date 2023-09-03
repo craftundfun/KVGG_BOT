@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from discord import Client, Member
 
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
@@ -64,7 +64,7 @@ class FelixCounter(Counter):
             return
 
         query = "SELECT * FROM discord WHERE felix_counter_start IS NOT NULL"
-        dcUsersDb = database.queryAllResults(query, (None,))
+        dcUsersDb = database.queryAllResults(query)
 
         if not dcUsersDb:
             logger.debug("no felix-counter to increase")

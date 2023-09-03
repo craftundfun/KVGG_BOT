@@ -6,7 +6,7 @@ import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery

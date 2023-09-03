@@ -6,8 +6,7 @@ from datetime import datetime
 import discord
 from discord import Member, VoiceState
 
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -33,7 +32,6 @@ class VoiceStateUpdateService:
         self.waHelper = WhatsAppHelper()
         self.notificationService = NotificationService(self.client)
         self.felixCounter = FelixCounter()
-
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -159,17 +157,13 @@ class VoiceStateUpdateService:
         :param dcUserDb: DiscordUser to save
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+        query, nones = writeSaveQuery(
+            'discord',
+            dcUserDb['id'],
+            dcUserDb
+        )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
-
-        logger.debug("updated %s" % dcUserDb['username'])
-
-    def __del__(self):
-        self.databaseConnection.close()
+        if not self.database.saveChangesToDatabase(query, nones):
+            logger.critical("couldnt save DiscordUser to database")
+        else:
+            logger.debug("updated %s" % dcUserDb['username'])

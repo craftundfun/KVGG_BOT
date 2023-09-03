@@ -2,9 +2,8 @@ import logging
 
 from discord import Client, Member
 
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Id.ChannelId import ChannelId
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Id.ChannelId import ChannelId
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -14,7 +13,6 @@ class AchievementService:
     def __init__(self, client: Client):
         self.client = client
         self.channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
-        self.databaseConnection = getDatabaseConnection()
 
     async def sendAchievement(self, member: Member, kind: AchievementParameter, value: int):
         """

@@ -14,7 +14,7 @@ from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
@@ -1065,11 +1065,15 @@ class ProcessUserInput:
                 else:
                     username = member.name
 
-                answer = "Der %s-Timer von %s wurde beendet!" % (counter.getNameOfCounter(), user.name)
+                answer = ("Der %s-Timer von %s wurde beendet!"
+                          % (counter.getNameOfCounter(), getTagStringFromId(str(user.id))))
 
                 self.__saveDiscordUserToDatabase(dcUserDb)
 
-                await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+                try:
+                    await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+                except Exception as error:
+                    logger.error("couldnt send DM to %s" % dcUserDb['username'], exc_info=error)
 
                 logger.debug("sent dm to %s" % user.name)
 

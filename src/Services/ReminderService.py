@@ -4,8 +4,7 @@ from datetime import datetime, timedelta
 import discord
 from discord import Member
 
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery

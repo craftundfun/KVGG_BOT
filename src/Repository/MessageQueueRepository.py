@@ -3,9 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from mysql.connector import MySQLConnection
-
-from src.Helper.Database import Database
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 

@@ -6,7 +6,7 @@ from datetime import datetime
 from discord import Client, ChannelType
 
 from src.Helper import WriteSaveQuery
-from src.Helper.Database import Database
+from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -30,7 +30,7 @@ class DatabaseRefreshService:
 
         :return:
         """
-        logger.debug("Beginning fetching data")
+        logger.debug("beginning fetching data")
 
         query = "SELECT * FROM discord"
         dcUsersDb = self.database.queryAllResults(query)

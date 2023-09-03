@@ -4,9 +4,8 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any
 from discord import Message, Member, User
-from mysql.connector import MySQLConnection
 
-from src.Helper.Database import Database
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -42,8 +41,6 @@ def getDiscordUser(member: Member) -> dict | None:
     :param member: Member to retrieve all data from
     :return: None | Dict[Any, Any] DiscordUser
     """
-    logger.debug("trying to get DiscordUser from database")
-
     try:
         database = Database()
     except ConnectionError as error:
