@@ -10,6 +10,7 @@ RUN pip install httpx
 
 
 COPY main.py .
+COPY data ./data
 COPY src ./src
 COPY parameters.yaml .
 
