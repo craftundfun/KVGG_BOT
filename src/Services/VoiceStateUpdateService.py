@@ -34,6 +34,7 @@ class VoiceStateUpdateService:
         self.notificationService = NotificationService(self.client)
         self.felixCounter = FelixCounter()
 
+
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
 
