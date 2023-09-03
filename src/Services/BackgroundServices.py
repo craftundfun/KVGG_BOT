@@ -37,6 +37,8 @@ class BackgroundServices(commands.Cog):
             uts = UpdateTimeService(self.client)
 
             await uts.updateTimesAndExperience()
+        except ConnectionError as error:
+            logger.error("failure to start UpdateTimeService", exc_info=error)
         except Exception as e:
             logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 
@@ -48,6 +50,10 @@ class BackgroundServices(commands.Cog):
             rs = ReminderService(self.client)
 
             await rs.manageReminders()
+        except ConnectionError as error:
+            logger.error("failure to start ReminderService", exc_info=error)
+
+            send_exception_mail(traceback.format_exc())
         except Exception as e:
             logger.critical("encountered exception while executing reminderService", exc_info=e)
 
@@ -59,6 +65,10 @@ class BackgroundServices(commands.Cog):
             rs = RelationService(self.client)
 
             await rs.increaseAllRelation()
+        except ConnectionError as error:
+            logger.error("failure to start RelationService", exc_info=error)
+
+            send_exception_mail(traceback.format_exc())
         except Exception as e:
             logger.critical("encountered exception while executing relationService", exc_info=e)
 

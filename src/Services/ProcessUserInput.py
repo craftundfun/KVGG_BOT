@@ -595,31 +595,37 @@ class ProcessUserInput:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
-        rs = RelationService(self.client)
+        try:
+            rs = RelationService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start RelationService", exc_info=error)
 
-        if type == "relations":
-            logger.debug("leaderboard for relations")
+            if type == "relations":
+                return "Es gab ein Problem."
+        else:
+            if type == "relations":
+                logger.debug("leaderboard for relations")
 
-            answer = "----------------------------\n"
-            answer += "__**Leaderboard - Relationen**__\n"
-            answer += "----------------------------\n\n"
+                answer = "----------------------------\n"
+                answer += "__**Leaderboard - Relationen**__\n"
+                answer += "----------------------------\n\n"
 
-            if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                answer += "- __Online-Pärchen__:\n"
-                answer += online
-                answer += "\n"
+                if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
+                    answer += "- __Online-Pärchen__:\n"
+                    answer += online
+                    answer += "\n"
 
-            if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                answer += "- __Stream-Pärchen__:\n"
-                answer += stream
-                answer += "\n"
+                if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
+                    answer += "- __Stream-Pärchen__:\n"
+                    answer += stream
+                    answer += "\n"
 
-            if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                answer += "- __Lern-Pärchen__:\n"
-                answer += university
-                answer += "\n"
+                if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
+                    answer += "- __Lern-Pärchen__:\n"
+                    answer += university
+                    answer += "\n"
 
-            return answer
+                return answer
 
         # online time
         query = "SELECT username, formated_time " \

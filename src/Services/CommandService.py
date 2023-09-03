@@ -273,13 +273,34 @@ class CommandService:
                         return
 
                 case Commands.CREATE_REMINDER:
-                    answer = ReminderService(self.client).createReminder(**kwargs)
+                    try:
+                        rs = ReminderService(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ReminderService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = rs.createReminder(**kwargs)
 
                 case Commands.LIST_REMINDERS:
-                    answer = ReminderService(self.client).listReminders(**kwargs)
+                    try:
+                        rs = ReminderService(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ReminderService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = rs.listReminders(**kwargs)
 
                 case Commands.DELETE_REMINDER:
-                    answer = ReminderService(self.client).deleteReminder(**kwargs)
+                    try:
+                        rs = ReminderService(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ReminderService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = rs.deleteReminder(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

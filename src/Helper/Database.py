@@ -135,6 +135,7 @@ class Database:
         """
         Runs query without fetching, for example delete queries.
 
+        :param parameters:
         :param query:
         :return:
         """
