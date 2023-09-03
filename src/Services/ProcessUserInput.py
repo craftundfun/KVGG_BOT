@@ -16,19 +16,17 @@ from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
-from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.ChatCommand import ChatCommand
-from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
-from src.Repository.DiscordUserRepository import getDiscordUser, getOnlineUsers, getDiscordUserById
-from src.Services import ExperienceService, QuotesManager, LogHelper
+from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
+from src.Services import QuotesManager
+from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
 
 logger = logging.getLogger("KVGG_BOT")
@@ -62,7 +60,7 @@ def getUserIdByTag(tag: string) -> int | None:
         return None
 
 
-def getTagStringFromId(tag: string) -> string:
+def getTagStringFromId(tag: str) -> str:
     """
     Builds a tag from the given user id 123 => <@123>
 
@@ -124,7 +122,7 @@ class ProcessUserInput:
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
     @DeprecationWarning
-    def processMessage(self, message: Message):
+    async def processMessage(self, message: Message):
         """
         Increases the message count and adds XP
 
@@ -159,11 +157,11 @@ class ProcessUserInput:
                 dcUserDb['message_count_all_time'] = 1
 
         es = ExperienceService.ExperienceService(self.client)
-        es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
+        # await es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
 
         self.__saveDiscordUserToDatabase(dcUserDb)
 
-    def raiseMessageCounter(self, member: Member, channel):
+    async def raiseMessageCounter(self, member: Member, channel):
         """
         Increases the message count if the given user if he / she used an interaction
 
@@ -188,8 +186,8 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
-            xp = ExperienceService.ExperienceService(self.client)
-            xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
+            xp = ExperienceService(self.client)
+            await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
         logger.debug("saved changes to database")
         self.__saveDiscordUserToDatabase(dcUserDb)

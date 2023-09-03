@@ -10,7 +10,7 @@ from src.Helper import ReadParameters as rp
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getDatabaseConnection() -> MySQLConnection | None:
+def getDatabaseConnection() -> MySQLConnection:
     """
     :return: New database connection
     :raise: TypeError if connection could not be established
@@ -26,7 +26,7 @@ def getDatabaseConnection() -> MySQLConnection | None:
         )
     except Exception as e:
         logger.critical("DatabaseConnection couldn't be established!", exc_info=e)
-        raise TypeError
+        raise TypeError("DatabaseConnection couldn't be established!")
 
     if databaseConnection is None:
         logger.critical("DatabaseConnection couldn't be established!")

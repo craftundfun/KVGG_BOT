@@ -79,7 +79,7 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
-        ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
+        await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
 
         try:
             await ctx.followup.send(answer)

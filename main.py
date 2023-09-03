@@ -15,15 +15,15 @@ from discord.app_commands import Choice, commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
-from src.Helper.CustomFormatter import CustomFormatter
-from src.Helper.CustomFormatterFile import CustomFormatterFile
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
+from src.Logger.CustomFormatter import CustomFormatter
+from src.Logger.CustomFormatterFile import CustomFormatterFile
+from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
 from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
 from src.Services.CommandService import CommandService, Commands
 from src.Services.EmailService import send_exception_mail
-from src.Services.ProcessUserInput import hasUserWantedRoles
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -34,6 +34,9 @@ logger = logging.getLogger("KVGG_BOT")
 # creates up to 5 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setFormatter(CustomFormatterFile())
+
+clientHandler = FileAndConsoleHandler(fileHandler)
+clientHandler.setFormatter(CustomFormatterFile())
 
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(CustomFormatter())
@@ -152,7 +155,7 @@ class MyClient(discord.Client):
                 )
             else:
                 await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name=", dass alles läuft")
+                    activity=discord.Activity(type=discord.ActivityType.watching, name="ob alles läuft")
                 )
         except Exception as e:
             logger.warning("Activity couldn't be set!", exc_info=e)
@@ -178,7 +181,7 @@ class MyClient(discord.Client):
         if not message.author.bot and not message.content == "":
             pui = ProcessUserInput.ProcessUserInput(self)
 
-            pui.raiseMessageCounter(message.author, message.channel)
+            await pui.raiseMessageCounter(message.author, message.channel)
 
             qm = QuotesManager.QuotesManager(self)
 
@@ -608,59 +611,6 @@ async def handleFelixTimer(interaction: discord.Interaction, user: Member, actio
                                             time=zeit)
 
 
-"""OVERWRITE COGS"""
-
-
-@tree.command(name="disable_cogs",
-              description="Stellt die Achievement-Loops aus",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def shutdownCogs(interaction: discord.Interaction):
-    """
-    Disable the background services of the bot
-
-    :param interaction: Interaction by discord
-    :return:
-    """
-    logger.warning("received command disable_cogs by %d" % (interaction.user.id))
-
-    member = interaction.user
-
-    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
-
-    if backgroundServices:
-        backgroundServices.cog_unload()
-        logger.warning("Cogs were ended!")
-        await interaction.response.send_message("Alle Cogs wurden beendet!")
-    else:
-        await interaction.response.send_message("Es gab keine Loops zum beenden!")
-
-
-@tree.command(name="enable_cogs",
-              description="Stellt die Achievement-Loops an",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def startCogs(interaction: discord.Interaction):
-    """
-    Starts the background services of the bot
-
-    :param interaction: Interaction by discordf
-    :return:
-    """
-    logger.warning("received command enable_cogs, by %d" % (interaction.user.id))
-
-    member = interaction.user
-
-    if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-        await interaction.response.send_message("Du hast dazu keine Berechtigung!")
-
-    if backgroundServices:
-        await backgroundServices.cog_load()
-        logger.warning("Cogs were started!")
-        await interaction.response.send_message("Alle Cogs wurden gestartet!")
-    else:
-        await interaction.response.send_message("Es gab keine Loops zum starten!")
-
-
 """WHATSAPP SUSPEND SETTING"""
 
 
@@ -880,7 +830,7 @@ def run():
     global restartTrys
 
     try:
-        client.run(token=token, reconnect=True)
+        client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
     except Exception as e:
         logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
 

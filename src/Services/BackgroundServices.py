@@ -1,18 +1,16 @@
 import logging
-import os
+import traceback
 from datetime import datetime
 
 import discord
 from discord.ext import tasks, commands
 
-from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Id.ChannelId import ChannelId
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Services import DatabaseRefreshService
-from src.Services.ProcessUserInput import getTagStringFromId
+from src.Services.EmailService import send_exception_mail
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
+from src.Services.UpdateTimeService import UpdateTimeService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -20,18 +18,6 @@ logger = logging.getLogger("KVGG_BOT")
 class BackgroundServices(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
-        self.onlineTimeAchievementMemberList = []
-        self.xpAchievementMemberList = []
-        self.streamTimeAchievementMemberList = []
-
-        self.onlineTimeAchievement.start()
-        logger.info("onlineTimeAchievement started")
-
-        self.streamTimeAchievement.start()
-        logger.info("streamTimeAchievement started")
-
-        self.xpAchievement.start()
-        logger.info("xpAchievement started")
 
         self.refreshDatabaseWithDiscord.start()
         logger.info("refreshDatabaseWithDiscord started")
@@ -39,204 +25,56 @@ class BackgroundServices(commands.Cog):
         self.refreshMembersInDatabase.start()
         logger.info("refreshMembersInDatabase started")
 
-        self.callReminder.start()
-        logger.info("callRemainder started")
+        self.minutely.start()
+        logger.info("minutely-job started")
 
-        self.increaseRelations.start()
-        logger.info("increaseRelations started")
-
-        if os.path.exists("Logs/startTimes.txt"):
-            os.remove("Logs/startTimes.txt")
-            logger.debug("removed file startTimes.txt")
-
-        self.trackCommandStartTimes.start()
-        logger.info("trackCommandStartTimes started")
-
-    def cog_unload(self) -> None:
-        """
-        Cancels all running tasks
-
-        :return:
-        """
-        logger.warning("cancelling cogs")
-
-        self.onlineTimeAchievement.cancel()
-        self.streamTimeAchievement.cancel()
-        self.xpAchievement.cancel()
-        self.refreshDatabaseWithDiscord.cancel()
-        self.refreshMembersInDatabase.cancel()
-        self.callReminder.cancel()
-        self.increaseRelations.cancel()
-
-    async def cog_load(self):
-        logger.info("starting cogs")
-
-        self.onlineTimeAchievement.start()
-        self.streamTimeAchievement.start()
-        self.xpAchievement.start()
-        self.refreshDatabaseWithDiscord.start()
-        self.refreshMembersInDatabase.start()
-        self.callReminder.start()
-        self.increaseRelations.start()
-
-    @tasks.loop(minutes=1)
-    async def trackCommandStartTimes(self):
-        with open("Logs/startTimes.txt", 'a') as file:
-            file.write(datetime.now().strftime("%H:%M:%S:%f") + "\n")
-
-    @tasks.loop(seconds=45)
-    async def onlineTimeAchievement(self):
-        logger.debug("Running onlineTimeAchievement")
+    @tasks.loop(seconds=60)
+    async def minutely(self):
+        logger.info("running minutely-job")
 
         try:
-            databaseConnection = getDatabaseConnection()
-        except TypeError:
-            logger.critical("Couldn't fetch database connection! Aborting task.")
+            logger.debug("running updateTimesAndExperience")
 
-            return
+            uts = UpdateTimeService(self.client)
 
-        with databaseConnection.cursor() as cursor:
-            query = "SELECT * " \
-                    "FROM discord " \
-                    "WHERE channel_id IS NOT NULL and time_online IS NOT NULL and MOD(time_online, %s) = 0"
+            await uts.updateTimesAndExperience()
+        except Exception as e:
+            logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 
-            cursor.execute(query, (AchievementParameter.ONLINE_TIME_HOURS.value * 60,))
-
-            data = cursor.fetchall()
-
-            if not data:
-                return
-
-            users = [dict(zip(cursor.column_names, date)) for date in data]
-
-        channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
-
-        if not channel:
-            logger.error("Achievement-Channel not found!")
-
-            return
-
-        tempList = []
-
-        for user in users:
-            # if member received achievement before
-            if user['user_id'] in self.onlineTimeAchievementMemberList:
-                continue
-
-            if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
-                continue
-
-            tag = getTagStringFromId(user['user_id'])
-            hours = int(user['time_online'] / 60)
-
-            await channel.send(str(tag) + ", du bist nun schon " + str(hours) + " Stunden online gewesen. Weiter so "
-                                                                                ":cookie:")
-            tempList.append(user['user_id'])
-
-        self.onlineTimeAchievementMemberList = tempList
-
-    @tasks.loop(seconds=45)
-    async def streamTimeAchievement(self):
-        logger.debug("running streamTimeAchievement")
+            send_exception_mail(traceback.format_exc())
 
         try:
-            databaseConnection = getDatabaseConnection()
-        except TypeError:
-            logger.critical("Couldn't fetch database connection! Aborting task.")
+            logger.debug("running callReminder")
 
-            return
+            rs = ReminderService(self.client)
 
-        with databaseConnection.cursor() as cursor:
-            query = "SELECT * " \
-                    "FROM discord " \
-                    "WHERE channel_id IS NOT NULL and time_streamed > 0 and MOD(time_streamed, %s) = 0"
+            await rs.manageReminders()
+        except Exception as e:
+            logger.critical("encountered exception while executing reminderService", exc_info=e)
 
-            cursor.execute(query, (AchievementParameter.STREAM_TIME_HOURS.value * 60,))
-
-            data = cursor.fetchall()
-
-            if not data:
-                return
-
-            users = [dict(zip(cursor.column_names, date)) for date in data]
-
-        channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
-
-        if not channel:
-            logger.critical("Achievement-Channel not found!")
-
-            return
-
-        tempList = []
-
-        for user in users:
-            # if member received achievement before
-            if user['user_id'] in self.streamTimeAchievementMemberList:
-                continue
-
-            if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
-                continue
-
-            tag = getTagStringFromId(user['user_id'])
-            hours = int(user['time_streamed'] / 60)
-
-            await channel.send(str(tag) + ", du hast nun schon " + str(hours) + " Stunden gestreamt. Weiter so "
-                                                                                ":cookie:")
-            tempList.append(user['user_id'])
-
-        self.streamTimeAchievementMemberList = tempList
-
-    @tasks.loop(seconds=45)
-    async def xpAchievement(self):
-        logger.debug("running xpAchievement")
+            send_exception_mail(traceback.format_exc())
 
         try:
-            databaseConnection = getDatabaseConnection()
-        except TypeError:
-            logger.critical("Couldn't fetch database connection! Aborting task.")
+            logger.debug("running increaseRelations")
 
-            return
+            rs = RelationService(self.client)
 
-        with databaseConnection.cursor() as cursor:
-            query = "SELECT e.xp_amount, d.user_id, d.channel_id " \
-                    "FROM experience e " \
-                    "INNER JOIN discord d on e.discord_user_id = d.id " \
-                    "WHERE d.channel_id IS NOT NULL and e.xp_amount > 0 and MOD(e.xp_amount, %s) = 0"
+            await rs.increaseAllRelation()
+        except Exception as e:
+            logger.critical("encountered exception while executing relationService", exc_info=e)
 
-            cursor.execute(query, (AchievementParameter.XP_AMOUNT.value,))
+            send_exception_mail(traceback.format_exc())
 
-            data = cursor.fetchall()
+        try:
+            logger.debug("running updateFelixCounter")
 
-            if not data:
-                return
+            fc = FelixCounter()
 
-            users = [dict(zip(cursor.column_names, date)) for date in data]
+            await fc.updateFelixCounter(self.client)
+        except Exception as e:
+            logger.critical("encountered exception while executing updateFelixCounter", exc_info=e)
 
-        channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
-
-        if not channel:
-            logger.critical("Achievement-Channel not found!")
-
-            return
-
-        tempList = []
-
-        for user in users:
-            # if member received achievement before
-            if user['user_id'] in self.xpAchievementMemberList:
-                continue
-
-            if str(user['channel_id']) not in ChannelIdWhatsAppAndTracking.getValues():
-                continue
-
-            tag = getTagStringFromId(user['user_id'])
-            xp = user['xp_amount']
-
-            await channel.send(str(tag) + ", du hast bereits " + str(xp) + " XP gefarmt. Weiter so "
-                                                                           ":cookie:")
-            self.xpAchievementMemberList.append(user['user_id'])
-
-        self.xpAchievementMemberList = tempList
+            send_exception_mail(traceback.format_exc())
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
@@ -253,19 +91,3 @@ class BackgroundServices(commands.Cog):
         dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
 
         await dbr.updateAllMembers()
-
-    @tasks.loop(seconds=45)
-    async def callReminder(self):
-        logger.debug("running callReminder")
-
-        rs = ReminderService(self.client)
-
-        await rs.manageReminders()
-
-    @tasks.loop(minutes=1)
-    async def increaseRelations(self):
-        logger.debug("running increaseRelations")
-
-        rs = RelationService(self.client)
-
-        await rs.increaseAllRelation()

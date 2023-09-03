@@ -5,17 +5,17 @@ import logging
 import math
 import random
 import string
-import discord
+from datetime import datetime, timedelta
 
 from discord import Client, Member
-from datetime import datetime, timedelta
+
+from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import WriteSaveQuery
 from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
-from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
-from src.Helper.SendDM import sendDM
+from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
+from src.Services.AchievementService import AchievementService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -30,68 +30,46 @@ def isDoubleWeekend(date: datetime) -> bool:
     return date.isocalendar()[1] % 2 == 0 and (date.weekday() == 5 or date.weekday() == 6)
 
 
-def getDiffUntilNextDoubleXpWeekend() -> timedelta:
-    """
-    Gets the time until the next double-xp-weekend
-
-    :return: Timedelta of duration
-    """
-    now = datetime.now()  # get current time
-    weekday = now.weekday()  # get current weekday
-    daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
-    nextSaturday = now + timedelta(days=daysUntilSaturday)  # get date of next saturday
-    nextSaturday = nextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)  # set to midnight
-
-    if isDoubleWeekend(nextSaturday):
-        return nextSaturday - now
-    else:
-        nextNextSaturday = now + timedelta(days=daysUntilSaturday + 7)  # get next weeks saturday
-        nextNextSaturday = nextNextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)
-
-        return nextNextSaturday - now
-
-
-def getDoubleXpWeekendInformation() -> string:
-    """
-    Returns a string with information about this or the upcoming double-xp-weekend
-
-    :return:
-    """
-    if isDoubleWeekend(datetime.now()):
-        return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
-    else:
-        diff: timedelta = getDiffUntilNextDoubleXpWeekend()
-
-        return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
-            (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
-
-
-async def informAboutDoubleXpWeekend(dcUserDb: dict, client: discord.Client):
-    """
-    Sends a DM to the given user to inform him about the currently active double-xp-weekend
-
-    :param dcUserDb: DiscordUser, who will be informed
-    :param client: Bot
-    :return:
-    """
-    if not dcUserDb['double_xp_notification'] or not isDoubleWeekend(datetime.now()):
-        return
-
-    await client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(int(dcUserDb['user_id']))
-    member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
-
-    await sendDM(member, "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
-                         "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                         "auf dem Server mit '/notifications' de- bzw. aktivieren!")
-
-    logger.debug("sent double xp notification")
-
-
 class ExperienceService:
 
     def __init__(self, client: Client):
-        self.databaseConnection = getDatabaseConnection()
         self.client = client
+        self.databaseConnection = getDatabaseConnection()
+        self.achievementService = AchievementService(self.client)
+
+    def __getDoubleXpWeekendInformation(self) -> string:
+        """
+        Returns a string with information about this or the upcoming double-xp-weekend
+
+        :return:
+        """
+        if isDoubleWeekend(datetime.now()):
+            return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
+        else:
+            diff: timedelta = self.__getDiffUntilNextDoubleXpWeekend()
+
+            return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
+                (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
+
+    def __getDiffUntilNextDoubleXpWeekend(self) -> timedelta:
+        """
+        Gets the time until the next double-xp-weekend
+
+        :return: Timedelta of duration
+        """
+        now = datetime.now()  # get current time
+        weekday = now.weekday()  # get current weekday
+        daysUntilSaturday = (5 - weekday) % 7  # calculate days until saturday
+        nextSaturday = now + timedelta(days=daysUntilSaturday)  # get date of next saturday
+        nextSaturday = nextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)  # set to midnight
+
+        if isDoubleWeekend(nextSaturday):
+            return nextSaturday - now
+        else:
+            nextNextSaturday = now + timedelta(days=daysUntilSaturday + 7)  # get next weeks saturday
+            nextNextSaturday = nextNextSaturday.replace(hour=0, minute=0, second=0, microsecond=0)
+
+            return nextNextSaturday - now
 
     def __getExperience(self, userId: int) -> dict | None:
         """
@@ -115,20 +93,20 @@ class ExperienceService:
                 logger.debug("found no experience for %s" % str(userId))
 
                 if not self.__createExperience(userId):
-                    logger.warning("couldn't fetch Experience!")
+                    logger.warning("couldn't fetch experience!")
 
                     return None
 
                 cursor.execute(query, (userId,))
 
                 if not (data := cursor.fetchone()):
-                    logger.warning("couldn't fetch Experience!")
+                    logger.warning("couldn't fetch experience!")
 
                     return None
 
-        logger.debug("fetched experience")
+            logger.debug("fetched experience")
 
-        return dict(zip(cursor.column_names, data))
+            return dict(zip(cursor.column_names, data))
 
     def __createExperience(self, userId: int) -> bool:
         """
@@ -169,7 +147,7 @@ class ExperienceService:
         logger.debug("calculating xp boosts from previous data")
 
         with self.databaseConnection.cursor() as cursor:
-            query = "SELECT time_online FROM discord WHERE user_id = %s"
+            query = "SELECT time_online, time_streamed FROM discord WHERE user_id = %s"
 
             cursor.execute(query, (dcUserDbId,))
 
@@ -178,19 +156,22 @@ class ExperienceService:
 
                 return None
 
-            timeOnline = dict(zip(cursor.column_names, data))['time_online']
+            times = dict(zip(cursor.column_names, data))
+            timeOnline = times['time_online']
+            timeStreamed = times['time_streamed']
 
         if not timeOnline:
             return None
 
         # get a floored number of grant-able boosts
-        numberAchievementBoosts = timeOnline / (ExperienceParameter.XP_BOOST_FOR_EVERY_X_HOURS.value * 60)
+        numberAchievementBoosts = timeOnline / (AchievementParameter.ONLINE_TIME_HOURS.value * 60)
         flooredNumberAchievementBoosts = math.floor(numberAchievementBoosts)
         intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
 
         if intNumberAchievementBoosts == 0:
             logger.debug("no boosts to grant")
 
+            # no time = no streams, so we don't have to check for that as well
             return None
 
         if intNumberAchievementBoosts > ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
@@ -200,14 +181,41 @@ class ExperienceService:
 
         for i in range(intNumberAchievementBoosts):
             boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ACHIEVEMENT.value,
-                'remaining': ExperienceParameter.XP_BOOST_ACHIEVEMENT_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_ACHIEVEMENT.value,
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
             }
 
             boosts.append(boost)
 
-        logger.debug("%d boosts granted" % intNumberAchievementBoosts)
+        # if the user never streamed or inventory is already full return it
+        if not timeStreamed or len(boosts) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            logger.debug("%d online boosts granted" % intNumberAchievementBoosts)
+
+            return json.dumps(boosts)
+
+        numberAchievementBoosts = timeStreamed / (AchievementParameter.STREAM_TIME_HOURS.value * 60)
+        flooredNumberAchievementBoosts = math.floor(numberAchievementBoosts)
+        intNumberAchievementBoosts = int(flooredNumberAchievementBoosts)
+
+        if intNumberAchievementBoosts == 0:
+            logger.debug("no boosts to grant")
+
+            return json.dumps(boosts)
+
+        if len(boosts) + intNumberAchievementBoosts >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            intNumberAchievementBoosts = ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value - len(boosts)
+
+        for i in range(intNumberAchievementBoosts):
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+            }
+
+            boosts.append(boost)
+
+        logger.debug("%d online and stream boosts granted" % intNumberAchievementBoosts)
 
         return json.dumps(boosts)
 
@@ -249,9 +257,66 @@ class ExperienceService:
 
         return amount
 
-    @DeprecationWarning
-    def checkAndGrantXpBoost(self):
-        pass  # only necessary for cronjob
+    def grantXpBoost(self, member: Member, kind: AchievementParameter):
+        """
+        Grants the member the specified xp-boost
+
+        :param member: Member who earned the boost
+        :param kind: Kind of boost
+        :return:
+        """
+        if type(kind.value) != str:
+            logger.critical("false argument given")
+
+            return
+
+        if not (xp := self.__getExperience(member.id)):
+            logger.debug("couldn't fetch xp for %s" % member.name)
+
+            return
+
+        if kind == AchievementParameter.ONLINE:
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
+            }
+        elif kind == AchievementParameter.STREAM:
+            boost = {
+                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+            }
+        else:
+            return
+
+        if xp['xp_boosts_inventory']:
+            inventory = json.loads(xp['xp_boosts_inventory'])
+
+            if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                logger.debug("cant grant boost, too many inactive xp boosts")
+
+                return
+        else:
+            inventory = []
+
+        inventory.append(boost)
+        xp['xp_boosts_inventory'] = json.dumps(inventory)
+
+        with self.databaseConnection.cursor() as cursor:
+            query, nones = writeSaveQuery(
+                'experience',
+                xp['id'],
+                xp,
+            )
+
+            try:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+            except Exception as error:
+                logger.error("couldn't save new xp boost to database for %s" % member.name, exc_info=error)
+
+        logger.debug("saved granted boost to database")
 
     @validateKeys
     async def spinForXpBoost(self, member: Member) -> string:
@@ -321,7 +386,7 @@ class ExperienceService:
             xp['last_spin_for_boost'] = datetime.now()
 
             with self.databaseConnection.cursor() as cursor:
-                query, nones = WriteSaveQuery.writeSaveQuery(
+                query, nones = writeSaveQuery(
                     'experience',
                     xp['id'],
                     xp,
@@ -342,7 +407,7 @@ class ExperienceService:
             xp['last_spin_for_boost'] = datetime.now()
 
             with self.databaseConnection.cursor() as cursor:
-                query, nones = WriteSaveQuery.writeSaveQuery(
+                query, nones = writeSaveQuery(
                     'experience',
                     xp['id'],
                     xp,
@@ -375,7 +440,7 @@ class ExperienceService:
         :return: string - answer
         """
         # lazy import to avoid circular import
-        from src.Services.ProcessUserInput import getTagStringFromId, getUserIdByTag
+        from src.Services.ProcessUserInput import getTagStringFromId
 
         logger.debug("%s requested XP" % member.name)
 
@@ -394,7 +459,7 @@ class ExperienceService:
             return "Es ist ein Fehler aufgetreten!"
 
         reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
-        reply += getDoubleXpWeekendInformation()
+        reply += self.__getDoubleXpWeekendInformation()
 
         logger.debug("replying xp amount")
 
@@ -421,7 +486,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 1
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -436,7 +501,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 0
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -627,7 +692,7 @@ class ExperienceService:
                     return "Deine Eingabe war unültig!"
 
         with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
                 xp,
@@ -640,70 +705,67 @@ class ExperienceService:
 
         return answer
 
-    def addExperience(self, experienceParameter: int, dcUserDb: dict = None, member: Member = None):
+    async def addExperience(self, experienceParameter: int, member: Member = None):
         """
         Adds the given amount of xp to the given user
 
         :param member: Optional Member if DiscordUser is not used
-        :param dcUserDb: DiscordUser, who receives the xp
         :param experienceParameter: Amount of xp
         :return:
         """
-        if dcUserDb:
-            logger.debug("%s gets XP" % dcUserDb['username'])
-        elif member:
-            logger.debug("%s gets XP" % member.name)
-        else:
-            logger.warning("Someone is getting XP, but nothing is given!")
+        logger.debug("%s gets XP" % member.name)
 
-        if not dcUserDb:
-            if member is None:
-                logger.warning("member and dcUserDb are None")
-
-                raise ValueError
-
-            if (dcUserDb := getDiscordUser(self.databaseConnection, member)) is None:
-                logger.warning("couldn't fetch DiscordUser!")
-
-                return
-
-        xp = self.__getExperience(dcUserDb['user_id'])
+        xp = self.__getExperience(member.id)
 
         if xp is None:
             logger.warning("couldn't fetch Experience")
 
             return
 
-        currentXpAmount = xp['xp_amount']
-        toBeAddedXpAmount = 0
+        xpAmountBefore = xp['xp_amount']
+        toBeAddedXpAmount = experienceParameter
 
         if xp['active_xp_boosts']:
             logger.debug("multiply xp with active boosts")
 
             for boost in json.loads(xp['active_xp_boosts']):
-                toBeAddedXpAmount += experienceParameter * boost['multiplier']
+                # don't add the base experience everytime
+                toBeAddedXpAmount += experienceParameter * boost['multiplier'] - experienceParameter
 
-        if toBeAddedXpAmount == 0:
+        if toBeAddedXpAmount == experienceParameter:
             if isDoubleWeekend(datetime.now()):
-                xp['xp_amount'] = currentXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+                xp['xp_amount'] = xpAmountBefore + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
             else:
-                xp['xp_amount'] = currentXpAmount + experienceParameter
+                xp['xp_amount'] = xpAmountBefore + experienceParameter
         else:
             if isDoubleWeekend(datetime.now()):
-                xp[
-                    'xp_amount'] = currentXpAmount + toBeAddedXpAmount + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value
+                xp['xp_amount'] = (xpAmountBefore + toBeAddedXpAmount
+                                   + experienceParameter * ExperienceParameter.XP_WEEKEND_VALUE.value)
             else:
-                xp['xp_amount'] = currentXpAmount + toBeAddedXpAmount
+                xp['xp_amount'] = xpAmountBefore + toBeAddedXpAmount
 
         with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
                 xp
             )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
+            try:
+                cursor.execute(query, nones)
+                self.databaseConnection.commit()
+            except Exception as error:
+                logger.error("couldn't save changes to database", exc_info=error)
+
+        # 99 mod 10 > 101 mod 10 -> achievement for 100
+        if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
+                > xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value):
+            print("xp: %d" % xp['xp_amount'])
+            print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
+
+            await self.achievementService.sendAchievement(member, AchievementParameter.XP,
+                                                          (xp['xp_amount']
+                                                           - (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
 
         logger.debug("saved changes to database")
 
@@ -738,6 +800,51 @@ class ExperienceService:
             reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
 
         return reply
+
+    def reduceXpBoostsTime(self, member: Member):
+        try:
+            with self.databaseConnection.cursor() as cursor:
+                query = "SELECT * " \
+                        "FROM experience " \
+                        "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
+                        "(SELECT id FROM discord WHERE user_id = %s)"
+
+                cursor.execute(query, (member.id,))
+
+                if not (data := cursor.fetchone()):
+                    logger.debug("no boosts to reduce")
+
+                    return
+
+                xp = dict(zip(cursor.column_names, data))
+
+                if not xp['active_xp_boosts']:
+                    logger.debug("no boosts to reduce")
+
+                    return
+
+                boosts = json.loads(xp['active_xp_boosts'])
+                editedBoosts = []
+
+                for boost in boosts:
+                    boost['remaining'] = boost['remaining'] - 1
+
+                    if boost['remaining'] > 0:
+                        editedBoosts.append(boost)
+
+                if len(editedBoosts) == 0:
+                    boosts = None
+                else:
+                    boosts = json.dumps(editedBoosts)
+
+                xp['active_xp_boosts'] = boosts
+                query, nones = writeSaveQuery('experience', xp['id'], xp)
+
+                cursor.execute(query, nones)
+
+                self.databaseConnection.commit()
+        except Exception as error:
+            logger.error("couldnt reduce xp boost time for %s" % member.name, exc_info=error)
 
     def __del__(self):
         self.databaseConnection.close()

@@ -32,3 +32,5 @@ def send_exception_mail(message: string):
                 server.send_message(email)
         except (Exception, smtplib.SMTPException) as e:
             logger.critical(f"Failed to send the mail to {exception_recipient}: {str(e)}")
+
+            continue

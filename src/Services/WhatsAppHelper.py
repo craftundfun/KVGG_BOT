@@ -103,13 +103,13 @@ class WhatsAppHelper:
 
                 continue
 
-            if triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues() and user[
-                'receive_join_notification']:
+            if (triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues()
+                    and user['receive_join_notification']):
                 logger.debug("message for gaming channels")
                 # works correctly
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
-            elif triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues() and user[
-                'receive_uni_join_notification']:
+            elif (triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues()
+                  and user['receive_uni_join_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
 
@@ -122,7 +122,7 @@ class WhatsAppHelper:
         :param member: Member that caused the notification
         :return:
         """
-        logger.debug("Creating Offline-Notification for %s" % member.name)
+        logger.debug("creating Offline-Notification for %s" % member.name)
 
         if lastOnline := dcUserDb['joined_at']:
             diff: timedelta = datetime.now() - lastOnline
