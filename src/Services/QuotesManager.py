@@ -5,11 +5,13 @@ import random
 import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
-from src.Helper import WriteSaveQuery
-from src.Id.GuildId import GuildId
-from src.Id.ChannelId import ChannelId
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.SendDM import sendDM
+from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Id.ChannelId import ChannelId
+from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -30,7 +32,11 @@ class QuotesManager:
     """
 
     def __init__(self, client: Client):
-        self.databaseConnection = getDatabaseConnection()
+        """
+        :param client:
+        :raise ConnectionError:
+        """
+        self.database = Database()
         self.client = client
 
     @validateKeys
@@ -42,21 +48,18 @@ class QuotesManager:
         """
         logger.debug("%s requested a quote" % member.name)
 
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT quote FROM quotes"
+        query = "SELECT quote FROM quotes"
 
-            cursor.execute(query)
+        quotes = self.database.queryAllResults(query)
 
-            if not (data := cursor.fetchall()):
-                logger.warning("couldn't fetch any quotes!")
+        if not quotes:
+            logger.critical("no qoutes were found in the database")
 
-                return None
-
-            quotes = [quote[0] for quote in data]
+            return "Ich habe kein Zitat für dich :/"
 
         logger.debug("random quote returned")
 
-        return quotes[random.randint(0, len(quotes) - 1)]
+        return quotes[random.randint(0, len(quotes) - 1)]['quote']
 
     async def checkForNewQuote(self, message: Message):
         """
@@ -70,20 +73,12 @@ class QuotesManager:
         if channel is not None and (channel.id == message.channel.id):
             logger.info("quote detected")
 
-            with self.databaseConnection.cursor() as cursor:
-                query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
+            query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
 
-                cursor.execute(query, (message.content, message.id,))
-                self.databaseConnection.commit()
+            if self.database.saveChangesToDatabase(query, (message.content, message.id,)):
+                await sendDM(message.author, "Dein Zitat wurde in unserer Datenbank gespeichert!")
 
-            member = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(message.author.id)
-
-            if member.dm_channel is None:
-                await member.create_dm()
-
-            await member.dm_channel.send("Dein Zitat wurde in unserer Datenbank gespeichert!")
-
-            logger.debug("sent dm to %s" % member.name)
+                logger.debug("sent dm to %s" % message.author.name)
 
     async def updateQuote(self, message: RawMessageUpdateEvent):
         """
@@ -97,46 +92,38 @@ class QuotesManager:
         if channel is not None and channel.id == message.channel_id:
             logger.debug("new quote detected")
 
-            with self.databaseConnection.cursor() as cursor:
-                query = "SELECT * FROM quotes WHERE message_external_id = %s"
+            query = "SELECT * FROM quotes WHERE message_external_id = %s"
 
-                cursor.execute(query, (message.message_id,))
+            quote = self.database.queryOneResult(query, (message.message_id,))
 
-                if not (data := cursor.fetchone()):
-                    logger.warning("couldn't fetch any qoutes!")
+            if not quote:
+                logger.critical("quote update couldn't be fetched -> no database results")
 
-                    return
+                return
 
-                quote = dict(zip(cursor.column_names, data))
-                quote['quote'] = message.data['content']
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'quotes',
-                    quote['id'],
-                    quote,
-                )
+            quote['quote'] = message.data['content']
+            query, nones = writeSaveQuery(
+                'quotes',
+                quote['id'],
+                quote,
+            )
 
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
+            self.database.saveChangesToDatabase(query, nones)
 
-                logger.debug("saved new quote to database")
+            logger.debug("saved new quote to database")
 
-                authorId = message.data['author']['id']
+            authorId = message.data['author']['id']
 
-                if authorId:
-                    author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+            if authorId:
+                author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
 
-                    if not author.dm_channel:
-                        await author.create_dm()
+                if author:
+                    try:
+                        await sendDM(author, "Dein überarbeitetes Zitat wurde gespeichert!")
 
-                        # check if dm_channel was really created
-                        if not author.dm_channel:
-                            logger.warning("couldn't create DM-Channel with %s" % str(authorId))
-
-                            return
-
-                    await author.dm_channel.send("Dein überarbeitetes Zitat wurde gespeichert!")
-
-                    logger.debug("sent dm to %s" % author.name)
+                        logger.debug("sent dm to %s" % author.name)
+                    except Exception as error:
+                        logger.error("couldt send DM to %s" % author.name, exc_info=error)
 
     async def deleteQuote(self, message: RawMessageDeleteEvent):
         """
@@ -150,11 +137,6 @@ class QuotesManager:
         if channel is not None and channel.id == message.channel_id:
             logger.debug("delete quote from database")
 
-            with self.databaseConnection.cursor() as cursor:
-                query = "DELETE FROM quotes WHERE message_external_id = %s"
+            query = "DELETE FROM quotes WHERE message_external_id = %s"
 
-                cursor.execute(query, (message.message_id,))
-                self.databaseConnection.commit()
-
-    def __del__(self):
-        self.databaseConnection.close()
+            self.database.runQueryWithoutFetching(query, (message.message_id,))

@@ -6,7 +6,7 @@ from datetime import datetime
 import discord
 from discord import Member, VoiceState
 
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -23,7 +23,11 @@ class VoiceStateUpdateService:
     """
 
     def __init__(self, client: discord.Client):
-        self.databaseConnection = getDatabaseConnection()
+        """
+        :param client:
+        :raise ConnectionError:
+        """
+        self.database = Database()
         self.client = client
         self.waHelper = WhatsAppHelper()
         self.notificationService = NotificationService(self.client)
@@ -41,7 +45,7 @@ class VoiceStateUpdateService:
 
             return
 
-        dcUserDb = getDiscordUser(self.databaseConnection, member)
+        dcUserDb = getDiscordUser(member)
 
         if not dcUserDb:
             logger.error("couldn't fetch DiscordUser for %s!" % member.name)
@@ -137,7 +141,12 @@ class VoiceStateUpdateService:
 
             self.__saveDiscordUser(dcUserDb)
 
-            await RelationService(self.client).manageLeavingMember(member, voiceStateBefore)
+            try:
+                rs = RelationService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start RelationService", exc_info=error)
+            else:
+                await rs.manageLeavingMember(member, voiceStateBefore)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 
@@ -148,17 +157,13 @@ class VoiceStateUpdateService:
         :param dcUserDb: DiscordUser to save
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+        query, nones = writeSaveQuery(
+            'discord',
+            dcUserDb['id'],
+            dcUserDb
+        )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
-
-        logger.debug("updated %s" % dcUserDb['username'])
-
-    def __del__(self):
-        self.databaseConnection.close()
+        if not self.database.saveChangesToDatabase(query, nones):
+            logger.critical("couldnt save DiscordUser to database")
+        else:
+            logger.debug("updated %s" % dcUserDb['username'])

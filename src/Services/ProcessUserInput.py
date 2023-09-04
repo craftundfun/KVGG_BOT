@@ -14,7 +14,7 @@ from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
@@ -24,7 +24,7 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
-from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
+from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import QuotesManager
 from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
@@ -95,7 +95,11 @@ class ProcessUserInput:
     """
 
     def __init__(self, client: Client):
-        self.databaseConnection = getDatabaseConnection()
+        """
+        :param client:
+        :raise ConnectionError:
+        """
+        self.database = Database()
         self.client = client
 
     @validateKeys
@@ -109,7 +113,7 @@ class ProcessUserInput:
         """
         # TODO make extra class for changing settings
 
-        if not (dcUserDb := getDiscordUserById(self.databaseConnection, member.id)):
+        if not (dcUserDb := getDiscordUser(member)):
             logger.warning("couldn't fetch DiscordUser")
 
             return "Es gab ein Problem!"
@@ -171,7 +175,7 @@ class ProcessUserInput:
         """
         logger.debug("Increasing message-count for %s" % member.name)
 
-        dcUserDb = getDiscordUser(self.databaseConnection, member)
+        dcUserDb = getDiscordUser(member)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -186,8 +190,12 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
-            xp = ExperienceService(self.client)
-            await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+            try:
+                xp = ExperienceService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start ExperienceService", exc_info=error)
+            else:
+                await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
         logger.debug("saved changes to database")
         self.__saveDiscordUserToDatabase(dcUserDb)
@@ -213,16 +221,16 @@ class ProcessUserInput:
         :param data: Data
         :return:
         """
-        with self.databaseConnection.cursor() as cursor:
-            query, nones = WriteSaveQuery.writeSaveQuery(
-                "discord",
-                data['id'],
-                data
-            )
+        query, nones = WriteSaveQuery.writeSaveQuery(
+            "discord",
+            data['id'],
+            data
+        )
 
-            cursor.execute(query, nones)
-            self.databaseConnection.commit()
+        if self.database.saveChangesToDatabase(query, nones):
             logger.debug("saved changed DiscordUser to database")
+        else:
+            logger.critical("couldn't save DiscordUser to database")
 
     @DeprecationWarning
     async def __processCommand(self, message: Message):
@@ -311,9 +319,8 @@ class ProcessUserInput:
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
-                                                                                                      RoleId.ADMIN,
-                                                                                                      RoleId.MOD):
+        if (str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues()
+                and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
             logger.debug("destination channel is outside of the allowed moving range")
 
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -424,7 +431,7 @@ class ProcessUserInput:
 
             return reply
         """
-        dcUserDb = getDiscordUser(self.databaseConnection, user)
+        dcUserDb = getDiscordUser(user)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -453,9 +460,8 @@ class ProcessUserInput:
 
             logger.debug("saved changes to database")
 
-            return "Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!" % (
-                time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter
-            )
+            return ("Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!"
+                    % (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter))
         else:
             logger.debug("returning time")
 
@@ -517,14 +523,11 @@ class ProcessUserInput:
         """
         logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
 
-        # get dcUserDb with user
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * " \
-                    "FROM whatsapp_setting " \
-                    "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+        query = "SELECT * " \
+                "FROM whatsapp_setting " \
+                "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-            cursor.execute(query, (member.id,))
-            whatsappSettings = dict(zip(cursor.column_names, cursor.fetchone()))
+        whatsappSettings = self.database.queryOneResult(query, (member.id,))
 
         if not whatsappSettings:
             logger.warning("couldn't fetch corresponding settings!")
@@ -566,19 +569,20 @@ class ProcessUserInput:
                 elif switch == 'off':
                     whatsappSettings['receive_uni_leave_notification'] = 0
 
-        with self.databaseConnection.cursor() as cursor:
-            query, noneTuple = WriteSaveQuery.writeSaveQuery(
-                "whatsapp_setting",
-                whatsappSettings['id'],
-                whatsappSettings
-            )
+        query, nones = WriteSaveQuery.writeSaveQuery(
+            "whatsapp_setting",
+            whatsappSettings['id'],
+            whatsappSettings
+        )
 
-            cursor.execute(query, noneTuple)
-            self.databaseConnection.commit()
+        if self.database.saveChangesToDatabase(query, nones):
+            logger.debug("saved changes to database")
 
-        logger.debug("saving changes to database")
+            return "Deine Einstellung wurde übernommen!"
+        else:
+            logger.critical("couldn't save changes to database")
 
-        return "Deine Einstellung wurde übernommen!"
+            return "Es gab ein Problem beim speichern deiner Einstellungen."
 
     @validateKeys
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:
@@ -591,161 +595,146 @@ class ProcessUserInput:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
-        rs = RelationService(self.client)
+        try:
+            rs = RelationService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start RelationService", exc_info=error)
 
-        if type == "relations":
-            logger.debug("leaderboard for relations")
+            if type == "relations":
+                return "Es gab ein Problem."
+        else:
+            if type == "relations":
+                logger.debug("leaderboard for relations")
 
-            answer = "----------------------------\n"
-            answer += "__**Leaderboard - Relationen**__\n"
-            answer += "----------------------------\n\n"
+                answer = "----------------------------\n"
+                answer += "__**Leaderboard - Relationen**__\n"
+                answer += "----------------------------\n\n"
 
-            if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                answer += "- __Online-Pärchen__:\n"
-                answer += online
-                answer += "\n"
+                if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
+                    answer += "- __Online-Pärchen__:\n"
+                    answer += online
+                    answer += "\n"
 
-            if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                answer += "- __Stream-Pärchen__:\n"
-                answer += stream
-                answer += "\n"
+                if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
+                    answer += "- __Stream-Pärchen__:\n"
+                    answer += stream
+                    answer += "\n"
 
-            if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                answer += "- __Lern-Pärchen__:\n"
-                answer += university
-                answer += "\n"
+                if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
+                    answer += "- __Lern-Pärchen__:\n"
+                    answer += university
+                    answer += "\n"
 
-            return answer
+                return answer
 
-        with self.databaseConnection.cursor() as cursor:
-            # online time
-            query = "SELECT username, formated_time " \
-                    "FROM discord " \
-                    "WHERE time_online IS NOT NULL " \
-                    "ORDER BY time_online DESC " \
-                    "LIMIT 3"
+        # online time
+        query = "SELECT username, formated_time " \
+                "FROM discord " \
+                "WHERE time_online IS NOT NULL " \
+                "ORDER BY time_online DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersOnlineTime = cursor.fetchall()
-            cursor.reset()
+        usersOnlineTime = self.database.queryAllResults(query)
 
-            # stream time
-            query = "SELECT username, formatted_stream_time " \
-                    "FROM discord " \
-                    "WHERE time_streamed IS NOT NULL " \
-                    "ORDER BY time_streamed DESC " \
-                    "LIMIT 3"
+        # stream time
+        query = "SELECT username, formatted_stream_time " \
+                "FROM discord " \
+                "WHERE time_streamed IS NOT NULL " \
+                "ORDER BY time_streamed DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersStreamTime = cursor.fetchall()
-            cursor.reset()
+        usersStreamTime = self.database.queryAllResults(query)
 
-            # message count
-            query = "SELECT username, message_count_all_time " \
-                    "FROM discord " \
-                    "WHERE message_count_all_time != 0 " \
-                    "ORDER BY message_count_all_time DESC " \
-                    "LIMIT 3"
+        # message count
+        query = "SELECT username, message_count_all_time " \
+                "FROM discord " \
+                "WHERE message_count_all_time != 0 " \
+                "ORDER BY message_count_all_time DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersMessageCount = cursor.fetchall()
-            cursor.reset()
+        usersMessageCount = self.database.queryAllResults(query)
 
-            # Rene counter
-            query = "SELECT username, rene_counter " \
-                    "FROM discord " \
-                    "WHERE rene_counter != 0 " \
-                    "ORDER BY rene_counter DESC " \
-                    "LIMIT 3"
+        # Rene counter
+        query = "SELECT username, rene_counter " \
+                "FROM discord " \
+                "WHERE rene_counter != 0 " \
+                "ORDER BY rene_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersReneCounter = cursor.fetchall()
-            cursor.reset()
+        usersReneCounter = self.database.queryAllResults(query)
 
-            # Felix counter
-            query = "SELECT username, felix_counter " \
-                    "FROM discord " \
-                    "WHERE felix_counter != 0 " \
-                    "ORDER BY felix_counter DESC " \
-                    "LIMIT 3"
+        # Felix counter
+        query = "SELECT username, felix_counter " \
+                "FROM discord " \
+                "WHERE felix_counter != 0 " \
+                "ORDER BY felix_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersFelixCounter = cursor.fetchall()
-            cursor.reset()
+        usersFelixCounter = self.database.queryAllResults(query)
 
-            # Paul counter
-            query = "SELECT username, paul_counter " \
-                    "FROM discord " \
-                    "WHERE paul_counter != 0 " \
-                    "ORDER BY paul_counter DESC " \
-                    "LIMIT 3"
+        # Paul counter
+        query = "SELECT username, paul_counter " \
+                "FROM discord " \
+                "WHERE paul_counter != 0 " \
+                "ORDER BY paul_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersPaulCounter = cursor.fetchall()
-            cursor.reset()
+        usersPaulCounter = self.database.queryAllResults(query)
 
-            # Bjarne counter
-            query = "SELECT username, bjarne_counter " \
-                    "FROM discord " \
-                    "WHERE bjarne_counter != 0 " \
-                    "ORDER BY bjarne_counter DESC " \
-                    "LIMIT 3"
+        # Bjarne counter
+        query = "SELECT username, bjarne_counter " \
+                "FROM discord " \
+                "WHERE bjarne_counter != 0 " \
+                "ORDER BY bjarne_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersBjarneCounter = cursor.fetchall()
-            cursor.reset()
+        usersBjarneCounter = self.database.queryAllResults(query)
 
-            # JJ counter
-            query = "SELECT username, jj_counter " \
-                    "FROM discord " \
-                    "WHERE jj_counter != 0 " \
-                    "ORDER BY jj_counter DESC " \
-                    "LIMIT 3"
+        # JJ counter
+        query = "SELECT username, jj_counter " \
+                "FROM discord " \
+                "WHERE jj_counter != 0 " \
+                "ORDER BY jj_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersJjCounter = cursor.fetchall()
-            cursor.reset()
+        usersJjCounter = self.database.queryAllResults(query)
 
-            # Oleg counter
-            query = "SELECT username, oleg_counter " \
-                    "FROM discord " \
-                    "WHERE oleg_counter != 0 " \
-                    "ORDER BY oleg_counter DESC " \
-                    "LIMIT 3"
+        # Oleg counter
+        query = "SELECT username, oleg_counter " \
+                "FROM discord " \
+                "WHERE oleg_counter != 0 " \
+                "ORDER BY oleg_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersOlegCounter = cursor.fetchall()
-            cursor.reset()
+        usersOlegCounter = self.database.queryAllResults(query)
 
-            # Carl counter
-            query = "SELECT username, carl_counter " \
-                    "FROM discord " \
-                    "WHERE carl_counter != 0 " \
-                    "ORDER BY carl_counter DESC " \
-                    "LIMIT 3"
+        # Carl counter
+        query = "SELECT username, carl_counter " \
+                "FROM discord " \
+                "WHERE carl_counter != 0 " \
+                "ORDER BY carl_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersCarlCounter = cursor.fetchall()
-            cursor.reset()
+        usersCarlCounter = self.database.queryAllResults(query)
 
-            # Cookie counter
-            query = "SELECT username, cookie_counter " \
-                    "FROM discord " \
-                    "WHERE cookie_counter != 0 " \
-                    "ORDER BY cookie_counter DESC " \
-                    "LIMIT 3"
+        # Cookie counter
+        query = "SELECT username, cookie_counter " \
+                "FROM discord " \
+                "WHERE cookie_counter != 0 " \
+                "ORDER BY cookie_counter DESC " \
+                "LIMIT 3"
 
-            cursor.execute(query)
-            usersCookieCounter = cursor.fetchall()
+        usersCookieCounter = self.database.queryAllResults(query)
 
         answer = "--------------\n"
         answer += "__**Leaderboard**__\n"
         answer += "--------------\n\n"
-        answer += "- __Online-Zeit__:\n"
 
-        if len(usersOnlineTime) != 0:
+        if usersOnlineTime and len(usersOnlineTime) != 0:
+            answer += "- __Online-Zeit__:\n"
+
             for index, user in enumerate(usersOnlineTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
 
         if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE):
             answer += "\n- __Online-Pärchen__:\n"
@@ -753,21 +742,21 @@ class ProcessUserInput:
 
         del relationAnswer
 
-        answer += "\n- __Stream-Zeit__:\n"
+        if usersStreamTime and len(usersStreamTime) != 0:
+            answer += "\n- __Stream-Zeit__:\n"
 
-        if len(usersStreamTime) != 0:
             for index, user in enumerate(usersStreamTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
         if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM):
             answer += "\n- __Stream-Pärchen__:\n"
             answer += relationAnswer
 
-        answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
+        if usersMessageCount and len(usersMessageCount) != 0:
+            answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
 
-        if len(usersMessageCount) != 0:
             for index, user in enumerate(usersMessageCount):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
         answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
         answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
@@ -802,7 +791,8 @@ class ProcessUserInput:
         answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
 
         for index, user in enumerate(users):
-            answer += "\t%d: %s - %d\n" % (index + 1, user[0], user[1])
+            counter.setDiscordUser(user)
+            answer += "\t%d: %s - %d\n" % (index + 1, user['username'], counter.getCounterValue())
 
         return answer
 
@@ -819,15 +809,13 @@ class ProcessUserInput:
         link = "https://axellotl.de/register/"
         link += str(member.id)
 
-        if not member.dm_channel:
-            await member.create_dm()
+        try:
+            await sendDM(member, "Dein persönlicher Link zum registrieren: %s" % link)
+        except Exception as error:
+            logger.error("couldnt send DM to %s" % member.name, exc_info=error)
 
-            if not member.dm_channel:
-                logger.warning("couldn't create DM for %s!" % member.name)
+            return "Es gab Probleme dir eine Nachricht zu schreiben!"
 
-                return "Es gab Probleme dir eine Nachricht zu schreiben!"
-
-        await member.dm_channel.send("Dein persönlicher Link zum registrieren: %s" % link)
         logger.debug("sent dm to requester")
 
         return "Dir wurde das Formular privat gesendet!"
@@ -869,7 +857,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
-        dcUserDb = getDiscordUser(self.databaseConnection, user)
+        dcUserDb = getDiscordUser(user)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -896,20 +884,18 @@ class ProcessUserInput:
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-                with self.databaseConnection.cursor() as cursor:
-                    query, nones = WriteSaveQuery.writeSaveQuery(
-                        'discord',
-                        dcUserDb['id'],
-                        dcUserDb
-                    )
+                query, nones = WriteSaveQuery.writeSaveQuery(
+                    'discord',
+                    dcUserDb['id'],
+                    dcUserDb
+                )
 
-                    cursor.execute(query, nones)
-                    self.databaseConnection.commit()
+                self.database.saveChangesToDatabase(query, nones)
 
             logger.debug("saved changes to database")
 
             return "Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(user.id), value)
+                counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
         # param but no privileged user
         elif param:
             try:
@@ -935,33 +921,29 @@ class ProcessUserInput:
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-                with self.databaseConnection.cursor() as cursor:
-                    query, nones = WriteSaveQuery.writeSaveQuery(
-                        'discord',
-                        dcUserDb['id'],
-                        dcUserDb
-                    )
-
-                    cursor.execute(query, nones)
-                    self.databaseConnection.commit()
-
-            logger.debug("saved changes to database")
-
-            return "Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(user.id), value)
-        else:
-            with self.databaseConnection.cursor() as cursor:
                 query, nones = WriteSaveQuery.writeSaveQuery(
                     'discord',
                     dcUserDb['id'],
                     dcUserDb
                 )
 
-                cursor.execute(query, nones)
-                self.databaseConnection.commit()
+                self.database.saveChangesToDatabase(query, nones)
+
+            logger.debug("saved changes to database")
+
+            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+                counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
+        else:
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            self.database.saveChangesToDatabase(query, nones)
 
             return "%s hat einen %s-Counter von %d!" % (
-                getTagStringFromId(user.id), counter.getNameOfCounter(), counter.getCounterValue())
+                getTagStringFromId(str(user.id)), counter.getNameOfCounter(), counter.getCounterValue())
 
     @validateKeys
     async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None):
@@ -976,7 +958,7 @@ class ProcessUserInput:
         """
         logger.debug("Handling Felix-Timer by %s" % member.name)
 
-        dcUserDb = getDiscordUser(self.databaseConnection, user)
+        dcUserDb = getDiscordUser(user)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -1008,8 +990,8 @@ class ProcessUserInput:
                         except ValueError:
                             logger.debug("no time or amount of minutes was given")
 
-                            return "Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den " \
-                                   "Timer um 09:04 Uhr zu starten!"
+                            return ("Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um "
+                                    "den Timer um 09:04 Uhr zu starten!")
 
                         timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
                         date = timeToStart
@@ -1032,18 +1014,21 @@ class ProcessUserInput:
                 self.__saveDiscordUserToDatabase(dcUserDb)
 
                 answer = "Der %s-Timer von %s wird um %s Uhr gestartet!" % (
-                    counter.getNameOfCounter(), getTagStringFromId(user.id), date.strftime("%H:%M"))
+                    counter.getNameOfCounter(), getTagStringFromId(str(user.id)), date.strftime("%H:%M"))
 
-                await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
-                                   "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
-                                   "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                   "Minuten!\n"
-                             % (
-                                 counter.getNameOfCounter(),
-                                 username, date.strftime("%H:%M"),
-                                 counter.getNameOfCounter(),
-                             ))
-                await sendDM(user, link)
+                try:
+                    await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
+                                       "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
+                                       "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
+                                       "Minuten!\n"
+                                 % (
+                                     counter.getNameOfCounter(),
+                                     username, date.strftime("%H:%M"),
+                                     counter.getNameOfCounter(),
+                                 ))
+                    await sendDM(user, link)
+                except Exception as error:
+                    logger.error("couldn't send DM to %s" % user.name, exc_info=error)
 
                 logger.debug("send dms to %s" % user.name)
 
@@ -1053,7 +1038,7 @@ class ProcessUserInput:
                 logger.debug("%s is online" % user.name)
 
                 return "%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!" % (
-                    getTagStringFromId(user.id), counter.getNameOfCounter())
+                    getTagStringFromId(str(user.id)), counter.getNameOfCounter())
 
             elif counter.getFelixTimer() is not None:
                 logger.debug("Felix-Timer is already running")
@@ -1081,11 +1066,15 @@ class ProcessUserInput:
                 else:
                     username = member.name
 
-                answer = "Der %s-Timer von %s wurde beendet!" % (counter.getNameOfCounter(), user.name)
+                answer = ("Der %s-Timer von %s wurde beendet!"
+                          % (counter.getNameOfCounter(), getTagStringFromId(str(user.id))))
 
                 self.__saveDiscordUserToDatabase(dcUserDb)
 
-                await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+                try:
+                    await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
+                except Exception as error:
+                    logger.error("couldnt send DM to %s" % dcUserDb['username'], exc_info=error)
 
                 logger.debug("sent dm to %s" % user.name)
 
@@ -1093,7 +1082,7 @@ class ProcessUserInput:
 
             else:
                 return "Es lief kein %s-Timer für %s!" % (
-                    counter.getNameOfCounter(), getTagStringFromId(user.id))
+                    counter.getNameOfCounter(), getTagStringFromId(str(user.id)))
 
     @DeprecationWarning
     @validateKeys
@@ -1138,6 +1127,3 @@ class ProcessUserInput:
 
         else:
             return "Du darfst diese Aktion nicht ausführen!"
-
-    def __del__(self):
-        self.databaseConnection.close()

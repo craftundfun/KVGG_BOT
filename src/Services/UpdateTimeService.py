@@ -1,18 +1,16 @@
 import logging
-import traceback
 from datetime import datetime
 
 from discord import Client, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
-from src.Services.EmailService import send_exception_mail
 from src.DiscordParameters.MuteParameter import MuteParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Services.ExperienceService import ExperienceService
@@ -24,23 +22,20 @@ logger = logging.getLogger("KVGG_BOT")
 class UpdateTimeService:
 
     def __init__(self, client: Client):
+        """
+        :param client:
+        :raise ConnectionError:
+        """
         self.client: Client = client
+        self.database = Database()
 
         self.uniChannels: set = ChannelIdUniversityTracking.getValues()
         self.whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
         self.allowedChannels: set = self.uniChannels | self.whatsappChannels
 
         self.experienceService = ExperienceService(self.client)
+        # TODO ^^
         self.achievementService = AchievementService(self.client)
-
-        try:
-            self.databaseConnection = getDatabaseConnection()
-        except TypeError:
-            logger.critical("MINUTELY JOB COULDN'T GET DATABASE-CONNECTION!")
-
-            send_exception_mail(traceback.format_exc())
-
-            raise Exception
 
     def __getChannels(self):
         """
@@ -109,7 +104,7 @@ class UpdateTimeService:
                 channelType = "gaming"
 
             for member in channel.members:
-                if not (dcUserDb := getDiscordUser(self.databaseConnection, member)):
+                if not (dcUserDb := getDiscordUser(member)):
                     logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id))
 
                     continue
@@ -159,18 +154,9 @@ class UpdateTimeService:
 
                     dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
 
-                with self.databaseConnection.cursor() as cursor:
-                    query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
+                query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
-                    try:
-                        cursor.execute(query, nones)
-                        self.databaseConnection.commit()
-                    except Exception as error:
-                        logger.critical("couldn't save changes to database", exc_info=error)
+                if not self.database.saveChangesToDatabase(query, nones):
+                    logger.critical("couldn't save changes to database", exc_info=error)
 
-                        send_exception_mail(traceback.format_exc())
-
-                        continue
-
-    def __del__(self):
-        self.databaseConnection.close()
+                    continue

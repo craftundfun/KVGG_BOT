@@ -21,9 +21,12 @@ from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
-from src.Services import ProcessUserInput, QuotesManager, VoiceStateUpdateService, DatabaseRefreshService
+from src.Services import ProcessUserInput, QuotesManager
+from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
+from src.Services.QuotesManager import QuotesManager
+from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.CommandService import CommandService, Commands
-from src.Services.EmailService import send_exception_mail
+from src.Helper.EmailService import send_exception_mail
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
@@ -119,10 +122,14 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
-        botStartUpService = DatabaseRefreshService.DatabaseRefreshService(self)
+        try:
+            botStartUpService = DatabaseRefreshService(self)
 
-        await botStartUpService.startUp()
-        logger.info("Users fetched and updated")
+            await botStartUpService.startUp()
+        except ConnectionError as error:
+            logger.error("couldn't create instance of DatabaseRefreshService", exc_info=error)
+        else:
+            logger.info("users fetched and updated")
 
         if len(sys.argv) > 1 and sys.argv[1] == "-clean":
             logger.debug("Removing commands from guild")
@@ -139,7 +146,7 @@ class MyClient(discord.Client):
             logger.critical("Removed commands from tree. You can end the bot now!")
         else:
             try:
-                logger.debug("Trying to sync commands to guild")
+                logger.debug("trying to sync commands to guild")
                 await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
             except Exception as e:
                 logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
@@ -179,13 +186,19 @@ class MyClient(discord.Client):
         logger.debug("received new message")
 
         if not message.author.bot and not message.content == "":
-            pui = ProcessUserInput.ProcessUserInput(self)
+            try:
+                pui = ProcessUserInput.ProcessUserInput(self)
+            except ConnectionError as error:
+                logger.error("failure to start ProcessUserInput", exc_info=error)
+            else:
+                await pui.raiseMessageCounter(message.author, message.channel)
 
-            await pui.raiseMessageCounter(message.author, message.channel)
-
-            qm = QuotesManager.QuotesManager(self)
-
-            await qm.checkForNewQuote(message)
+            try:
+                qm = QuotesManager(self)
+            except ConnectionError as error:
+                logger.error("failure to start QuotesManager", exc_info=error)
+            else:
+                await qm.checkForNewQuote(message)
         else:
             logger.debug("message empty or from a bot")
 
@@ -198,9 +211,12 @@ class MyClient(discord.Client):
         """
         logger.debug("received deleted message")
 
-        qm = QuotesManager.QuotesManager(self)
-
-        await qm.deleteQuote(message)
+        try:
+            qm = QuotesManager(self)
+        except ConnectionError as error:
+            logger.error("failure to start QuotesManager", exc_info=error)
+        else:
+            await qm.deleteQuote(message)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
         """
@@ -211,9 +227,12 @@ class MyClient(discord.Client):
         """
         logger.debug("received edited message")
 
-        qm = QuotesManager.QuotesManager(self)
-
-        await qm.updateQuote(message)
+        try:
+            qm = QuotesManager(self)
+        except ConnectionError as error:
+            logger.error("failure to start QuotesManager", exc_info=error)
+        else:
+            await qm.updateQuote(message)
 
     async def on_voice_state_update(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
@@ -226,9 +245,12 @@ class MyClient(discord.Client):
         """
         logger.debug("received voicestate update")
 
-        vsus = VoiceStateUpdateService.VoiceStateUpdateService(self)
-
-        await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        try:
+            vsus = VoiceStateUpdateService(self)
+        except ConnectionError as error:
+            logger.error("failure to start VoiceStateUpdateService", exc_info=error)
+        else:
+            await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
 # reads the token

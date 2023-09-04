@@ -3,25 +3,29 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from mysql.connector import MySQLConnection
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getUnsentMessagesFromTriggerUser(databaseConnection: MySQLConnection, dcUserDb: dict,
-                                     isJoinMessage: bool) -> list | None:
-    with databaseConnection.cursor() as cursor:
-        query = "SELECT * " \
-                "FROM message_queue " \
-                "WHERE sent_at IS NULL and trigger_user_id = %s and time_to_sent IS NOT NULL and time_to_sent > %s " \
-                "and is_join_message IS NOT NULL and is_join_message = %s"
+def getUnsentMessagesFromTriggerUser(dcUserDb: dict, isJoinMessage: bool) -> list | None:
+    """
+    Returns all messages from the message queue which weren't sent yet.
 
-        cursor.execute(query, (dcUserDb['id'], datetime.now(), isJoinMessage))
+    :param dcUserDb:
+    :param isJoinMessage:
+    :return:
+    """
+    try:
+        database = Database()
+    except ConnectionError as error:
+        logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
 
-        data = cursor.fetchall()
-        logger.debug("fetched data from database")
+        return None
 
-        if not data:
-            return None
+    query = "SELECT * " \
+            "FROM message_queue " \
+            "WHERE sent_at IS NULL and trigger_user_id = %s and time_to_sent IS NOT NULL and time_to_sent > %s " \
+            "and is_join_message IS NOT NULL and is_join_message = %s"
 
-        return [dict(zip(cursor.column_names, date)) for date in data]
+    return database.queryAllResults(query, (dcUserDb['id'], datetime.now(), isJoinMessage,))

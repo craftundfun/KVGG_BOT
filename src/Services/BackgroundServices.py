@@ -1,13 +1,12 @@
 import logging
 import traceback
-from datetime import datetime
 
 import discord
 from discord.ext import tasks, commands
 
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Services import DatabaseRefreshService
-from src.Services.EmailService import send_exception_mail
+from src.Helper.EmailService import send_exception_mail
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService
@@ -30,7 +29,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
-        logger.info("running minutely-job")
+        logger.debug("running minutely-job")
 
         try:
             logger.debug("running updateTimesAndExperience")
@@ -38,6 +37,8 @@ class BackgroundServices(commands.Cog):
             uts = UpdateTimeService(self.client)
 
             await uts.updateTimesAndExperience()
+        except ConnectionError as error:
+            logger.error("failure to start UpdateTimeService", exc_info=error)
         except Exception as e:
             logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 
@@ -49,6 +50,10 @@ class BackgroundServices(commands.Cog):
             rs = ReminderService(self.client)
 
             await rs.manageReminders()
+        except ConnectionError as error:
+            logger.error("failure to start ReminderService", exc_info=error)
+
+            send_exception_mail(traceback.format_exc())
         except Exception as e:
             logger.critical("encountered exception while executing reminderService", exc_info=e)
 
@@ -60,6 +65,10 @@ class BackgroundServices(commands.Cog):
             rs = RelationService(self.client)
 
             await rs.increaseAllRelation()
+        except ConnectionError as error:
+            logger.error("failure to start RelationService", exc_info=error)
+
+            send_exception_mail(traceback.format_exc())
         except Exception as e:
             logger.critical("encountered exception while executing relationService", exc_info=e)
 

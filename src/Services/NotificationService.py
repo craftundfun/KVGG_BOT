@@ -100,8 +100,14 @@ class NotificationService:
         onlineTime: str | None = dcUserDb['formated_time']
         streamTime: str | None = dcUserDb['formatted_stream_time']
 
-        xpService = ExperienceService(self.client)
-        xp: dict | None = xpService.getXpValue(dcUserDb)
+        try:
+            xpService = ExperienceService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start ExperienceService", exc_info=error)
+
+            xp = None
+        else:
+            xp: dict | None = xpService.getXpValue(dcUserDb)
 
         message = "Hey, guten %s. Du warst vor %d Tagen, %d Stunden und %d Minuten zuletzt online. " % (
             daytime, days, hours, minutes
@@ -151,7 +157,7 @@ class NotificationService:
                              (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
                 await sendDM(member, self.finallyAwake)
             except Exception as error:
-                logger.error("couldnt send DM(s) to %s" % member.name, exc_info=error)
+                logger.error("couldn't send DM(s) to %s" % member.name, exc_info=error)
             else:
                 logger.debug("sent dm to %s" % member.name)
 

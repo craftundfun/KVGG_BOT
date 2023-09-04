@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from discord import Client, Member
 
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+from src.Services.Database import Database
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
@@ -56,46 +56,42 @@ class FelixCounter(Counter):
         :param client:
         :return:
         """
-        databaseConnection = getDatabaseConnection()
-
-        if not databaseConnection:
-            logger.critical("no database connection!")
+        try:
+            database = Database()
+        except ConnectionError as error:
+            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
 
             return
 
-        with databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord WHERE felix_counter_start IS NOT NULL"
+        query = "SELECT * FROM discord WHERE felix_counter_start IS NOT NULL"
+        dcUsersDb = database.queryAllResults(query)
 
-            cursor.execute(query)
+        if not dcUsersDb:
+            logger.debug("no felix-counter to increase")
 
-            if not (data := cursor.fetchall()):
-                logger.debug("no felix-counter to increase")
+            return
 
-                return
+        for dcUserDb in dcUsersDb:
+            # timer still active
+            if (dcUserDb['felix_counter_start'] + timedelta(minutes=FELIX_COUNTER_MINUTES)) >= datetime.now():
+                dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
+            else:
+                dcUserDb['felix_counter_start'] = None
 
-            dcUsersDb = [dict(zip(cursor.column_names, date)) for date in data]
+                member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
 
-            for dcUserDb in dcUsersDb:
-                # timer still active
-                if (dcUserDb['felix_counter_start'] + timedelta(minutes=FELIX_COUNTER_MINUTES)) >= datetime.now():
-                    dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
-                else:
-                    dcUserDb['felix_counter_start'] = None
+                if member:
+                    try:
+                        await sendDM(member, "Dein Felix-Counter ist ausgelaufen und du hast 20 dazu "
+                                             "bekommen! Schade, dass du dich nicht an deine abgemachte Zeit "
+                                             "gehalten hast.")
+                    except Exception as error:
+                        logger.debug("couldn't send DM to %s" % member.name, exc_info=error)
 
-                    member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+            query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
-                    if member:
-                        try:
-                            await sendDM(member, "Dein Felix-Counter ist ausgelaufen und du hast 20 dazu "
-                                                 "bekommen! Schade, dass du dich nicht an deine abgemachte Zeit "
-                                                 "gehalten hast.")
-                        except:
-                            logger.debug("couldnt send DM to %s" % member.name)
-
-                query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
-
-                cursor.execute(query, nones)
-            databaseConnection.commit()
+            if not database.saveChangesToDatabase(query, nones):
+                logger.critical("couldn't save changes for %s" % dcUserDb['username'])
 
     async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: dict):
         """
@@ -105,7 +101,7 @@ class FelixCounter(Counter):
         :param dcUserDb: Database user of the member
         :return:
         """
-        logger.debug("Checking Felix-Timer from %s" % dcUserDb['username'])
+        logger.debug("checking Felix-Timer from %s" % dcUserDb['username'])
 
         if dcUserDb['felix_counter_start'] is not None:
             dcUserDb['felix_counter_start'] = None
@@ -115,6 +111,6 @@ class FelixCounter(Counter):
         try:
             await sendDM(member, "Dein Felix-Counter wurde beendet!")
         except Exception as error:
-            logger.error("couldnt send DM to %s" % member.name, exc_info=error)
+            logger.error("couldn't send DM to %s" % member.name, exc_info=error)
         else:
-            logger.debug("sent dm to %s" % member.name)
+            logger.debug("sent DM to %s" % member.name)
