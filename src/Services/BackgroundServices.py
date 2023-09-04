@@ -29,7 +29,7 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
-        logger.info("running minutely-job")
+        logger.debug("running minutely-job")
 
         try:
             logger.debug("running updateTimesAndExperience")

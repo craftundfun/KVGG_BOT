@@ -734,7 +734,7 @@ class ProcessUserInput:
             answer += "- __Online-Zeit__:\n"
 
             for index, user in enumerate(usersOnlineTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
 
         if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE):
             answer += "\n- __Online-Pärchen__:\n"
@@ -746,7 +746,7 @@ class ProcessUserInput:
             answer += "\n- __Stream-Zeit__:\n"
 
             for index, user in enumerate(usersStreamTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
         if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM):
             answer += "\n- __Stream-Pärchen__:\n"
@@ -756,7 +756,7 @@ class ProcessUserInput:
             answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
 
             for index, user in enumerate(usersMessageCount):
-                answer += "\t%d: %s - %s\n" % (index + 1, user[0], user[1])
+                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
         answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
         answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
@@ -791,7 +791,8 @@ class ProcessUserInput:
         answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
 
         for index, user in enumerate(users):
-            answer += "\t%d: %s - %d\n" % (index + 1, user[0], user[1])
+            counter.setDiscordUser(user)
+            answer += "\t%d: %s - %d\n" % (index + 1, user['username'], counter.getCounterValue())
 
         return answer
 
