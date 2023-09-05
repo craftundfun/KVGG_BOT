@@ -388,14 +388,14 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
 @app_commands.choices(counter=[
-    Choice(name="Bjarne", value="Bjarne"),
-    Choice(name="Carl", value="Carl"),
-    Choice(name="Cookie", value="Cookie"),
-    Choice(name="Felix", value="Felix"),
-    Choice(name="JJ", value="JJ"),
-    Choice(name="Oleg", value="Oleg"),
-    Choice(name="Paul", value="Paul"),
-    Choice(name="Rene", value="Rene"),
+    Choice(name="Bjarne - Counter für nicht elaborierende Menschen.", value="Bjarne"),
+    Choice(name="Carl - Counter für jemanden der etwas nicht sieht.", value="Carl"),
+    Choice(name="Cookie - Counter für jemanden der einen Keks verdient hat.", value="Cookie"),
+    Choice(name="Felix - Counter für Zuspät- / Garnichtkommer.", value="Felix"),
+    Choice(name="JJ - Counter für jemanden der sich nicht verabschiedet.", value="JJ"),
+    Choice(name="Oleg - Counter für jemanden der etwas sehr unverständliches sagt (z.B. auf einer anderen Sprache).", value="Oleg"),
+    Choice(name="Paul - Counter für Donowaller.", value="Paul"),
+    Choice(name="Rene - Counter für loste Menschen.", value="Rene"),
 ])
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
