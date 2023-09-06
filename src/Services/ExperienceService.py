@@ -276,13 +276,13 @@ class ExperienceService:
                 boost = {
                     'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_ONLINE.value,
                     'remaining': ExperienceParameter.XP_BOOST_RELATION_ONLINE_DURATION.value,
-                    'description': ExperienceParameter.DESCRIPTION_RELATION_ONLINE,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_ONLINE.value,
                 }
             case AchievementParameter.RELATON_STREAM:
                 boost = {
                     'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_STREAM.value,
                     'remaining': ExperienceParameter.XP_BOOST_RELATION_STREAM_DURATION.value,
-                    'description': ExperienceParameter.DESCRIPTION_RELATION_STREAM,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_STREAM.value,
                 }
             case _:
                 logger.critical("undefined enum entry was reached")

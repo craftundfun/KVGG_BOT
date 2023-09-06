@@ -24,8 +24,8 @@ class ExperienceParameter(Enum):
     DESCRIPTION_BIRTHDAY = 'Geburtstag'
     DESCRIPTION_SPIN = 'Spin'
     DESCRIPTION_STREAM = 'Stream'
-    DESCRIPTION_RELATION_ONLINE = 'Online-Pärchen'
-    DESCRIPTION_RELATION_STREAM = 'Stream-Pärchen'
+    DESCRIPTION_RELATION_ONLINE = 'Online-Paerchen'
+    DESCRIPTION_RELATION_STREAM = 'Stream-Paerchen'
 
     WAIT_X_DAYS_BEFORE_NEW_SPIN = 7
     SPIN_WIN_PERCENTAGE = 25

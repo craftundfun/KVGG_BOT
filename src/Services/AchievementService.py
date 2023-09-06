@@ -1,12 +1,13 @@
 import logging
-from typing import List
 
+from os import environ
 from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Id.ChannelId import ChannelId
 
 logger = logging.getLogger("KVGG_BOT")
+IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 class AchievementService:
@@ -69,10 +70,7 @@ class AchievementService:
 
                 return
 
-        try:
-            await self.channel.send(message)
-        except Exception as error:
-            logger.error("the achievement couldn't be sent", exc_info=error)
+        await self.__sendAchievementMessage(message)
 
     async def sendAchievementAndGrantBoostForRelation(self,
                                                       member_1: Member,
@@ -134,7 +132,23 @@ class AchievementService:
 
                 return
 
-        try:
-            await self.channel.send(message)
-        except Exception as error:
-            logger.error("the achievement couldn't be sent", exc_info=error)
+        await self.__sendAchievementMessage(message)
+
+    async def __sendAchievementMessage(self, message: str):
+        """
+        Sends the achievement message into the correct channel (bot-test-environment for debug purposes outside of
+        docker container)
+
+        :param message:
+        :return:
+        """
+        if IN_DOCKER:
+            try:
+                await self.channel.send(message)
+            except Exception as error:
+                logger.error("the achievement couldn't be sent", exc_info=error)
+        else:
+            try:
+                await self.client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(message)
+            except Exception as error:
+                logger.error("the test-achievement couldn't be sent", exc_info=error)
