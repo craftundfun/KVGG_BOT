@@ -65,36 +65,48 @@ class ReminderService:
 
         try:
             date = datetime.strptime(completeDate, "%d.%m.%Y %H:%M")
-
         except ValueError:
-            logger.debug("%s couldnt be translated to a datetime object" % completeDate)
+            logger.debug("%s couldn't be translated to a datetime object" % completeDate)
 
             return "Es ist ein Fehler beim konvertieren des Datums aufgetreten!"
+
+        def __getMinutesLeft() -> int | None:
+            if repeatTime and repeatType:
+                match repeatType:
+                    case 'minutes':
+                        minutesLeft = int(repeatTime)
+                    case 'hours':
+                        minutesLeft = repeatTime * 60
+                    case 'days':
+                        minutesLeft = repeatTime * 60 * 24
+                    case _:
+                        logger.debug("unexpected enum entry encountered!")
+
+                        return None
+
+                return minutesLeft
+            return None
 
         if date < datetime.now():
             logger.debug("user chose a date in the past")
 
-            return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
+            if minutes := __getMinutesLeft():
+                date = date + timedelta(minutes=minutes)
+
+                if date < datetime.now():
+                    logger.debug("user chose a date in the past and repetition was also in past")
+
+                    return ("Dein Zeitpunkt inklusive der Wiederholung liegt in der Vergangenheit! "
+                            "Bitte wähle einen in der Zukunft!")
+            else:
+                return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
 
         if len(content) > 2000:
             logger.debug("content is too long")
 
             return "Bitte gib einen kürzeren Text ein!"
 
-        if repeatTime and repeatType:
-            minutesLeft = 0
-
-            match repeatType:
-                case 'minutes':
-                    minutesLeft = int(repeatTime)
-                case 'hours':
-                    minutesLeft = repeatTime * 60
-                case 'days':
-                    minutesLeft = repeatTime * 60 * 24
-                case _:
-                    logger.debug("unexpected enum entry encountered!")
-
-                    return "Es ist ein Fehler aufgetreten!"
+        minutesLeft = __getMinutesLeft()
 
         if not (dcUserDb := getDiscordUser(member)):
             logger.debug("cant proceed, no DiscordUser")
@@ -131,7 +143,7 @@ class ReminderService:
                                                          date,
                                                          None,
                                                          whatsapp,
-                                                         minutesLeft if repeatTime and repeatType else None,)):
+                                                         minutesLeft,)):
             logger.debug("saved new reminder to database")
         else:
             return "Es gab ein Problem beim speicher des Reminders."

@@ -40,7 +40,7 @@ class WhatsAppHelper:
         """
         # not pretty but otherwise complete garbage
         query = "SELECT w.discord_user_id, w.receive_join_notification, w.receive_leave_notification, " \
-                "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id " \
+                "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id, u.firstname " \
                 "FROM whatsapp_setting AS w INNER JOIN user AS u ON u.discord_user_id = w.discord_user_id " \
                 "WHERE u.phone_number IS NOT NULL and u.api_key_whats_app IS NOT NULL"
         users = self.database.queryAllResults(query)
@@ -62,7 +62,7 @@ class WhatsAppHelper:
         :param update: VoiceStateUpdate
         :return:
         """
-        logger.debug("Creating Online-Notification for %s" % member.name)
+        logger.debug("creating Online-Notification for %s" % member.name)
 
         # if a channel does not count time
         if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
@@ -107,7 +107,7 @@ class WhatsAppHelper:
             if (triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues()
                     and user['receive_join_notification']):
                 logger.debug("message for gaming channels")
-                # works correctly
+
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
             elif (triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues()
                   and user['receive_uni_join_notification']):
@@ -250,7 +250,7 @@ class WhatsAppHelper:
         :param usernameFromTriggerUser: Who triggered the message
         :return:
         """
-        logger.debug("Queueing message into database")
+        logger.debug("trying to queue message into database for %s" % whatsappSetting['firstname'])
 
         query = "SELECT channel_id FROM discord WHERE id = %s"
         dcUserDbRecipient = self.database.queryOneResult(query, (whatsappSetting['discord_user_id'],))
@@ -473,7 +473,7 @@ class WhatsAppHelper:
                 startTime: datetime = datetime.strptime(day['start'], "%Y-%m-%d %H:%M:%S")
                 endTime: datetime = datetime.strptime(day['end'], "%Y-%m-%d %H:%M:%S")
 
-                if startTime < now < endTime:
+                if startTime.time() < now.time() < endTime.time():
                     return True
                 else:
                     return False

@@ -259,20 +259,35 @@ class ExperienceService:
 
             return
 
-        if kind == AchievementParameter.ONLINE:
-            boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
-                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
-            }
-        elif kind == AchievementParameter.STREAM:
-            boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
-                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
-            }
-        else:
-            return
+        match kind:
+            case AchievementParameter.ONLINE:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                    'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
+                }
+            case AchievementParameter.STREAM:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                    'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+                }
+            case AchievementParameter.RELATION_ONLINE:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_ONLINE.value,
+                    'remaining': ExperienceParameter.XP_BOOST_RELATION_ONLINE_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_ONLINE.value,
+                }
+            case AchievementParameter.RELATON_STREAM:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_STREAM.value,
+                    'remaining': ExperienceParameter.XP_BOOST_RELATION_STREAM_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_STREAM.value,
+                }
+            case _:
+                logger.critical("undefined enum entry was reached")
+
+                return
 
         if xp['xp_boosts_inventory']:
             inventory = json.loads(xp['xp_boosts_inventory'])
@@ -336,18 +351,22 @@ class ExperienceService:
         if lastXpSpinTime is not None:
             difference: timedelta = datetime.now() - lastXpSpinTime
             days = difference.days
-            hours = difference.seconds // 3600
-            minutes = (difference.seconds // 60) % 60  # why Python, why?
+            hours, remainingSeconds = divmod(difference.seconds, 3600)
+            minutes, remainingSeconds = divmod(remainingSeconds, 60)  # why Python, why?
 
             # cant spin again -> still on cooldown
             if days < ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value:
                 remainingDays = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value - days - 1
                 remainingHours = 23 - hours
                 remainingMinutes = 59 - minutes
+                remainingSeconds = 59 - remainingSeconds
 
                 logger.debug("cant spin, still on cooldown")
 
-                return "Du darfst nocht nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
+                if days == 6 and hours == 23 and minutes == 59:
+                    return "Du darfst noch nicht wieder drehen! Versuche es in %d Sekunden wieder!" % remainingSeconds
+
+                return "Du darfst noch nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
                        "%d Minute(n) wieder!" % (remainingDays, remainingHours, remainingMinutes)
 
         # win
@@ -553,7 +572,7 @@ class ExperienceService:
                     reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
                         index, item['description'], item['remaining'], item['multiplier'])
 
-            reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
+            reply += "\nMit '/xp_inventory use zeile:1 | all' kannst du einen oder mehrere XP-Boost einsetzen!"
 
             return reply
         # !inventory use
@@ -733,9 +752,10 @@ class ExperienceService:
             print("xp: %d" % xp['xp_amount'])
             print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
 
-            await self.achievementService.sendAchievement(member, AchievementParameter.XP,
-                                                          (xp['xp_amount']
-                                                           - (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
+            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.XP,
+                                                                       (xp['xp_amount']
+                                                                        - (xp[
+                                                                               'xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
 
         logger.debug("saved changes to database")
 
@@ -765,7 +785,7 @@ class ExperienceService:
         reply = "Folgende User haben die meisten XP:\n\n"
 
         for index, user in enumerate(users):
-            reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
+            reply += "%d. %s - %s XP\n" % (index, user['username'], '{:,}'.format(user['xp_amount']).replace(',', '.'))
 
         return reply
 

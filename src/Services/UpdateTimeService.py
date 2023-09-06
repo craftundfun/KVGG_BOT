@@ -124,9 +124,9 @@ class UpdateTimeService:
 
                     # online time achievement
                     if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
-                        await self.achievementService.sendAchievement(member,
-                                                                      AchievementParameter.ONLINE,
-                                                                      dcUserDb['time_online'])
+                        await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                                   AchievementParameter.ONLINE,
+                                                                                   dcUserDb['time_online'])
 
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
 
@@ -137,9 +137,9 @@ class UpdateTimeService:
                         dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
                         if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
-                            await self.achievementService.sendAchievement(member,
-                                                                          AchievementParameter.STREAM,
-                                                                          dcUserDb['time_streamed'])
+                            await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                                       AchievementParameter.STREAM,
+                                                                                       dcUserDb['time_streamed'])
 
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
