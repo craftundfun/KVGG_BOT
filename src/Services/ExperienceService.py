@@ -259,20 +259,35 @@ class ExperienceService:
 
             return
 
-        if kind == AchievementParameter.ONLINE:
-            boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
-                'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
-            }
-        elif kind == AchievementParameter.STREAM:
-            boost = {
-                'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
-                'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
-                'description': ExperienceParameter.DESCRIPTION_STREAM.value,
-            }
-        else:
-            return
+        match kind:
+            case AchievementParameter.ONLINE:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_ONLINE.value,
+                    'remaining': ExperienceParameter.XP_BOOST_ONLINE_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_ONLINE.value,
+                }
+            case AchievementParameter.STREAM:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_STREAM.value,
+                    'remaining': ExperienceParameter.XP_BOOST_STREAM_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_STREAM.value,
+                }
+            case AchievementParameter.RELATION_ONLINE:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_ONLINE.value,
+                    'remaining': ExperienceParameter.XP_BOOST_RELATION_ONLINE_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_ONLINE,
+                }
+            case AchievementParameter.RELATON_STREAM:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_STREAM.value,
+                    'remaining': ExperienceParameter.XP_BOOST_RELATION_STREAM_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_STREAM,
+                }
+            case _:
+                logger.critical("undefined enum entry was reached")
+
+                return
 
         if xp['xp_boosts_inventory']:
             inventory = json.loads(xp['xp_boosts_inventory'])
@@ -733,9 +748,10 @@ class ExperienceService:
             print("xp: %d" % xp['xp_amount'])
             print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
 
-            await self.achievementService.sendAchievement(member, AchievementParameter.XP,
-                                                          (xp['xp_amount']
-                                                           - (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
+            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.XP,
+                                                                       (xp['xp_amount']
+                                                                        - (xp[
+                                                                               'xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
 
         logger.debug("saved changes to database")
 

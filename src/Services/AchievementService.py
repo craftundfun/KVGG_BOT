@@ -1,4 +1,5 @@
 import logging
+from typing import List
 
 from discord import Client, Member
 
@@ -14,11 +15,11 @@ class AchievementService:
         self.client = client
         self.channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
 
-    async def sendAchievement(self, member: Member, kind: AchievementParameter, value: int):
+    async def sendAchievementAndGrantBoost(self, member: Member, kind: AchievementParameter, value: int):
         """
         Sends the achievement message into our achievement channel and grants the corresponding xp boost
 
-        :param member: Member, who reached the achievement and to be tagged
+        :param member: List of members, who reached the achievement and to be tagged
         :param kind: ONLINE, STREAM or XP
         :param value: Value of the achievement, for example 300 minutes online -> will be calculated into hours
         :return:
@@ -46,20 +47,92 @@ class AchievementService:
 
             return
 
-        if kind == AchievementParameter.ONLINE:
-            message = tag + ", du bist nun schon " + str(hours) + (" Stunden online gewesen. Weiter so :cookie:"
-                                                                   "\n\nAußerdem hast du einen neuen XP-Boost "
-                                                                   "bekommen, schau mal nach!")
+        match kind:
+            case AchievementParameter.ONLINE:
+                message = tag + ", du bist nun schon " + str(hours) + (" Stunden online gewesen. Weiter so :cookie:"
+                                                                       "\n\nAußerdem hast du einen neuen XP-Boost "
+                                                                       "bekommen, schau mal nach!")
 
-            xpService.grantXpBoost(member, AchievementParameter.ONLINE)
-        elif kind == AchievementParameter.STREAM:
-            message = tag + ", du hast nun schon " + str(hours) + (" Stunden gestreamt. Weiter so :cookie:"
-                                                                   "\n\nAußerdem hast du einen neuen XP-Boost "
-                                                                   "bekommen, schau mal nach!")
+                xpService.grantXpBoost(member, AchievementParameter.ONLINE)
+            case AchievementParameter.STREAM:
+                tag = getTagStringFromId(str(member.id))
+                message = tag + ", du hast nun schon " + str(hours) + (" Stunden gestreamt. Weiter so :cookie:"
+                                                                       "\n\nAußerdem hast du einen neuen XP-Boost "
+                                                                       "bekommen, schau mal nach!")
 
-            xpService.grantXpBoost(member, AchievementParameter.STREAM)
-        else:
-            message = tag + ", du hast bereits " + str(value) + " XP gefarmt. Weiter so :cookie: :video_game:"
+                xpService.grantXpBoost(member, AchievementParameter.STREAM)
+            case AchievementParameter.XP:
+                tag = getTagStringFromId(str(member.id))
+                message = tag + ", du hast bereits " + str(value) + " XP gefarmt. Weiter so :cookie: :video_game:"
+            case _:
+                logger.critical("reached undefined enum entry")
+
+                return
+
+        try:
+            await self.channel.send(message)
+        except Exception as error:
+            logger.error("the achievement couldn't be sent", exc_info=error)
+
+    async def sendAchievementAndGrantBoostForRelation(self,
+                                                      member_1: Member,
+                                                      member_2: Member,
+                                                      kind: AchievementParameter,
+                                                      value: int):
+        """
+        Sends the achievement message into our achievement channel and grants the corresponding xp boosts
+
+        :param member_1:
+        :param member_2:
+        :param kind:
+        :param value:
+        :return:
+        """
+        # import here to avoid circular import
+        from src.Services.ProcessUserInput import getTagStringFromId
+        from src.Services.ExperienceService import ExperienceService
+
+        if type(kind.value) != str:
+            logger.critical("false argument type")
+
+            return
+        elif not self.channel:
+            logger.critical("cant reach channel")
+
+            return
+
+        try:
+            xpService = ExperienceService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start ExperienceService", exc_info=error)
+
+            return
+
+        hours = int(value / 60)
+        tag_1: str = getTagStringFromId(str(member_1.id))
+        tag_2: str = getTagStringFromId(str(member_2.id))
+
+        match kind:
+            case AchievementParameter.RELATION_ONLINE:
+                message = (tag_1 + " und " + tag_2 + ", ihr beide wart schon " + str(hours) + " Stunden zusammen "
+                                                                                              "online! :cookie:\n\n"
+                                                                                              "Dafür habt ihr beide "
+                                                                                              "einen XP-Boost "
+                                                                                              "bekommen!")
+                xpService.grantXpBoost(member_1, AchievementParameter.RELATION_ONLINE)
+                xpService.grantXpBoost(member_2, AchievementParameter.RELATION_ONLINE)
+            case AchievementParameter.RELATON_STREAM:
+                message = (tag_1 + " und " + tag_2 + ", ihr habt schon beide " + str(hours) + " Stunden gemeinsam "
+                                                                                              "gestreamt! :cookie:\n\n"
+                                                                                              "Dafür habt ihr beide "
+                                                                                              "einen XP-Boost "
+                                                                                              "bekommen!")
+                xpService.grantXpBoost(member_1, AchievementParameter.RELATON_STREAM)
+                xpService.grantXpBoost(member_2, AchievementParameter.RELATON_STREAM)
+            case _:
+                logger.critical("undefined enum entry was reached")
+
+                return
 
         try:
             await self.channel.send(message)

@@ -5,6 +5,8 @@ from enum import Enum
 
 from discord import ChannelType, Member, VoiceState, Client
 
+from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
@@ -130,6 +132,26 @@ class RelationService:
         """
         if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
             relation['value'] = relation['value'] + value
+
+            # check for grant-able achievements
+            match type:
+                case RelationTypeEnum.ONLINE:
+                    if (relation['value'] % (AchievementParameter.RELATION_ONLINE_TIME_HOURS.value * 60)) == 0:
+                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                            member_1,
+                            member_2,
+                            AchievementParameter.RELATION_ONLINE,
+                            relation['value']
+                        )
+                case RelationTypeEnum.STREAM:
+                    if (relation['value'] % (AchievementParameter.RELATION_STREAM_TIME_HOURS.value * 60)) == 0:
+                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                            member_1,
+                            member_2,
+                            AchievementParameter.RELATON_STREAM,
+                            relation['value']
+                        )
+
             query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
             if self.database.saveChangesToDatabase(query, nones):
