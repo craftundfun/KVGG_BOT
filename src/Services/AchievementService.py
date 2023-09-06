@@ -82,10 +82,10 @@ class AchievementService:
         """
         Sends the achievement message into our achievement channel and grants the corresponding xp boosts
 
-        :param member_1:
-        :param member_2:
-        :param kind:
-        :param value:
+        :param member_1: First member to receive the boost
+        :param member_2: Second member to receive the boost
+        :param kind: Type of achievement
+        :param value: Value of the time
         :return:
         """
         # import here to avoid circular import
