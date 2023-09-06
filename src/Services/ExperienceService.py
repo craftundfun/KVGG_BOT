@@ -572,7 +572,7 @@ class ExperienceService:
                     reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
                         index, item['description'], item['remaining'], item['multiplier'])
 
-            reply += "\nMit '!inventory use {Zeile}' kannst du einen XP-Boost einsetzen!"
+            reply += "\nMit '/xp_inventory use zeile:1 | all' kannst du einen oder mehrere XP-Boost einsetzen!"
 
             return reply
         # !inventory use
