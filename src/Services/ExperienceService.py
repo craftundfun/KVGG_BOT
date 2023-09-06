@@ -351,18 +351,22 @@ class ExperienceService:
         if lastXpSpinTime is not None:
             difference: timedelta = datetime.now() - lastXpSpinTime
             days = difference.days
-            hours = difference.seconds // 3600
-            minutes = (difference.seconds // 60) % 60  # why Python, why?
+            hours, remainingSeconds = divmod(difference.seconds, 3600)
+            minutes, remainingSeconds = divmod(remainingSeconds, 60)  # why Python, why?
 
             # cant spin again -> still on cooldown
             if days < ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value:
                 remainingDays = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value - days - 1
                 remainingHours = 23 - hours
                 remainingMinutes = 59 - minutes
+                remainingSeconds = 59 - remainingSeconds
 
                 logger.debug("cant spin, still on cooldown")
 
-                return "Du darfst nocht nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
+                if days == 6 and hours == 23 and minutes == 59:
+                    return "Du darfst noch nicht wieder drehen! Versuche es in %d Sekunden wieder!" % remainingSeconds
+
+                return "Du darfst noch nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
                        "%d Minute(n) wieder!" % (remainingDays, remainingHours, remainingMinutes)
 
         # win
