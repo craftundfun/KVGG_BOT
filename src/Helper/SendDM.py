@@ -2,7 +2,7 @@ from os import environ
 
 from discord import Member
 
-SECRET_KEY = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 async def sendDM(member: Member, content: str):
@@ -18,7 +18,7 @@ async def sendDM(member: Member, content: str):
     :raise TypeError: /
     """
     # if not in docker dont sent DMs
-    if not SECRET_KEY:
+    if not IN_DOCKER:
         # if user is Bjarne still send DMs
         if not member.id == 416967436617777163:
             return
