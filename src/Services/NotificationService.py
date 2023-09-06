@@ -123,7 +123,7 @@ class NotificationService:
             message += ". "
 
         if xp:
-            message += "Außerdem hast du bereits %d XP gefarmt." % xp['xp_amount']
+            message += "Außerdem hast du bereits %s XP gefarmt." % '{:,}'.format(xp['xp_amount']).replace(',', '.')
 
         message += "\n\nViel Spaß!"
 

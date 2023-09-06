@@ -15,6 +15,7 @@ from discord.app_commands import Choice, commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
+from src.Helper.EmailService import send_exception_mail
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
@@ -22,11 +23,10 @@ from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
 from src.Services import ProcessUserInput, QuotesManager
-from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
-from src.Services.QuotesManager import QuotesManager
-from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.CommandService import CommandService, Commands
-from src.Helper.EmailService import send_exception_mail
+from src.Services.DatabaseRefreshService import DatabaseRefreshService
+from src.Services.QuotesManager import QuotesManager
+from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()

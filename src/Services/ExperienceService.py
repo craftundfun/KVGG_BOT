@@ -785,7 +785,7 @@ class ExperienceService:
         reply = "Folgende User haben die meisten XP:\n\n"
 
         for index, user in enumerate(users):
-            reply += "%d. %s - %d XP\n" % (index, user['username'], user['xp_amount'])
+            reply += "%d. %s - %s XP\n" % (index, user['username'], '{:,}'.format(user['xp_amount']).replace(',', '.'))
 
         return reply
 

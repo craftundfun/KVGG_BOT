@@ -1,8 +1,10 @@
+import logging
 from os import environ
 
 from discord import Member
 
 IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+logger = logging.getLogger("KVGG_BOT")
 
 
 async def sendDM(member: Member, content: str):
@@ -19,9 +21,12 @@ async def sendDM(member: Member, content: str):
     """
     # if not in docker dont sent DMs
     if not IN_DOCKER:
+        logger.debug("not in docker")
         # if user is Bjarne still send DMs
         if not member.id == 416967436617777163:
             return
+        
+        logger.debug("send DM to Bjarne, exception")
 
     if not member.dm_channel:
         await member.create_dm()
