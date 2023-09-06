@@ -1,4 +1,8 @@
+from os import environ
+
 from discord import Member
+
+SECRET_KEY = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 async def sendDM(member: Member, content: str):
@@ -13,6 +17,12 @@ async def sendDM(member: Member, content: str):
     :raise ValueError: The ``files`` or ``embeds`` list is not of the appropriate size.
     :raise TypeError: /
     """
+    # if not in docker dont sent DMs
+    if not SECRET_KEY:
+        # if user is Bjarne still send DMs
+        if not member.id == 416967436617777163:
+            return
+
     if not member.dm_channel:
         await member.create_dm()
 
