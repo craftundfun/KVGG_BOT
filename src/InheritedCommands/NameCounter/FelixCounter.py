@@ -64,7 +64,7 @@ class FelixCounter(Counter):
             return
 
         query = "SELECT * FROM discord WHERE felix_counter_start IS NOT NULL"
-        dcUsersDb = database.queryAllResults(query)
+        dcUsersDb = database.fetchAllResults(query)
 
         if not dcUsersDb:
             logger.debug("no felix-counter to increase")
@@ -90,7 +90,7 @@ class FelixCounter(Counter):
 
             query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
-            if not database.saveChangesToDatabase(query, nones):
+            if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save changes for %s" % dcUserDb['username'])
 
     async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: dict):

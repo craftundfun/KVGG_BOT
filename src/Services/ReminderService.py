@@ -117,7 +117,7 @@ class ReminderService:
             query = "SELECT * " \
                     "FROM whatsapp_setting " \
                     "WHERE discord_user_id = %s"
-            data = self.database.queryOneResult(query, (dcUserDb['id'],))
+            data = self.database.fetchOneResult(query, (dcUserDb['id'],))
 
             if not data:
                 logger.debug("User cannot receive whatsapp notifications")
@@ -138,12 +138,12 @@ class ReminderService:
                 "(discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes) " \
                 "VALUES (%s, %s, %s, %s, %s, %s)"
 
-        if self.database.runQueryWithoutFetching(query, (dcUserDb['id'],
-                                                         content,
-                                                         date,
-                                                         None,
-                                                         whatsapp,
-                                                         minutesLeft,)):
+        if self.database.runQueryOnDatabase(query, (dcUserDb['id'],
+                                                    content,
+                                                    date,
+                                                    None,
+                                                    whatsapp,
+                                                    minutesLeft,)):
             logger.debug("saved new reminder to database")
         else:
             return "Es gab ein Problem beim speicher des Reminders."
@@ -163,7 +163,7 @@ class ReminderService:
                 "FROM reminder " \
                 "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
                 "and time_to_sent IS NOT NULL"
-        reminders = self.database.queryAllResults(query, (int(member.id),))
+        reminders = self.database.fetchAllResults(query, (int(member.id),))
 
         if not reminders:
             logger.debug("reminders for %s were empty" % member.name)
@@ -192,7 +192,7 @@ class ReminderService:
         query = "SELECT r.*, d.user_id " \
                 "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
                 "WHERE time_to_sent is NOT NULL"
-        reminders = self.database.queryAllResults(query)
+        reminders = self.database.fetchAllResults(query)
 
         if not reminders:
             logger.debug("no reminders were found")
@@ -215,7 +215,7 @@ class ReminderService:
 
             query, nones = writeSaveQuery("reminder", reminder['id'], reminder)
 
-            if not self.database.saveChangesToDatabase(query, nones):
+            if not self.database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save reminder into database, id: %s" % str(reminder['id']))
 
     @validateKeys
@@ -239,7 +239,7 @@ class ReminderService:
                 "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
                 "WHERE d.user_id = %s AND r.time_to_sent IS NOT NULL"
 
-        reminders = self.database.queryAllResults(query, (member.id,))
+        reminders = self.database.fetchAllResults(query, (member.id,))
 
         if not reminders:
             logger.debug("no entries to delete")
@@ -253,7 +253,7 @@ class ReminderService:
 
         query = "DELETE FROM reminder WHERE id = %s"
 
-        self.database.runQueryWithoutFetching(query, (id,))
+        self.database.runQueryOnDatabase(query, (id,))
 
         logger.debug("deleted entry from database")
         return "Dein Reminder wurde erfolgreich gelöscht."
@@ -281,11 +281,11 @@ class ReminderService:
                     "(SELECT id FROM discord WHERE user_id = %s LIMIT 1), " \
                     "FALSE)"
 
-            if not self.database.runQueryWithoutFetching(query,
-                                                         ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
-                                                          member.id,
-                                                          datetime.now(),
-                                                          member.id,)):
+            if not self.database.runQueryOnDatabase(query,
+                                                    ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
+                                                     member.id,
+                                                     datetime.now(),
+                                                     member.id,)):
                 logger.critical("couldn't save message into database")
             else:
                 logger.debug("saved whatsapp into message queue")

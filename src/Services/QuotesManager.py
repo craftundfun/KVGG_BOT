@@ -50,7 +50,7 @@ class QuotesManager:
 
         query = "SELECT quote FROM quotes"
 
-        quotes = self.database.queryAllResults(query)
+        quotes = self.database.fetchAllResults(query)
 
         if not quotes:
             logger.critical("no qoutes were found in the database")
@@ -75,7 +75,7 @@ class QuotesManager:
 
             query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
 
-            if self.database.saveChangesToDatabase(query, (message.content, message.id,)):
+            if self.database.runQueryOnDatabase(query, (message.content, message.id,)):
                 await sendDM(message.author, "Dein Zitat wurde in unserer Datenbank gespeichert!")
 
                 logger.debug("sent dm to %s" % message.author.name)
@@ -94,7 +94,7 @@ class QuotesManager:
 
             query = "SELECT * FROM quotes WHERE message_external_id = %s"
 
-            quote = self.database.queryOneResult(query, (message.message_id,))
+            quote = self.database.fetchOneResult(query, (message.message_id,))
 
             if not quote:
                 logger.critical("quote update couldn't be fetched -> no database results")
@@ -108,7 +108,7 @@ class QuotesManager:
                 quote,
             )
 
-            self.database.saveChangesToDatabase(query, nones)
+            self.database.runQueryOnDatabase(query, nones)
 
             logger.debug("saved new quote to database")
 
@@ -139,4 +139,4 @@ class QuotesManager:
 
             query = "DELETE FROM quotes WHERE message_external_id = %s"
 
-            self.database.runQueryWithoutFetching(query, (message.message_id,))
+            self.database.runQueryOnDatabase(query, (message.message_id,))

@@ -18,7 +18,7 @@ class Database:
         if not self.connection:
             raise ConnectionError("no connection to mysql")
 
-    def queryOneResult(self, query: str, parameters: Tuple = None) -> dict | None:
+    def fetchOneResult(self, query: str, parameters: Tuple = None) -> dict | None:
         """
         Tries to run the query. If errors occur, they will be caught and None is getting returned.
 
@@ -46,7 +46,7 @@ class Database:
 
                 return dict(zip(cursor.column_names, data))
 
-    def queryAllResults(self, query: str, parameters: Tuple = None) -> list[dict] | None:
+    def fetchAllResults(self, query: str, parameters: Tuple = None) -> list[dict] | None:
         """
         Tries to run the query. If errors occur, they will be caught and None is getting returned.
 
@@ -78,7 +78,7 @@ class Database:
 
                 return [dict(zip(cursor.column_names, date)) for date in data]
 
-    def saveChangesToDatabase(self, query: str, parameters: Tuple) -> bool:
+    def runQueryOnDatabase(self, query: str, parameters: Tuple = None) -> bool:
         """
         Saves the given changes to the database. Returns a bool for knowing if the query was successful.
 
@@ -91,9 +91,12 @@ class Database:
             success: bool = False
 
             try:
-                cursor.execute(query, parameters)
+                if parameters:
+                    cursor.execute(query, parameters)
+                else:
+                    cursor.execute(query)
             except Exception as error:
-                logger.error("couldn't save changes to database, query: %s" % query, exc_info=error)
+                logger.error("couldn't run changes on database, query: %s" % query, exc_info=error)
                 send_exception_mail(traceback.format_exc())
             else:
                 success = True
@@ -131,6 +134,7 @@ class Database:
 
         return connection
 
+    @DeprecationWarning
     def runQueryWithoutFetching(self, query: str, parameters: Tuple = None) -> bool:
         """
         Runs query without fetching, for example delete queries.

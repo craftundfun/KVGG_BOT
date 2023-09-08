@@ -28,4 +28,4 @@ def getUnsentMessagesFromTriggerUser(dcUserDb: dict, isJoinMessage: bool) -> lis
             "WHERE sent_at IS NULL and trigger_user_id = %s and time_to_sent IS NOT NULL and time_to_sent > %s " \
             "and is_join_message IS NOT NULL and is_join_message = %s"
 
-    return database.queryAllResults(query, (dcUserDb['id'], datetime.now(), isJoinMessage,))
+    return database.fetchAllResults(query, (dcUserDb['id'], datetime.now(), isJoinMessage,))

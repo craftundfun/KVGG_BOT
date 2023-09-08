@@ -33,7 +33,7 @@ class DatabaseRefreshService:
         logger.debug("beginning fetching data")
 
         query = "SELECT * FROM discord"
-        dcUsersDb = self.database.queryAllResults(query)
+        dcUsersDb = self.database.fetchAllResults(query)
 
         if dcUsersDb is None:
             return
@@ -106,7 +106,7 @@ class DatabaseRefreshService:
                 user['id'],
                 user,
             )
-            if not self.database.saveChangesToDatabase(query, nones):
+            if not self.database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save changes to database")
 
         # check for new members that aren't in our database
@@ -144,7 +144,7 @@ class DatabaseRefreshService:
             for member in channel.members:
                 onlineMembers[str(member.id)] = member
 
-                if not (dcUserDb := self.database.queryOneResult(query, (member.id,))):
+                if not (dcUserDb := self.database.fetchOneResult(query, (member.id,))):
                     continue
 
                 voiceState = channel.voice_states[member.id]
@@ -182,13 +182,13 @@ class DatabaseRefreshService:
                     dcUserDb,
                 )
 
-                if not self.database.saveChangesToDatabase(saveQuery, nones):
+                if not self.database.runQueryOnDatabase(saveQuery, nones):
                     logger.critical("couldn't save changes to database")
 
         # only look for still online members c.f. doc
         query = "SELECT * FROM discord WHERE channel_id IS NOT NULL"
 
-        dcUsersDb = self.database.queryAllResults(query)
+        dcUsersDb = self.database.fetchAllResults(query)
 
         if not dcUsersDb:
             return
@@ -212,7 +212,7 @@ class DatabaseRefreshService:
                 dcUserDb,
             )
 
-            if not self.database.saveChangesToDatabase(saveQuery, nones):
+            if not self.database.runQueryOnDatabase(saveQuery, nones):
                 logger.critical("couldn't save changes to database")
 
     async def updateAllMembers(self):
@@ -223,7 +223,7 @@ class DatabaseRefreshService:
         """
         query = "SELECT * FROM discord"
 
-        dcUsersDb = self.database.queryAllResults(query)
+        dcUsersDb = self.database.fetchAllResults(query)
 
         if not dcUsersDb:
             return
@@ -241,7 +241,7 @@ class DatabaseRefreshService:
 
             query, nones = WriteSaveQuery.writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
-            if self.database.saveChangesToDatabase(query, nones):
+            if self.database.runQueryOnDatabase(query, nones):
                 logger.debug("updated %s" % dcUserDb['username'])
             else:
                 logger.critical("couldn't save changes to database")
