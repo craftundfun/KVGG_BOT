@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from discord import Client, Member
 
 from src.Helper.SendDM import sendDM
+from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService, isDoubleWeekend
 
 logger = logging.getLogger("KVGG_BOT")
@@ -11,9 +12,14 @@ logger = logging.getLogger("KVGG_BOT")
 
 class NotificationService:
     def __init__(self, client: Client):
+        """
+        :param client:
+        :raise ConnectionError:
+        """
         self.client = client
+        self.database = Database()
 
-    async def runNotificationsForMember(self, member: Member, dcUserDb: dict) -> dict:
+    async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """
         Sends all opted in notifications and advertisements. Returns the maybe edited dcUserDb.
 
@@ -21,38 +27,56 @@ class NotificationService:
         :param dcUserDb: Database user of the member.
         :return: dcUserDb
         """
-        dcUserDb = await self.__sendAdvertisement(member, dcUserDb)
+        await self.__sendNewsletter(member, dcUserDb)
 
         if not await self.__xDaysOfflineMessage(member, dcUserDb):
             await self.__welcomeBackMessage(member, dcUserDb)
 
         await self.__informAboutDoubleXpWeekend(member, dcUserDb)
 
-        return dcUserDb
-
-    async def __sendAdvertisement(self, member: Member, dcUserDb: dict) -> dict:
+    async def __sendNewsletter(self, member: Member, dcUserDb: dict):
         """
-        Sends the current advertisement to the newly joined member and returns the edited dcUserDb.
+        Sends the current newsletter(s) to the newly joined member.
 
         :param member:
         :param dcUserDb:
         :return:
         """
+        query = ("SELECT n.* "
+                 "FROM newsletter n "
+                 "WHERE n.id NOT IN "
+                 "(SELECT newsletter_id "
+                 "FROM newsletter_discord_mapping "
+                 "WHERE discord_id = %s) "
+                 "AND n.created_at > %s")
+
+        newsletters = self.database.fetchAllResults(query, (dcUserDb['id'], dcUserDb['created_at'],))
+
+        if not newsletters:
+            return
+
         try:
-            # ad was sent already
-            if dcUserDb['received_advertisement_notification']:
-                return dcUserDb
-
-            with open("data/advertisement.txt", 'r') as file:
-                message = file.read()
-
-            await sendDM(member, message)
-
-            dcUserDb['received_advertisement_notification'] = 1
+            await sendDM(member, "__**NEWSLETTER**__")
         except Exception as error:
-            logger.error("error while sending advertisement to %s" % member.name, exc_info=error)
-        finally:
-            return dcUserDb
+            logger.error("couldn't send DM to %s" % member.name, exc_info=error)
+
+        for newsletter in newsletters:
+            query = ("INSERT INTO newsletter_discord_mapping (newsletter_id, discord_id, sent_at) "
+                     "VALUES (%s, %s, %s)")
+
+            if not self.database.runQueryOnDatabase(query,
+                                                    (newsletter['id'], dcUserDb['id'], datetime.now(),)):
+                # if the query couldn't be run don't send newsletter to member to avoid future spam
+                return
+
+            try:
+                await sendDM(member,
+                             newsletter['message'] + "\n- vom "
+                             + newsletter['created_at'].strftime("%d.%m.%Y um %H:%M Uhr"))
+            except Exception as error:
+                logger.error("couldn't sent DM to %s" % member.name, exc_info=error)
+
+                continue
 
     async def __welcomeBackMessage(self, member: Member, dcUserDb: dict):
         """

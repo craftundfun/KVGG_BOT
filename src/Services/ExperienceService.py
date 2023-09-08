@@ -90,7 +90,7 @@ class ExperienceService:
                 "INNER JOIN discord d ON experience.discord_user_id = d.id " \
                 "WHERE d.user_id = %s"
 
-        xp = self.database.queryOneResult(query, (userId,))
+        xp = self.database.fetchOneResult(query, (userId,))
 
         if not xp:
             logger.debug("found no experience for %s" % str(userId))
@@ -100,7 +100,7 @@ class ExperienceService:
 
                 return None
 
-            xp = self.database.queryOneResult(query, (userId,))
+            xp = self.database.fetchOneResult(query, (userId,))
 
         if xp:
             logger.debug("fetched experience")
@@ -130,7 +130,7 @@ class ExperienceService:
         query = "INSERT INTO experience (xp_amount, discord_user_id, xp_boosts_inventory) " \
                 "VALUES (%s, %s, %s)"
 
-        return self.database.saveChangesToDatabase(query, (xpAmount, dcUserDb['id'], xpBoosts,))
+        return self.database.runQueryOnDatabase(query, (xpAmount, dcUserDb['id'], xpBoosts,))
 
     def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> str | None:
         """
@@ -143,7 +143,7 @@ class ExperienceService:
 
         query = "SELECT time_online, time_streamed FROM discord WHERE user_id = %s"
 
-        times = self.database.queryOneResult(query, (dcUserDbId,))
+        times = self.database.fetchOneResult(query, (dcUserDbId,))
 
         if not times:
             return None
@@ -223,7 +223,7 @@ class ExperienceService:
         query = "SELECT time_online, time_streamed, message_count_all_time " \
                 "FROM discord " \
                 "WHERE user_id = %s"
-        data = self.database.queryOneResult(query, (userId,))
+        data = self.database.fetchOneResult(query, (userId,))
 
         if not data:
             logger.warning("couldn't calculate previously earned xp!")
@@ -307,7 +307,7 @@ class ExperienceService:
             xp,
         )
 
-        if not self.database.saveChangesToDatabase(query, nones):
+        if not self.database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
 
         logger.debug("saved granted boost to database")
@@ -388,7 +388,7 @@ class ExperienceService:
                 xp,
             )
 
-            if self.database.saveChangesToDatabase(query, nones):
+            if self.database.runQueryOnDatabase(query, nones):
                 logger.debug("saved new xp boost to database")
 
                 return "Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du %d-Fach XP! Setze ihn über " \
@@ -411,7 +411,7 @@ class ExperienceService:
                 xp,
             )
 
-            if self.database.saveChangesToDatabase(query, nones):
+            if self.database.runQueryOnDatabase(query, nones):
                 logger.debug("saved date to database")
             else:
                 logger.critical("couldn't save changes to database")
@@ -500,7 +500,7 @@ class ExperienceService:
             dcUserDb
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved setting to database")
 
             return "Deine Einstellungen wurden gespeichert!"
@@ -691,7 +691,7 @@ class ExperienceService:
             xp,
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved changes to database")
         else:
             logger.critical("couldn't save changes to database")
@@ -743,7 +743,7 @@ class ExperienceService:
             xp
         )
 
-        if not self.database.saveChangesToDatabase(query, nones):
+        if not self.database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't save changes to database")
 
         # 99 mod 10 > 101 mod 10 -> achievement for 100
@@ -775,7 +775,7 @@ class ExperienceService:
                 "ORDER BY e.xp_amount DESC " \
                 "LIMIT 10"
 
-        users = self.database.queryAllResults(query)
+        users = self.database.fetchAllResults(query)
 
         if not users:
             logger.critical("couldn't fetch data from database - or the results were None")
@@ -794,7 +794,7 @@ class ExperienceService:
                 "FROM experience " \
                 "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
                 "(SELECT id FROM discord WHERE user_id = %s)"
-        xp = self.database.queryOneResult(query, (member.id,))
+        xp = self.database.fetchOneResult(query, (member.id,))
 
         if not xp:
             return
@@ -821,5 +821,5 @@ class ExperienceService:
         xp['active_xp_boosts'] = boosts
         query, nones = writeSaveQuery('experience', xp['id'], xp)
 
-        if not self.database.saveChangesToDatabase(query, nones):
+        if not self.database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't reduce xp boost time for %s" % member.name)

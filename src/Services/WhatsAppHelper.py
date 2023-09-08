@@ -43,7 +43,7 @@ class WhatsAppHelper:
                 "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id, u.firstname " \
                 "FROM whatsapp_setting AS w INNER JOIN user AS u ON u.discord_user_id = w.discord_user_id " \
                 "WHERE u.phone_number IS NOT NULL and u.api_key_whats_app IS NOT NULL"
-        users = self.database.queryAllResults(query)
+        users = self.database.fetchAllResults(query)
 
         if not users:
             logger.warning("couldn't fetch users!")
@@ -190,7 +190,7 @@ class WhatsAppHelper:
                 message,
             )
 
-            if not self.database.saveChangesToDatabase(query, nones):
+            if not self.database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save message to database")
 
         logger.debug("saved changes to database")
@@ -236,7 +236,7 @@ class WhatsAppHelper:
         for message in messages:
             query = "DELETE FROM message_queue WHERE id = %s"
 
-            if not self.database.runQueryWithoutFetching(query, (message['id'],)):
+            if not self.database.runQueryOnDatabase(query, (message['id'],)):
                 logger.critical("couldn't save to database")
 
     def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, whatsappSetting: dict,
@@ -253,7 +253,7 @@ class WhatsAppHelper:
         logger.debug("trying to queue message into database for %s" % whatsappSetting['firstname'])
 
         query = "SELECT channel_id FROM discord WHERE id = %s"
-        dcUserDbRecipient = self.database.queryOneResult(query, (whatsappSetting['discord_user_id'],))
+        dcUserDbRecipient = self.database.fetchOneResult(query, (whatsappSetting['discord_user_id'],))
 
         if dcUserDbRecipient is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -295,13 +295,13 @@ class WhatsAppHelper:
                 "message, user_id, created_at, time_to_sent, trigger_user_id, is_join_message" \
                 ") VALUES (%s, %s, %s, %s, %s, %s)"
 
-        self.database.runQueryWithoutFetching(query,
-                                              (text,
-                                               whatsappSetting['id'],
-                                               datetime.now(),
-                                               timeToSent,
-                                               triggerDcUserDb['id'],
-                                               isJoinMessage,))
+        self.database.runQueryOnDatabase(query,
+                                         (text,
+                                          whatsappSetting['id'],
+                                          datetime.now(),
+                                          timeToSent,
+                                          triggerDcUserDb['id'],
+                                          isJoinMessage,))
 
         logger.debug("saved new message to database")
 
@@ -318,7 +318,7 @@ class WhatsAppHelper:
         """
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSetting = self.database.queryOneResult(query, (member.id,))
+        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is no registered for whatsapp messages" % member.name)
@@ -385,7 +385,7 @@ class WhatsAppHelper:
             whatsappSetting,
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved new suspend time to database")
         else:
             return "Es gab Probleme beim speichern!"
@@ -405,7 +405,7 @@ class WhatsAppHelper:
         query = "SELECT * " \
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-        whatsappSetting = self.database.queryOneResult(query, (member.id,))
+        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is no registered for whatsapp messages" % member.name)
@@ -440,7 +440,7 @@ class WhatsAppHelper:
             whatsappSetting,
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved changes to database")
         else:
             return "Es gab ein Problem."
@@ -488,7 +488,7 @@ class WhatsAppHelper:
         """
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSetting = self.database.queryOneResult(query, (member.id,))
+        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is no registered for whatsapp messages" % member.name)

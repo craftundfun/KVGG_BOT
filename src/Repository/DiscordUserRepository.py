@@ -61,7 +61,7 @@ def getDiscordUser(member: Member) -> dict | None:
             "FROM discord " \
             "WHERE user_id = %s"
 
-    dcUserDb = database.queryOneResult(query, (member.id,))
+    dcUserDb = database.fetchOneResult(query, (member.id,))
 
     # user does not exist yet -> create new entry
     if not dcUserDb:
@@ -71,8 +71,8 @@ def getDiscordUser(member: Member) -> dict | None:
                 "VALUES (%s, %s, %s, %s, %s)"
         username = member.nick if member.nick else member.name
 
-        if not database.saveChangesToDatabase(query,
-                                              (member.guild.id, member.id, username, datetime.now(), 0,)):
+        if not database.runQueryOnDatabase(query,
+                                           (member.guild.id, member.id, username, datetime.now(), 0,)):
             return None
 
         # fetch the newly added DiscordUser
@@ -80,7 +80,7 @@ def getDiscordUser(member: Member) -> dict | None:
                 "FROM discord " \
                 "WHERE user_id = %s"
 
-        dcUserDb = database.queryOneResult(query, (member.id,))
+        dcUserDb = database.fetchOneResult(query, (member.id,))
 
         if not dcUserDb:
             logger.error("couldn't create DiscordUser!")
@@ -112,7 +112,7 @@ def getDiscordUserById(userId: int) -> dict | None:
         return None
 
     query = "SELECT * FROM discord WHERE user_id = %s"
-    dcUserDb = database.queryOneResult(query, (userId,))
+    dcUserDb = database.fetchOneResult(query, (userId,))
 
     if not dcUserDb:
         logger.debug("no DiscordUser was found")
@@ -138,4 +138,4 @@ def getOnlineUsers() -> List[Dict[Any, Any]] | None:
             "FROM discord " \
             "WHERE channel_id IS NOT NULL"
 
-    return database.queryAllResults(query)
+    return database.fetchAllResults(query)

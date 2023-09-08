@@ -73,7 +73,7 @@ class VoiceStateUpdateService:
             dcUserDb['started_stream_at'] = None
             dcUserDb['started_webcam_at'] = None
 
-            dcUserDb = await self.notificationService.runNotificationsForMember(member, dcUserDb)
+            await self.notificationService.runNotificationsForMember(member, dcUserDb)
             await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
 
             # save user so a whatsapp message can be sent properly
@@ -163,7 +163,7 @@ class VoiceStateUpdateService:
             dcUserDb
         )
 
-        if not self.database.saveChangesToDatabase(query, nones):
+        if not self.database.runQueryOnDatabase(query, nones):
             logger.critical("couldnt save DiscordUser to database")
         else:
             logger.debug("updated %s" % dcUserDb['username'])

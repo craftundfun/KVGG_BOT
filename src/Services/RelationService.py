@@ -63,7 +63,7 @@ class RelationService:
                 "(discord_user_id_1, discord_user_id_2, type, created_at) " \
                 "VALUES (%s, %s, %s, %s)"
 
-        self.database.runQueryWithoutFetching(query,
+        self.database.runQueryOnDatabase(query,
                                               (member1['id'], member2['id'], type.value, datetime.now(),))
 
         return True
@@ -97,7 +97,7 @@ class RelationService:
                 "((discord_user_id_1 = %s AND discord_user_id_2 = %s) " \
                 "OR (discord_user_id_1 = %s AND discord_user_id_2 = %s))"
 
-        relation = self.database.queryOneResult(query,
+        relation = self.database.fetchOneResult(query,
                                                 (type.value,
                                                  dcUserDb_1['id'],
                                                  dcUserDb_2['id'],
@@ -106,7 +106,7 @@ class RelationService:
 
         if not relation:
             if self.__createRelation(member_1, member_2, type):
-                relation = self.database.queryOneResult(query,
+                relation = self.database.fetchOneResult(query,
                                                         (type.value,
                                                          dcUserDb_1['id'],
                                                          dcUserDb_2['id'],
@@ -154,7 +154,7 @@ class RelationService:
 
             query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
-            if self.database.saveChangesToDatabase(query, nones):
+            if self.database.runQueryOnDatabase(query, nones):
                 logger.debug("saved increased relation to database")
             else:
                 logger.critical("couldn't save relation into database")
@@ -205,7 +205,7 @@ class RelationService:
                 relation['frequency'] = relation['frequency'] + 1
                 query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
-                self.database.saveChangesToDatabase(query, nones)
+                self.database.runQueryOnDatabase(query, nones)
             logger.debug("edited all relations for leave")
 
             if voiceStateBefore.self_video or voiceStateBefore.self_stream:
@@ -222,7 +222,7 @@ class RelationService:
                         relation['frequency'] = relation['frequency'] + 1
                         query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
-                        self.database.saveChangesToDatabase(query, nones)
+                        self.database.runQueryOnDatabase(query, nones)
 
                 logger.debug("edited all relations for leave")
         finally:
@@ -284,7 +284,7 @@ class RelationService:
                 "WHERE type = %s AND value > 0 " \
                 "ORDER BY value DESC " \
                 "LIMIT %s"
-        relations = self.database.queryAllResults(query, (type.value, limit,))
+        relations = self.database.fetchAllResults(query, (type.value, limit,))
 
         if relations:
             logger.debug("fetched top three relations from database")
@@ -292,7 +292,7 @@ class RelationService:
             query = "SELECT username FROM discord WHERE id = %s"
 
             for index, relation in enumerate(relations, 1):
-                dcUserDb_1 = self.database.queryOneResult(query, (relation['discord_user_id_1'],))
+                dcUserDb_1 = self.database.fetchOneResult(query, (relation['discord_user_id_1'],))
 
                 if not dcUserDb_1:
                     answer += "\t%d: Es gab hier einen Fehler!\n" % index
@@ -301,7 +301,7 @@ class RelationService:
 
                     continue
 
-                dcUserDb_2 = self.database.queryOneResult(query, (relation['discord_user_id_2'],))
+                dcUserDb_2 = self.database.fetchOneResult(query, (relation['discord_user_id_2'],))
 
                 if not dcUserDb_2:
                     answer += "\t%d: Es gab hier einen Fehler!\n" % index

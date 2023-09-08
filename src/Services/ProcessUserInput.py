@@ -227,7 +227,7 @@ class ProcessUserInput:
             data
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved changed DiscordUser to database")
         else:
             logger.critical("couldn't save DiscordUser to database")
@@ -527,7 +527,7 @@ class ProcessUserInput:
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSettings = self.database.queryOneResult(query, (member.id,))
+        whatsappSettings = self.database.fetchOneResult(query, (member.id,))
 
         if not whatsappSettings:
             logger.warning("couldn't fetch corresponding settings!")
@@ -575,7 +575,7 @@ class ProcessUserInput:
             whatsappSettings
         )
 
-        if self.database.saveChangesToDatabase(query, nones):
+        if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved changes to database")
 
             return "Deine Einstellung wurde übernommen!"
@@ -634,7 +634,7 @@ class ProcessUserInput:
                 "ORDER BY time_online DESC " \
                 "LIMIT 3"
 
-        usersOnlineTime = self.database.queryAllResults(query)
+        usersOnlineTime = self.database.fetchAllResults(query)
 
         # stream time
         query = "SELECT username, formatted_stream_time " \
@@ -643,7 +643,7 @@ class ProcessUserInput:
                 "ORDER BY time_streamed DESC " \
                 "LIMIT 3"
 
-        usersStreamTime = self.database.queryAllResults(query)
+        usersStreamTime = self.database.fetchAllResults(query)
 
         # message count
         query = "SELECT username, message_count_all_time " \
@@ -652,7 +652,7 @@ class ProcessUserInput:
                 "ORDER BY message_count_all_time DESC " \
                 "LIMIT 3"
 
-        usersMessageCount = self.database.queryAllResults(query)
+        usersMessageCount = self.database.fetchAllResults(query)
 
         # Rene counter
         query = "SELECT username, rene_counter " \
@@ -661,7 +661,7 @@ class ProcessUserInput:
                 "ORDER BY rene_counter DESC " \
                 "LIMIT 3"
 
-        usersReneCounter = self.database.queryAllResults(query)
+        usersReneCounter = self.database.fetchAllResults(query)
 
         # Felix counter
         query = "SELECT username, felix_counter " \
@@ -670,7 +670,7 @@ class ProcessUserInput:
                 "ORDER BY felix_counter DESC " \
                 "LIMIT 3"
 
-        usersFelixCounter = self.database.queryAllResults(query)
+        usersFelixCounter = self.database.fetchAllResults(query)
 
         # Paul counter
         query = "SELECT username, paul_counter " \
@@ -679,7 +679,7 @@ class ProcessUserInput:
                 "ORDER BY paul_counter DESC " \
                 "LIMIT 3"
 
-        usersPaulCounter = self.database.queryAllResults(query)
+        usersPaulCounter = self.database.fetchAllResults(query)
 
         # Bjarne counter
         query = "SELECT username, bjarne_counter " \
@@ -688,7 +688,7 @@ class ProcessUserInput:
                 "ORDER BY bjarne_counter DESC " \
                 "LIMIT 3"
 
-        usersBjarneCounter = self.database.queryAllResults(query)
+        usersBjarneCounter = self.database.fetchAllResults(query)
 
         # JJ counter
         query = "SELECT username, jj_counter " \
@@ -697,7 +697,7 @@ class ProcessUserInput:
                 "ORDER BY jj_counter DESC " \
                 "LIMIT 3"
 
-        usersJjCounter = self.database.queryAllResults(query)
+        usersJjCounter = self.database.fetchAllResults(query)
 
         # Oleg counter
         query = "SELECT username, oleg_counter " \
@@ -706,7 +706,7 @@ class ProcessUserInput:
                 "ORDER BY oleg_counter DESC " \
                 "LIMIT 3"
 
-        usersOlegCounter = self.database.queryAllResults(query)
+        usersOlegCounter = self.database.fetchAllResults(query)
 
         # Carl counter
         query = "SELECT username, carl_counter " \
@@ -715,7 +715,7 @@ class ProcessUserInput:
                 "ORDER BY carl_counter DESC " \
                 "LIMIT 3"
 
-        usersCarlCounter = self.database.queryAllResults(query)
+        usersCarlCounter = self.database.fetchAllResults(query)
 
         # Cookie counter
         query = "SELECT username, cookie_counter " \
@@ -724,7 +724,7 @@ class ProcessUserInput:
                 "ORDER BY cookie_counter DESC " \
                 "LIMIT 3"
 
-        usersCookieCounter = self.database.queryAllResults(query)
+        usersCookieCounter = self.database.fetchAllResults(query)
 
         answer = "--------------\n"
         answer += "__**Leaderboard**__\n"
@@ -890,7 +890,7 @@ class ProcessUserInput:
                     dcUserDb
                 )
 
-                self.database.saveChangesToDatabase(query, nones)
+                self.database.runQueryOnDatabase(query, nones)
 
             logger.debug("saved changes to database")
 
@@ -927,7 +927,7 @@ class ProcessUserInput:
                     dcUserDb
                 )
 
-                self.database.saveChangesToDatabase(query, nones)
+                self.database.runQueryOnDatabase(query, nones)
 
             logger.debug("saved changes to database")
 
@@ -940,7 +940,7 @@ class ProcessUserInput:
                 dcUserDb
             )
 
-            self.database.saveChangesToDatabase(query, nones)
+            self.database.runQueryOnDatabase(query, nones)
 
             return "%s hat einen %s-Counter von %d!" % (
                 getTagStringFromId(str(user.id)), counter.getNameOfCounter(), counter.getCounterValue())
