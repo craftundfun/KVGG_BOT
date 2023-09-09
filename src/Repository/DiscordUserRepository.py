@@ -73,6 +73,8 @@ def getDiscordUser(member: Member) -> dict | None:
 
         if not database.runQueryOnDatabase(query,
                                            (member.guild.id, member.id, username, datetime.now(), 0,)):
+            logger.critical("couldn't create new discordUser entry in our database")
+
             return None
 
         # fetch the newly added DiscordUser

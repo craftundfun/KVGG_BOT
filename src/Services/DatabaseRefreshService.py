@@ -5,11 +5,10 @@ from datetime import datetime
 
 from discord import Client, ChannelType
 
-from src.Helper import WriteSaveQuery
-from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -222,7 +221,6 @@ class DatabaseRefreshService:
         :return:
         """
         query = "SELECT * FROM discord"
-
         dcUsersDb = self.database.fetchAllResults(query)
 
         if not dcUsersDb:
@@ -239,7 +237,7 @@ class DatabaseRefreshService:
             dcUserDb['username'] = member.nick if member.nick else member.name
             dcUserDb['profile_picture_discord'] = member.display_avatar
 
-            query, nones = WriteSaveQuery.writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
+            query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
             if self.database.runQueryOnDatabase(query, nones):
                 logger.debug("updated %s" % dcUserDb['username'])
