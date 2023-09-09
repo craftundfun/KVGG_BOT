@@ -28,19 +28,25 @@ from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.QuotesManager import QuotesManager
 from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 
+# set timezone to our time
 os.environ['TZ'] = 'Europe/Berlin'
 time.tzset()
+
+# to make asyncio loops reentrant
 nest_asyncio.apply()
 
+# fetch / create logger
 logger = logging.getLogger("KVGG_BOT")
 
-# creates up to 5 log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
+# creates up to five log files, every day at midnight a new one is created - if 5 was reached logs will be overwritten
 fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/log.txt', when='midnight', backupCount=5)
 fileHandler.setFormatter(CustomFormatterFile())
 
+# handler to write errors to stderr and the log file
 clientHandler = FileAndConsoleHandler(fileHandler)
 clientHandler.setFormatter(CustomFormatterFile())
 
+# prints logs to the console
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(CustomFormatter())
 
@@ -132,7 +138,8 @@ class MyClient(discord.Client):
             logger.info("users fetched and updated")
 
         if len(sys.argv) > 1 and sys.argv[1] == "-clean":
-            logger.debug("Removing commands from guild")
+            logger.debug("REMOVING COMMANDS FROM GUILD")
+
             commandsTree = []
 
             for command in tree.walk_commands(guild=discord.Object(id=int(GuildId.GUILD_KVGG.value))):
@@ -147,15 +154,17 @@ class MyClient(discord.Client):
         else:
             try:
                 logger.debug("trying to sync commands to guild")
+
                 await tree.sync(guild=discord.Object(int(GuildId.GUILD_KVGG.value)))
             except Exception as e:
                 logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
             else:
-                logger.info("Commands synced to Guild")
+                logger.info("commands synced to guild")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         try:
             logger.debug("Trying to set activity")
+
             if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
                 await client.change_presence(
                     activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
@@ -165,12 +174,13 @@ class MyClient(discord.Client):
                     activity=discord.Activity(type=discord.ActivityType.watching, name="ob alles läuft")
                 )
         except Exception as e:
-            logger.warning("Activity couldn't be set!", exc_info=e)
+            logger.warning("activity couldn't be set", exc_info=e)
         else:
-            logger.info("Activity set")
+            logger.info("activity set")
 
         await self.fetch_guild(int(GuildId.GUILD_KVGG.value))
-        logger.debug("Fetched guild")
+
+        logger.debug("fetched guild")
 
         global backgroundServices
 
@@ -243,7 +253,7 @@ class MyClient(discord.Client):
         :param voiceStateAfter: VoiceState after the member triggered the event
         :return:
         """
-        logger.debug("received voicestate update")
+        logger.debug("received voice state update")
 
         try:
             vsus = VoiceStateUpdateService(self)
@@ -255,6 +265,7 @@ class MyClient(discord.Client):
 
 # reads the token
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
+
 # sets the intents of the client to the default ones
 intents = discord.Intents.default()
 
@@ -264,8 +275,10 @@ intents.members = True
 
 # instantiates the client
 client = MyClient(intents=intents)
+
 # creates the command tree
 tree = app_commands.CommandTree(client)
+
 backgroundServices = None
 
 """SEND LOGS"""
