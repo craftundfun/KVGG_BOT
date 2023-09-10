@@ -57,7 +57,7 @@ class VoiceStateUpdateService:
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
-            logger.debug("%s joined channel" % member.name)
+            logger.critical("%s joined channel" % member.name)
 
             dcUserDb['channel_id'] = voiceStateAfter.channel.id
             dcUserDb['joined_at'] = datetime.now()
@@ -78,20 +78,19 @@ class VoiceStateUpdateService:
 
             await self.notificationService.runNotificationsForMember(member, dcUserDb)
             await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
+            await self.channelService.memberJoinedAVoiceChat(member, voiceStateAfter)
 
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
 
-            await self.channelService.memberJoinedOrSwitchedToAVoiceChat(member, voiceStateAfter)
-
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
-            logger.debug("member changes status or voice channel")
+            logger.critical("member changes status or voice channel")
 
             # status changed
             if voiceStateBefore.channel == voiceStateAfter.channel:
-                logger.debug("%s changed status" % member.name)
+                logger.critical("%s changed status" % member.name)
 
                 now = datetime.now()
 
@@ -124,18 +123,17 @@ class VoiceStateUpdateService:
                 self.__saveDiscordUser(dcUserDb)
             # channel changed
             else:
-                logger.debug("%s changed channel" % member.name)
+                logger.critical("%s changed channel" % member.name)
 
                 dcUserDb['channel_id'] = voiceStateAfter.channel.id
 
+                await self.channelService.memberSwitchedVoiceChannel(member, voiceStateBefore, voiceStateAfter)
                 self.__saveDiscordUser(dcUserDb)
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
-                # TODO own method
-                await self.channelService.memberJoinedOrSwitchedToAVoiceChat(member, voiceStateAfter)
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
-            logger.debug("%s left channel" % member.name)
+            logger.critical("%s left channel" % member.name)
             self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
 
             dcUserDb['channel_id'] = None
