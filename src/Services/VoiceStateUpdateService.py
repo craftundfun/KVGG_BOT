@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
+from typing import List, Coroutine
 
 import discord
 from discord import Member, VoiceState
 
+from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
@@ -32,6 +34,7 @@ class VoiceStateUpdateService:
         self.waHelper = WhatsAppHelper()
         self.notificationService = NotificationService(self.client)
         self.felixCounter = FelixCounter()
+        self.channelService = ChannelService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -79,6 +82,8 @@ class VoiceStateUpdateService:
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+
+            await self.channelService.memberJoinedAVoiceChat(member, voiceStateAfter)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -147,6 +152,8 @@ class VoiceStateUpdateService:
                 logger.error("failure to start RelationService", exc_info=error)
             else:
                 await rs.manageLeavingMember(member, voiceStateBefore)
+
+            await self.channelService.memberLeftVoiceChannel(member, voiceStateBefore)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 
@@ -164,6 +171,6 @@ class VoiceStateUpdateService:
         )
 
         if not self.database.runQueryOnDatabase(query, nones):
-            logger.critical("couldnt save DiscordUser to database")
+            logger.critical("couldn't save DiscordUser to database")
         else:
             logger.debug("updated %s" % dcUserDb['username'])
