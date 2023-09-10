@@ -20,7 +20,7 @@ class AchievementService:
         """
         Sends the achievement message into our achievement channel and grants the corresponding xp boost
 
-        :param member: List of members, who reached the achievement and to be tagged
+        :param member: List of members who reached the achievement and to be tagged
         :param kind: ONLINE, STREAM or XP
         :param value: Value of the achievement, for example 300 minutes online -> will be calculated into hours
         :return:

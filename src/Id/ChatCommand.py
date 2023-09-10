@@ -1,6 +1,7 @@
 from enum import Enum
 
 
+@DeprecationWarning
 class ChatCommand(Enum):
     HELP = "!help"
     JOKE = "!witz"

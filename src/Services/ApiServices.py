@@ -62,11 +62,10 @@ class ApiServices:
         answerAir = answerAir.content.decode('utf-8')
         dataAir = json.loads(answerAir)
 
-        return "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine " \
-               "Luftfeuchtigkeit von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt " \
-               "bei %s (von maximal 500)." % (
-            city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
-            dataWeather['cloud_pct'], dataAir['overall_aqi'])
+        return ("Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine Luftfeuchtigkeit "
+                "von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt bei %s (von maximal 500)." %
+                (city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
+                 dataWeather['cloud_pct'], dataAir['overall_aqi']))
 
     @validateKeys
     async def convertCurrency(self, have: str, want: str, amount: float) -> str:
