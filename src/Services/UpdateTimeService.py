@@ -4,17 +4,16 @@ from datetime import datetime
 from discord import Client, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Services.Database import Database
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.DiscordParameters.MuteParameter import MuteParameter
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.CategoryId import CategoryWhatsappAndTrackingId, CategoryUniversityTrackingId
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
-from src.DiscordParameters.MuteParameter import MuteParameter
-from src.Helper.GetFormattedTime import getFormattedTime
+from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
-from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -29,9 +28,9 @@ class UpdateTimeService:
         self.client: Client = client
         self.database = Database()
 
-        self.uniChannels: set = ChannelIdUniversityTracking.getValues()
-        self.whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-        self.allowedChannels: set = self.uniChannels | self.whatsappChannels
+        self.uniChannels: list = CategoryUniversityTrackingId.getChannelsFromCategories(self.client)
+        self.whatsappChannels: list = CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
+        self.allowedChannels: list = self.uniChannels + self.whatsappChannels
 
         self.experienceService = ExperienceService(self.client)
         # TODO ^^
@@ -44,7 +43,7 @@ class UpdateTimeService:
         :return:
         """
         for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
-            if str(channel.id) in self.allowedChannels and len(channel.members) > 0:
+            if channel.id in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
     def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:

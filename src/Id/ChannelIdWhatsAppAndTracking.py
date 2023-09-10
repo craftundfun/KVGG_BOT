@@ -36,7 +36,7 @@ class ChannelIdWhatsAppAndTracking(Enum):
 
     CHANNEL_STAFF = '502845911773216768'  # TODO remove
 
-    CHANNEL_HUB = '1119775027034849330'  # TODO remove
+    CHANNEL_HUB = '1150440682746548266'  # TODO remove
 
     @classmethod
     def getValues(cls) -> set:

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
 import discord.app_commands
-from discord import VoiceState, Member
+from discord import VoiceState, Member, Client, VoiceChannel
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Services.Database import Database
@@ -17,6 +17,7 @@ from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
+from src.Id.CategoryId import CategoryWhatsappAndTrackingId, CategoryUniversityTrackingId
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -26,11 +27,12 @@ class WhatsAppHelper:
     Creates and manages WhatsApp-messages
     """
 
-    def __init__(self):
+    def __init__(self, client: Client):
         """
         :raise ConnectionError:
         """
         self.database = Database()
+        self.client = client
 
     def __getUsersForMessage(self) -> List[Dict[str, Any]] | None:
         """
@@ -62,11 +64,11 @@ class WhatsAppHelper:
         :param update: VoiceStateUpdate
         :return:
         """
-        logger.debug("creating Online-Notification for %s" % member.name)
+        logger.debug("creating online-notification for %s" % member.name)
 
         # if a channel does not count time
-        if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
-                update.channel.id) not in ChannelIdUniversityTracking.getValues():
+        if (update.channel not in CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client) and
+                update.channel not in CategoryUniversityTrackingId.getChannelsFromCategories(self.client)):
             logger.debug("user was outside of tracked channels")
 
             return
@@ -104,12 +106,23 @@ class WhatsAppHelper:
 
                 continue
 
-            if (triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues()
+            def __channelIdinChannels(channelId: int, channels: list[VoiceChannel]) -> bool:
+                for channel in channels:
+                    print(str(channel.id) + " == " + str(channelId))
+
+                    if channel.id == int(channelId):
+                        return True
+
+                return False
+
+            if (__channelIdinChannels(triggerDcUserDb['channel_id'],
+                                      CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client))
                     and user['receive_join_notification']):
                 logger.debug("message for gaming channels")
 
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
-            elif (triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues()
+            elif (__channelIdinChannels(triggerDcUserDb['channel_id'],
+                                        CategoryUniversityTrackingId.getChannelsFromCategories(self.client))
                   and user['receive_uni_join_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
@@ -152,11 +165,11 @@ class WhatsAppHelper:
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
-            if (str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues()
+            if (update.channel in CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
                     and user['receive_leave_notification']):
                 logger.debug("message for gaming channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
-            elif (str(update.channel.id) in ChannelIdUniversityTracking.getValues()
+            elif (update.channel in CategoryUniversityTrackingId.getChannelsFromCategories(self.client)
                   and user['receive_uni_leave_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)

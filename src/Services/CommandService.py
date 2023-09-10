@@ -247,13 +247,13 @@ class CommandService:
                         answer = await pui.handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper().addOrEditSuspendDay(**kwargs)
+                    answer = WhatsAppHelper(self.client).addOrEditSuspendDay(**kwargs)
 
                 case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper().resetSuspendSetting(**kwargs)
+                    answer = WhatsAppHelper(self.client).resetSuspendSetting(**kwargs)
 
                 case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper().listSuspendSettings(**kwargs)
+                    answer = WhatsAppHelper(self.client).listSuspendSettings(**kwargs)
 
                 case Commands.WEATHER:
                     answer = await ApiServices().getWeather(**kwargs)

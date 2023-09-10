@@ -31,7 +31,7 @@ class VoiceStateUpdateService:
         """
         self.database = Database()
         self.client = client
-        self.waHelper = WhatsAppHelper()
+        self.waHelper = WhatsAppHelper(self.client)
         self.notificationService = NotificationService(self.client)
         self.felixCounter = FelixCounter()
         self.channelService = ChannelService(self.client)
@@ -83,7 +83,7 @@ class VoiceStateUpdateService:
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
 
-            await self.channelService.memberJoinedAVoiceChat(member, voiceStateAfter)
+            await self.channelService.memberJoinedOrSwitchedToAVoiceChat(member, voiceStateAfter)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -130,6 +130,8 @@ class VoiceStateUpdateService:
 
                 self.__saveDiscordUser(dcUserDb)
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
+                # TODO own method
+                await self.channelService.memberJoinedOrSwitchedToAVoiceChat(member, voiceStateAfter)
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:

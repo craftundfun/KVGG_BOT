@@ -6,14 +6,13 @@ from enum import Enum
 from discord import ChannelType, Member, VoiceState, Client
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Services.AchievementService import AchievementService
-from src.Services.Database import Database
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.CategoryId import CategoryWhatsappAndTrackingId, CategoryUniversityTrackingId
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.AchievementService import AchievementService
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -64,11 +63,12 @@ class RelationService:
                 "VALUES (%s, %s, %s, %s)"
 
         self.database.runQueryOnDatabase(query,
-                                              (member1['id'], member2['id'], type.value, datetime.now(),))
+                                         (member1['id'], member2['id'], type.value, datetime.now(),))
 
         return True
 
-    async def getRelationBetweenUsers(self, member_1: Member, member_2: Member, type: RelationTypeEnum) -> dict | None:
+    async def __getRelationBetweenUsers(self, member_1: Member, member_2: Member,
+                                        type: RelationTypeEnum) -> dict | None:
         """
         Returns the relation of the given type and users
 
@@ -120,7 +120,7 @@ class RelationService:
 
         return relation
 
-    async def increaseRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, value: int = 1):
+    async def __increaseRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, value: int = 1):
         """
         Raises a relation of a specific couple. It creates a new relation if possible and if there is none.
 
@@ -130,7 +130,7 @@ class RelationService:
         :param value: Value to be increased
         :return:
         """
-        if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
+        if relation := await self.__getRelationBetweenUsers(member_1, member_2, type):
             relation['value'] = relation['value'] + value
 
             # check for grant-able achievements
@@ -175,26 +175,26 @@ class RelationService:
 
         try:
             otherMembersInChannel = voiceStateBefore.channel.members
-            whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-            allTrackedChannels: set = whatsappChannels | ChannelIdUniversityTracking.getValues()
+            allTrackedChannels: list = (CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
+                                        + CategoryUniversityTrackingId.getChannelsFromCategories(self.client))
 
             if len(otherMembersInChannel) <= 0:
                 logger.debug("last member in channel, relations were handled by their partners")
 
                 return
 
-            if str(voiceStateBefore.channel.id) not in allTrackedChannels:
+            if voiceStateBefore.channel not in allTrackedChannels:
                 logger.debug("relation outside of allowed region")
 
                 return
 
-            if str(voiceStateBefore.channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+            if voiceStateBefore.channel in CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client):
                 type = RelationTypeEnum.ONLINE
             else:
                 type = RelationTypeEnum.UNIVERSITY
 
             for otherMember in otherMembersInChannel:
-                relation = await self.getRelationBetweenUsers(member, otherMember, type)
+                relation = await self.__getRelationBetweenUsers(member, otherMember, type)
 
                 if not relation:
                     logger.warning("couldn't fetch relation")
@@ -211,7 +211,7 @@ class RelationService:
             if voiceStateBefore.self_video or voiceStateBefore.self_stream:
                 for otherMember in otherMembersInChannel:
                     if otherMember.voice.self_stream or otherMember.voice.self_video:
-                        relation = await self.getRelationBetweenUsers(member, otherMember, RelationTypeEnum.STREAM)
+                        relation = await self.__getRelationBetweenUsers(member, otherMember, RelationTypeEnum.STREAM)
 
                         if not relation:
                             logger.warning("couldn't fetch relation")
@@ -235,10 +235,11 @@ class RelationService:
 
         :return:
         """
-        whatsAppChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-        allTrackedChannels: set = ChannelIdUniversityTracking.getValues() | whatsAppChannels
+        whatsappChannels: list = CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
+        allTrackedChannels: list = (CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
+                                    + CategoryUniversityTrackingId.getChannelsFromCategories(self.client))
 
-        for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
             # skip none voice channels
             if channel.type != ChannelType.voice:
                 continue
@@ -250,7 +251,9 @@ class RelationService:
                 continue
 
             # skip none tracked channels
-            if str(channel.id) not in allTrackedChannels:
+            if channel not in allTrackedChannels:
+                logger.debug("channel not tracked")
+
                 continue
 
             members = channel.members
@@ -261,15 +264,15 @@ class RelationService:
                     logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
 
                     # depending on the channel increase correct relation
-                    if str(channel.id) in whatsAppChannels:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
+                    if channel in whatsappChannels:
+                        await self.__increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
                     else:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)
+                        await self.__increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)
 
                     # increase streaming relation if both are streaming at the same time
                     if (members[i].voice.self_stream or members[i].voice.self_video) and \
                             (members[j].voice.self_stream or members[j].voice.self_video):
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
+                        await self.__increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
 
     async def getLeaderboardFromType(self, type: RelationTypeEnum, limit: int = 3) -> str | None:
         """

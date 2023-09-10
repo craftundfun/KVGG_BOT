@@ -14,6 +14,7 @@ from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
+from src.Id.CategoryId import CategoryWhatsappAndTrackingId
 from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
@@ -307,9 +308,8 @@ class ProcessUserInput:
             logger.debug("member is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
-        elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
-                                                                                                             RoleId.ADMIN,
-                                                                                                             RoleId.MOD):
+        elif (channelStart not in CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
+              and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
             logger.debug("starting channel is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -319,7 +319,7 @@ class ProcessUserInput:
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if (str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues()
+        if (channel not in CategoryWhatsappAndTrackingId.getChannelsFromCategories(self.client)
                 and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
             logger.debug("destination channel is outside of the allowed moving range")
 
