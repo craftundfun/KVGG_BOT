@@ -36,6 +36,7 @@ class VoiceStateUpdateService:
         self.channelService = ChannelService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
+        start = datetime.now()
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
 
         if not member:
@@ -82,6 +83,8 @@ class VoiceStateUpdateService:
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+
+            print("time: " + str(datetime.now() - start))
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -130,6 +133,7 @@ class VoiceStateUpdateService:
                 self.__saveDiscordUser(dcUserDb)
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
 
+                print("time: " + str(datetime.now() - start))
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
             logger.critical("%s left channel" % member.name)
@@ -153,6 +157,8 @@ class VoiceStateUpdateService:
                 await rs.manageLeavingMember(member, voiceStateBefore)
 
             await self.channelService.memberLeftVoiceChannel(voiceStateBefore)
+
+            print("time: " + str(datetime.now() - start))
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 

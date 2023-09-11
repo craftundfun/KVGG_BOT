@@ -10,14 +10,12 @@ import discord.app_commands
 from discord import VoiceState, Member, Client, VoiceChannel
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.CategoryId import CategoryWhatsappAndTrackingId, CategoryUniversityTrackingId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
-from src.Id.CategoryId import CategoryWhatsappAndTrackingId, CategoryUniversityTrackingId
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -108,8 +106,6 @@ class WhatsAppHelper:
 
             def __channelIdinChannels(channelId: int, channels: list[VoiceChannel]) -> bool:
                 for channel in channels:
-                    print(str(channel.id) + " == " + str(channelId))
-
                     if channel.id == int(channelId):
                         return True
 
