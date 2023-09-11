@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Coroutine
 
 import discord
 from discord import Member, VoiceState
 
-from src.Services.ChannelService import ChannelService
-from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.ChannelService import ChannelService
+from src.Services.Database import Database
 from src.Services.NotificationService import NotificationService
 from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
@@ -153,7 +152,7 @@ class VoiceStateUpdateService:
             else:
                 await rs.manageLeavingMember(member, voiceStateBefore)
 
-            await self.channelService.memberLeftVoiceChannel(member, voiceStateBefore)
+            await self.channelService.memberLeftVoiceChannel(voiceStateBefore)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 

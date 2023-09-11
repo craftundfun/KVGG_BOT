@@ -15,7 +15,6 @@ lock = asyncio.Lock()
 class ChannelService:
     HUB_ID: int = 1150440682746548266
     CATEGORY: int = CategoryWhatsappAndTrackingId.SERVERVERWALTUNG.value  # TODO change to Gaming
-    WAIT_FOR_PLAYERS_CHANNEL_NAME = "warte auf Mitspieler/innen"
 
     def __init__(self, client: Client):
         """
@@ -42,13 +41,11 @@ class ChannelService:
         """
         Checks if the newly joined member joined into Hub. If so, he / she will be moved into a newly created channel.
 
-        :param member: Member, who joined a voice channel
+        :param member: Member who joined the hub and the channel will be named after
         :param voiceStateAfter: State of the member after joining a voice channel
         :return:
         """
         async with lock:
-            logger.debug("lock acquired")
-
             if not (category := self.__getCategory()):
                 logger.critical("couldn't fetch category -> couldn't create new channel")
 
@@ -63,16 +60,6 @@ class ChannelService:
             if not voiceStateAfter.channel.id == self.HUB_ID:
                 logger.debug("not hub-channel")
 
-                # hub and wait for players
-                if len(category.voice_channels) == 3:  # TODO change to 2
-                    for channel in category.voice_channels:
-                        if channel.name == self.WAIT_FOR_PLAYERS_CHANNEL_NAME:
-                            try:
-                                await channel.edit(name="Gaming #%d" % (len(category.voice_channels) - 1))
-                            except Exception as error:
-                                logger.error("couldn't change name of channel", exc_info=error)
-                            else:
-                                logger.debug("renamed channel to Gaming #%d" % (len(category.voice_channels) - 1))
                 return
 
             if len(self.client.get_channel(self.HUB_ID).members) == 0:
@@ -81,13 +68,10 @@ class ChannelService:
                 return
 
             # +1 to ignore hub, -1 because hub has no number = +/-0
-            if len(category.voice_channels) == 2:  # TODO change to 1 due to Gaming category
-                name = self.WAIT_FOR_PLAYERS_CHANNEL_NAME
-            else:
-                name = "Gaming #%d" % len(category.voice_channels)
+            name = "Gaming - %s" % member.name
 
-            if not (voiceChannel := await self.__createNewChannel(name)):
-                logger.critical("couldnt create new channel")
+            if not (voiceChannel := await self.__createNewChannel(name, len(category.voice_channels), category)):
+                logger.critical("couldn't create new channel")
 
                 return
             else:
@@ -103,23 +87,20 @@ class ChannelService:
 
                         continue
 
+                # users were moved / left beforehand
                 if moved == 0:
                     await voiceChannel.delete(reason="no users left to join - empty")
 
-        logger.debug("lock released")
-
-    async def __createNewChannel(self, name: str) -> VoiceChannel | None:
-        category = self.__getCategory()
-
+    async def __createNewChannel(self, name: str, position: int, category: CategoryChannel) -> VoiceChannel | None:
         if category is None:
             logger.critical("couldn't create voice channel, category is None")
 
             return None
 
         try:
-            voiceChannel = await category.create_voice_channel(name)
+            voiceChannel = await category.create_voice_channel(name, position=position)
         except Exception as error:
-            logger.error("couldnt create voice channel", exc_info=error)
+            logger.error("couldn't create voice channel", exc_info=error)
 
             return None
         else:
@@ -131,26 +112,20 @@ class ChannelService:
                                          voiceStateAfter: VoiceState):
         channelBefore = voiceStateBefore.channel
         channelAfter = voiceStateAfter.channel
+        category = self.__getCategory()
 
         async with lock:
-            # member switched from outside the category
-            if channelBefore.category.id != self.CATEGORY and channelAfter.category.id == self.CATEGORY:
-                # joined voicechannel still has waiting name => change it
-                if channelAfter.name == self.WAIT_FOR_PLAYERS_CHANNEL_NAME and len(channelAfter.members) >= 2:
-                    await channelAfter.edit(name="Gaming #%d" % (len(self.__getCategory().voice_channels)))
             # member switched within category
-            elif channelBefore.category.id == self.CATEGORY and channelAfter.category.id == self.CATEGORY:
+            if channelBefore.category.id == self.CATEGORY and channelAfter.category.id == self.CATEGORY:
+                # if left channel is empty delete it
+                if len(channelBefore.members) == 0 and channelBefore.id != self.HUB_ID:
+                    await channelBefore.delete(reason="no one uses this channel anymore")
+
                 # switched to hub
                 if channelAfter.id == self.HUB_ID:
-                    if len(channelBefore.members) == 0:
-                        await channelBefore.delete(reason="no one uses this channel anymore")
-
-                    # if only the hub exists name the channel waiting for players
-                    if len((category := self.__getCategory()).voice_channels) == 2:  # TODO change to 1
-                        voiceChannel = await self.__createNewChannel(self.WAIT_FOR_PLAYERS_CHANNEL_NAME)
-                    # else name the channel after the given scheme
-                    else:
-                        voiceChannel = await self.__createNewChannel("Gaming #%d" % (len(category.voice_channels) + 1))
+                    voiceChannel = await self.__createNewChannel("Gaming - %s" % member.name,
+                                                                 len(category.voice_channels),
+                                                                 category)
 
                     if not voiceChannel:
                         logger.critical("couldn't create voice channel")
@@ -165,23 +140,15 @@ class ChannelService:
                         return
 
                     return
-
-                # left channel is now empty => delete
+            # member left category
+            else:
                 if len(channelBefore.members) == 0 and channelBefore.id != self.HUB_ID:
                     await channelBefore.delete(reason="no one uses this channel anymore")
 
-                # joined voicechannel still has waiting name => change it
-                if channelAfter.name == self.WAIT_FOR_PLAYERS_CHANNEL_NAME and len(channelAfter.members) >= 2:
-                    await channelAfter.edit(name="Gaming #%d" % (len(self.__getCategory().voice_channels)))
-            # member left category
-            else:
-                if len(channelBefore.members) == 0:
-                    await channelBefore.delete(reason="no one uses this channel anymore")
-
-    async def memberLeftVoiceChannel(self, member: Member, voiceStateBefore: VoiceState):
+    async def memberLeftVoiceChannel(self, voiceStateBefore: VoiceState):
         async with lock:
             if voiceStateBefore.channel not in self.__getCategory().voice_channels:
-                logger.debug("channel was not in tracked category (not university tho)")
+                logger.debug("channel was not in tracked hub category")
 
                 return
             # never risk to delete hub
