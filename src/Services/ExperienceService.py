@@ -11,11 +11,11 @@ from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Services.AchievementService import AchievementService
-from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -749,11 +749,13 @@ class ExperienceService:
         # 99 mod 10 > 101 mod 10 -> achievement for 100
         if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
                 > xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value):
-            await (self.achievementService.
-                   sendAchievementAndGrantBoost(member,
-                                                AchievementParameter.XP,
-                                                (xp['xp_amount']
-                                                 - (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))))
+            print("xp: %d" % xp['xp_amount'])
+            print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
+
+            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.XP,
+                                                                       (xp['xp_amount']
+                                                                        - (xp[
+                                                                               'xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
 
         logger.debug("saved changes to database")
 

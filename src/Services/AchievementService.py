@@ -1,6 +1,6 @@
 import logging
-from os import environ
 
+from os import environ
 from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
@@ -8,62 +8,6 @@ from src.Id.ChannelId import ChannelId
 
 logger = logging.getLogger("KVGG_BOT")
 IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
-
-
-async def checkForAchievement(kind: AchievementParameter, value: int, client: Client, members: list[Member]):
-    """
-    Calculates if a new achievement can be granted
-
-    :param kind: Type of achievement
-    :param value: Value of reached time to calculate if an achievement will be granted
-    :param client: Discord
-    :param members: List of Members, one member for online and stream, two for online- and stream-relations
-    :return:
-    """
-    try:
-        achievementService = AchievementService(client)
-    except Exception as error:
-        logger.error("failure to start AchievementService", exc_info=error)
-
-        return
-
-    match kind:
-        # online time
-        case AchievementParameter.ONLINE:
-            if value % (AchievementParameter.ONLINE_TIME_HOURS.value * 60) == 0:
-                await achievementService.sendAchievementAndGrantBoost(members[0],
-                                                                      kind,
-                                                                      value,
-                                                                      )
-        # stream time
-        case AchievementParameter.STREAM:
-            if value % (AchievementParameter.STREAM_TIME_HOURS.value * 60) == 0:
-                await achievementService.sendAchievementAndGrantBoost(members[0],
-                                                                      kind,
-                                                                      value,
-                                                                      )
-        # relation
-        case AchievementParameter.RELATION_ONLINE:
-            if value % (AchievementParameter.RELATION_ONLINE_TIME_HOURS.value * 60) == 0:
-                await achievementService.sendAchievementAndGrantBoostForRelation(
-                    members[0],
-                    members[1],
-                    kind,
-                    value,
-                )
-        # relation stream
-        case AchievementParameter.RELATON_STREAM:
-            if value % (AchievementParameter.RELATION_STREAM_TIME_HOURS.value * 60) == 0:
-                await achievementService.sendAchievementAndGrantBoostForRelation(
-                    members[0],
-                    members[1],
-                    kind,
-                    value,
-                )
-        case _:
-            logger.critical("undefined entry was reached")
-
-            return
 
 
 class AchievementService:

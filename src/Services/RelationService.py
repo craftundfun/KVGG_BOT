@@ -6,14 +6,14 @@ from enum import Enum
 from discord import ChannelType, Member, VoiceState, Client
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Services.AchievementService import AchievementService
+from src.Services.Database import Database
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.AchievementService import checkForAchievement
-from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -64,7 +64,7 @@ class RelationService:
                 "VALUES (%s, %s, %s, %s)"
 
         self.database.runQueryOnDatabase(query,
-                                         (member1['id'], member2['id'], type.value, datetime.now(),))
+                                              (member1['id'], member2['id'], type.value, datetime.now(),))
 
         return True
 
@@ -136,17 +136,21 @@ class RelationService:
             # check for grant-able achievements
             match type:
                 case RelationTypeEnum.ONLINE:
-                    await checkForAchievement(AchievementParameter.RELATION_ONLINE,
-                                              relation['value'],
-                                              self.client,
-                                              [member_1, member_2],
-                                              )
+                    if (relation['value'] % (AchievementParameter.RELATION_ONLINE_TIME_HOURS.value * 60)) == 0:
+                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                            member_1,
+                            member_2,
+                            AchievementParameter.RELATION_ONLINE,
+                            relation['value']
+                        )
                 case RelationTypeEnum.STREAM:
-                    await checkForAchievement(AchievementParameter.RELATON_STREAM,
-                                              relation['value'],
-                                              self.client,
-                                              [member_1, member_2],
-                                              )
+                    if (relation['value'] % (AchievementParameter.RELATION_STREAM_TIME_HOURS.value * 60)) == 0:
+                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                            member_1,
+                            member_2,
+                            AchievementParameter.RELATON_STREAM,
+                            relation['value']
+                        )
 
             query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
@@ -271,7 +275,6 @@ class RelationService:
         """
         Returns the top 3 relations from the given type
 
-        :param limit:
         :param type: RelationTypeEnum to choose which relation to look at
         :return:
         """
