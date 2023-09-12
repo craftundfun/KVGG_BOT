@@ -122,7 +122,7 @@ class UpdateTimeService:
                     dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
                     # online time achievement
-                    await checkForAchievement(AchievementParameter.ONLINE, dcUserDb['time_online'], self.client, member)
+                    await checkForAchievement(AchievementParameter.ONLINE, dcUserDb['time_online'], self.client, [member])
                     # add xp and achievement
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
 
@@ -136,7 +136,7 @@ class UpdateTimeService:
                         await checkForAchievement(AchievementParameter.STREAM,
                                                   dcUserDb['time_streamed'],
                                                   self.client,
-                                                  member)
+                                                  [member])
                         # add xp and achievement
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)

@@ -1,5 +1,7 @@
+import asyncio
 import logging
 import traceback
+from multiprocessing import Process
 
 import discord
 from discord.ext import tasks, commands
@@ -29,63 +31,78 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
-        logger.debug("running minutely-job")
+        async def jobs():
+            logger.debug("running minutely-job")
 
-        try:
-            logger.debug("running updateTimesAndExperience")
+            try:
+                logger.debug("running updateTimesAndExperience")
 
-            uts = UpdateTimeService(self.client)
+                uts = UpdateTimeService(self.client)
 
-            await uts.updateTimesAndExperience()
-        except ConnectionError as error:
-            logger.error("failure to start UpdateTimeService", exc_info=error)
+                await uts.updateTimesAndExperience()
+            except ConnectionError as error:
+                logger.error("failure to start UpdateTimeService", exc_info=error)
 
-            send_exception_mail(traceback.format_exc())
-        except Exception as e:
-            logger.critical("encountered exception while executing updateTimeService", exc_info=e)
+                send_exception_mail(traceback.format_exc())
+            except Exception as e:
+                logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 
-            send_exception_mail(traceback.format_exc())
+                send_exception_mail(traceback.format_exc())
 
-        try:
-            logger.debug("running callReminder")
+            try:
+                logger.debug("running callReminder")
 
-            rs = ReminderService(self.client)
+                rs = ReminderService(self.client)
 
-            await rs.manageReminders()
-        except ConnectionError as error:
-            logger.error("failure to start ReminderService", exc_info=error)
+                await rs.manageReminders()
+            except ConnectionError as error:
+                logger.error("failure to start ReminderService", exc_info=error)
 
-            send_exception_mail(traceback.format_exc())
-        except Exception as e:
-            logger.critical("encountered exception while executing reminderService", exc_info=e)
+                send_exception_mail(traceback.format_exc())
+            except Exception as e:
+                logger.critical("encountered exception while executing reminderService", exc_info=e)
 
-            send_exception_mail(traceback.format_exc())
+                send_exception_mail(traceback.format_exc())
 
-        try:
-            logger.debug("running increaseRelations")
+            try:
+                logger.debug("running increaseRelations")
 
-            rs = RelationService(self.client)
+                rs = RelationService(self.client)
 
-            await rs.increaseAllRelation()
-        except ConnectionError as error:
-            logger.error("failure to start RelationService", exc_info=error)
+                await rs.increaseAllRelation()
+            except ConnectionError as error:
+                logger.error("failure to start RelationService", exc_info=error)
 
-            send_exception_mail(traceback.format_exc())
-        except Exception as e:
-            logger.critical("encountered exception while executing relationService", exc_info=e)
+                send_exception_mail(traceback.format_exc())
+            except Exception as e:
+                logger.critical("encountered exception while executing relationService", exc_info=e)
 
-            send_exception_mail(traceback.format_exc())
+                send_exception_mail(traceback.format_exc())
 
-        try:
-            logger.debug("running updateFelixCounter")
+            try:
+                logger.debug("running updateFelixCounter")
 
-            fc = FelixCounter()
+                fc = FelixCounter()
 
-            await fc.updateFelixCounter(self.client)
-        except Exception as e:
-            logger.critical("encountered exception while executing updateFelixCounter", exc_info=e)
+                await fc.updateFelixCounter(self.client)
+            except Exception as e:
+                logger.critical("encountered exception while executing updateFelixCounter", exc_info=e)
 
-            send_exception_mail(traceback.format_exc())
+                send_exception_mail(traceback.format_exc())
+
+        def run_loop():
+            # loop = asyncio.get_event_loop()
+
+            # loop.run_until_complete(jobs())
+            # loop.close()
+
+            asyncio.run(jobs())
+
+        process = Process(target=run_loop)
+        process.start()
+        process.join()
+
+        logger.debug("finished running minutelyJob in multiprocessing-mode")
 
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
