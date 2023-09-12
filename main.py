@@ -866,11 +866,6 @@ def run():
     global restartTrys
 
     try:
-        try:
-            raise ValueError("TEST")
-        except ValueError as error:
-            logger.error("TEST", exc_info=error)
-
         client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
     except Exception as e:
         logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
