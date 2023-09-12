@@ -406,7 +406,8 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     Choice(name="Cookie - Counter für jemanden der einen Keks verdient hat.", value="Cookie"),
     Choice(name="Felix - Counter für Zuspät- / Garnichtkommer.", value="Felix"),
     Choice(name="JJ - Counter für jemanden der sich nicht verabschiedet.", value="JJ"),
-    Choice(name="Oleg - Counter für jemanden der etwas sehr unverständliches sagt (z.B. auf einer anderen Sprache).", value="Oleg"),
+    Choice(name="Oleg - Counter für jemanden der etwas sehr unverständliches sagt (z.B. auf einer anderen Sprache).",
+           value="Oleg"),
     Choice(name="Paul - Counter für Donowaller.", value="Paul"),
     Choice(name="Rene - Counter für loste Menschen.", value="Rene"),
 ])
@@ -865,6 +866,11 @@ def run():
     global restartTrys
 
     try:
+        try:
+            raise ValueError("TEST")
+        except ValueError as error:
+            logger.error("TEST", exc_info=error)
+
         client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
     except Exception as e:
         logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
