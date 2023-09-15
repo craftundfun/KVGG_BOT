@@ -26,7 +26,7 @@ async def sendDM(member: Member, content: str):
         if not member.id == 416967436617777163:
             return
         
-        logger.debug("send DM to Bjarne, exception")
+        logger.debug("send exceptional DM to Bjarne, because we are in the IDE")
 
     if not member.dm_channel:
         await member.create_dm()

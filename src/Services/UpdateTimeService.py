@@ -34,7 +34,6 @@ class UpdateTimeService:
         self.allowedChannels: set = self.uniChannels | self.whatsappChannels
 
         self.experienceService = ExperienceService(self.client)
-        # TODO ^^
         self.achievementService = AchievementService(self.client)
 
     def __getChannels(self):
@@ -105,7 +104,7 @@ class UpdateTimeService:
 
             for member in channel.members:
                 if not (dcUserDb := getDiscordUser(member)):
-                    logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id))
+                    logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id,))
 
                     continue
 
@@ -157,6 +156,6 @@ class UpdateTimeService:
                 query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
                 if not self.database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database", exc_info=error)
+                    logger.critical("couldn't save changes to database")
 
                     continue
