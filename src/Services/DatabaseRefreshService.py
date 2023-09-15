@@ -119,8 +119,12 @@ class DatabaseRefreshService:
                 if dcUserDb is None:
                     logger.error("couldn't create new entry for %s!" % member.name)
 
+    @DeprecationWarning
     async def updateDatabaseToServerState(self):
         """
+        DEPRECATION-WARNING: We don't need this function anymore with the implementation of UpdateTimesService.
+        Users who aren't online on the server will not get online time regardless of the database state.
+        
         Updates the database to the current state of the discord
         (The database -> discord direction only updates member who still have channel ids,
         only these entry are cleaned up. All other entries will not be cleaned due to performance reasons, and
@@ -244,4 +248,4 @@ class DatabaseRefreshService:
             else:
                 logger.critical("couldn't save changes to database")
 
-        logger.debug("Uploaded changes to database")
+        logger.debug("uploaded changes to database")

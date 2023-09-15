@@ -18,8 +18,8 @@ class BackgroundServices(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
 
-        self.refreshDatabaseWithDiscord.start()
-        logger.info("refreshDatabaseWithDiscord started")
+        # self.refreshDatabaseWithDiscord.start()
+        # logger.info("refreshDatabaseWithDiscord started")
 
         self.refreshMembersInDatabase.start()
         logger.info("refreshMembersInDatabase started")
@@ -87,6 +87,7 @@ class BackgroundServices(commands.Cog):
 
             send_exception_mail(traceback.format_exc())
 
+    @DeprecationWarning
     @tasks.loop(minutes=30)
     async def refreshDatabaseWithDiscord(self):
         logger.debug("running refreshDatabaseWithDiscord")
