@@ -32,6 +32,6 @@ async def sendDM(member: Member, content: str):
         await member.create_dm()
 
         if not member.dm_channel:
-            raise Exception
+            raise Exception("couldn't create DM channel with %s" % member.name)
 
     await member.dm_channel.send(content)

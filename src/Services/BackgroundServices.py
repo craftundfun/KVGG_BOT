@@ -100,7 +100,7 @@ class BackgroundServices(commands.Cog):
 
         process = Process(target=run_loop)
         process.start()
-        process.join()
+        # process.join()
 
         logger.debug("finished running minutelyJob in multiprocessing-mode")
 
