@@ -4,9 +4,9 @@ import traceback
 import discord
 from discord.ext import tasks, commands
 
+from src.Helper.EmailService import send_exception_mail
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Services import DatabaseRefreshService
-from src.Helper.EmailService import send_exception_mail
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService
@@ -39,6 +39,8 @@ class BackgroundServices(commands.Cog):
             await uts.updateTimesAndExperience()
         except ConnectionError as error:
             logger.error("failure to start UpdateTimeService", exc_info=error)
+
+            send_exception_mail(traceback.format_exc())
         except Exception as e:
             logger.critical("encountered exception while executing updateTimeService", exc_info=e)
 

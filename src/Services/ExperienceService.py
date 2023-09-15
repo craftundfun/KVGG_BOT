@@ -11,11 +11,11 @@ from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Services.AchievementService import AchievementService
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 

@@ -1,6 +1,6 @@
 import logging
-
 from os import environ
+
 from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter

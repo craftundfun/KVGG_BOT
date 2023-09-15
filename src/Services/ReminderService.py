@@ -4,13 +4,13 @@ from datetime import datetime, timedelta
 import discord
 from discord import Member
 
-from src.Services.Database import Database
+from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -293,7 +293,7 @@ class ReminderService:
         try:
             await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'])
 
-            logger.debug("send remainder to %s" % member.name)
+            logger.debug("send reminder to %s" % member.name)
         except discord.HTTPException as e:
             logger.error("there was a problem sending the DM", exc_info=e)
 

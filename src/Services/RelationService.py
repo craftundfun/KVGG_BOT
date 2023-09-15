@@ -6,14 +6,14 @@ from enum import Enum
 from discord import ChannelType, Member, VoiceState, Client
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Services.AchievementService import AchievementService
-from src.Services.Database import Database
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.AchievementService import AchievementService
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
