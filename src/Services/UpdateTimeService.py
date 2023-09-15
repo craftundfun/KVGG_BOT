@@ -12,7 +12,7 @@ from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.AchievementService import checkForAchievement
+from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 
@@ -35,6 +35,7 @@ class UpdateTimeService:
 
         self.experienceService = ExperienceService(self.client)
         # TODO ^^
+        self.achievementService = AchievementService(self.client)
 
     def __getChannels(self):
         """
@@ -122,8 +123,11 @@ class UpdateTimeService:
                     dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
                     # online time achievement
-                    await checkForAchievement(AchievementParameter.ONLINE, dcUserDb['time_online'], self.client, [member])
-                    # add xp and achievement
+                    if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                                   AchievementParameter.ONLINE,
+                                                                                   dcUserDb['time_online'])
+
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
 
                     # increase time for streaming
@@ -132,12 +136,11 @@ class UpdateTimeService:
                         dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
                         dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
-                        # stream time achievement
-                        await checkForAchievement(AchievementParameter.STREAM,
-                                                  dcUserDb['time_streamed'],
-                                                  self.client,
-                                                  [member])
-                        # add xp and achievement
+                        if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
+                            await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                                       AchievementParameter.STREAM,
+                                                                                       dcUserDb['time_streamed'])
+
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
 
@@ -154,6 +157,6 @@ class UpdateTimeService:
                 query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
                 if not self.database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database")
+                    logger.critical("couldn't save changes to database", exc_info=error)
 
                     continue

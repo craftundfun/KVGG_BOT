@@ -1,4 +1,3 @@
-import sys
 from logging import StreamHandler
 from logging.handlers import TimedRotatingFileHandler
 
@@ -14,9 +13,4 @@ class FileAndConsoleHandler(StreamHandler):
 
     def emit(self, record):
         self.format(record)
-
-        if record.exc_text:
-            sys.stderr.write(record.message + "\n")
-            sys.stderr.write(record.exc_text)
-
         self.fileHandler.emit(record)

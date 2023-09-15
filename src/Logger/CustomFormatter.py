@@ -1,4 +1,7 @@
 import logging
+import sys
+
+from src.Helper.EmailService import send_exception_mail
 
 """
 CUSTOM FORMATTER FOR LOGGING - DONT TOUCH
@@ -25,4 +28,13 @@ class CustomFormatter(logging.Formatter):
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
+
+        if record.exc_text:
+            sys.stderr.write(record.message + "\n")
+            sys.stderr.write(record.exc_text  + "\n")
+            sys.stdout.write(record.message + "\n")
+            sys.stdout.write(record.exc_text + "\n")
+
+            send_exception_mail(record.message + "\n" + record.exc_text)
+
         return formatter.format(record)
