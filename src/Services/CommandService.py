@@ -84,6 +84,7 @@ class CommandService:
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
+        # TODO fix 2000 character bug
         try:
             await ctx.followup.send(answer)
         except Exception as e:
