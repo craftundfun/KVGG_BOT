@@ -84,10 +84,9 @@ class ExperienceService:
         """
         logger.debug("fetching experience")
 
-        query = "SELECT experience.id, discord_user_id, xp_amount, xp_boosts_inventory, last_spin_for_boost, " \
-                "active_xp_boosts " \
-                "FROM experience " \
-                "INNER JOIN discord d ON experience.discord_user_id = d.id " \
+        query = "SELECT e.* " \
+                "FROM experience AS e " \
+                "INNER JOIN discord d ON e.discord_user_id = d.id " \
                 "WHERE d.user_id = %s"
 
         xp = self.database.fetchOneResult(query, (userId,))
@@ -284,6 +283,22 @@ class ExperienceService:
                     'remaining': ExperienceParameter.XP_BOOST_RELATION_STREAM_DURATION.value,
                     'description': ExperienceParameter.DESCRIPTION_RELATION_STREAM.value,
                 }
+            case AchievementParameter.COOKIE:
+                if lastBoost := xp['last_cookie_boost']:
+                    if ((interval := (datetime.now() - lastBoost)).days
+                            < ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_COOKIE_BOOST.value
+                            and interval.seconds
+                            < ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_COOKIE_BOOST.value * 24 * 60 * 60):
+                        logger.debug("cant grant new cookie boost, time was not passed")
+
+                        return
+
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_COOKIE.value,
+                    'remaining': ExperienceParameter.XP_BOOST_COOKIE_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_COOKIE.value,
+                }
+                xp['last_cookie_boost'] = datetime.now()
             case _:
                 logger.critical("undefined enum entry was reached")
 
@@ -300,6 +315,7 @@ class ExperienceService:
             inventory = []
 
         inventory.append(boost)
+
         xp['xp_boosts_inventory'] = json.dumps(inventory)
         query, nones = writeSaveQuery(
             'experience',

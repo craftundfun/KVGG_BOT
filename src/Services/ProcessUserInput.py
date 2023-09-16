@@ -14,7 +14,6 @@ from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
@@ -26,6 +25,7 @@ from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services import QuotesManager
+from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
 
@@ -173,7 +173,7 @@ class ProcessUserInput:
         :param channel: Channel, where the interaction was used
         :return:
         """
-        logger.debug("Increasing message-count for %s" % member.name)
+        logger.debug("increasing message-count for %s" % member.name)
 
         dcUserDb = getDiscordUser(member)
 
@@ -820,8 +820,11 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
+    # TODO improve code duplicates. working but kinda shitty
     @validateKeys
-    async def accessNameCounterAndEdit(self, counterName: str, user: Member, member: Member,
+    async def accessNameCounterAndEdit(self, counterName: str,
+                                       user: Member,
+                                       member: Member,
                                        param: int | None) -> string:
         """
         Answering given Counter from given User or adds (subtracts) given amount
@@ -832,7 +835,7 @@ class ProcessUserInput:
         :param param: Optional amount of time to add / subtract
         :return:
         """
-        counter = None
+        # counter = None
 
         if "Bjarne" == counterName:
             counter = BjarneCounter.BjarneCounter()
@@ -858,6 +861,7 @@ class ProcessUserInput:
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
         dcUserDb = getDiscordUser(user)
+        answerAppendix = ""
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -866,36 +870,60 @@ class ProcessUserInput:
 
         counter.setDiscordUser(dcUserDb)
 
+        # increase counter and member is Mod / Admin to overwrite the limit to increase
         if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             try:
                 value = int(param)
             except ValueError:
                 logger.debug("parameter was not convertable to int")
 
-                return "Dein eingegebener Parameter war ungültig!"
+                return "Dein eingegebener Parameter war ungültig! Bitte gib eine Zahl ein!"
+
+            # cant increase own cookie counter to avoid xp-boost abuse
+            if isinstance(counter, CookieCounter.CookieCounter):
+                if int(dcUserDb['user_id']) == member.id and value > 0:
+                    logger.debug("%s tried to increase his own cookie-counter" % member.name)
+
+                    return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
 
             if int(dcUserDb['user_id']) == member.id and value < 0:
                 logger.debug("%s tried to reduce his own counter" % member.name)
 
                 return "Du darfst deinen eigenen Counter nicht verringern!"
 
-            if counter.getCounterValue() + value < 0:
+            # special case for Cookie-Counter
+            if isinstance(counter, CookieCounter.CookieCounter):
+                if counter.getCounterValue() + value >= 0:
+                    counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+
+                    answerAppendix = ("\n\n"
+                                      + getTagStringFromId(str(user.id))
+                                      + ", du hast für deinen Keks evtl. einen neuen XP-Boost erhalten. "
+                                        "Schau mal nach!")
+                else:
+                    counter.setCounterValue(0, user, self.client)
+            # dont go negative
+            elif counter.getCounterValue() + value < 0:
                 counter.setCounterValue(0)
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'discord',
-                    dcUserDb['id'],
-                    dcUserDb
-                )
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
 
-                self.database.runQueryOnDatabase(query, nones)
+            if not self.database.runQueryOnDatabase(query, nones):
+                logger.critical("couldnt save changes to database")
+
+                return "Es ist ein Fehler aufgetreten!"
 
             logger.debug("saved changes to database")
 
-            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+            return ("Der %s-Counter von %s wurde um %d erhöht!" % (
                 counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
+                    + answerAppendix)
         # param but no privileged user
         elif param:
             try:
@@ -904,6 +932,13 @@ class ProcessUserInput:
                 logger.debug("parameter was not convertable to int")
 
                 return "Dein eingegebener Parameter war ungültig!"
+
+            # cant increase own cookie counter to avoid xp-boost abuse
+            if isinstance(counter, CookieCounter.CookieCounter):
+                if int(dcUserDb['user_id']) == member.id and value > 0:
+                    logger.debug("%s tried to increase his own cookie-counter" % member.name)
+
+                    return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
 
             if int(dcUserDb['user_id']) == member.id and value < 0:
                 logger.debug("%s tried to reduce his own counter" % member.name)
@@ -914,25 +949,41 @@ class ProcessUserInput:
 
                 return "0 ist keine gültige Anpassung!"
 
-            value = 1 if value > 0 else -1
+            value = 1 if value >= 0 else -1
 
-            if counter.getCounterValue() + value < 0:
+            # special case for Cookie-Counter
+            if isinstance(counter, CookieCounter.CookieCounter):
+                if counter.getCounterValue() + value >= 0:
+                    counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+
+                    answerAppendix = ("\n\n"
+                                      + getTagStringFromId(str(user.id))
+                                      + ", du hast für deinen Keks evtl. einen neuen XP-Boost erhalten. "
+                                        "Schau mal nach!")
+                else:
+                    counter.setCounterValue(0, user, self.client)
+            # dont go negative
+            elif counter.getCounterValue() + value < 0:
                 counter.setCounterValue(0)
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-                query, nones = WriteSaveQuery.writeSaveQuery(
-                    'discord',
-                    dcUserDb['id'],
-                    dcUserDb
-                )
+            query, nones = WriteSaveQuery.writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
 
-                self.database.runQueryOnDatabase(query, nones)
+            if not self.database.runQueryOnDatabase(query, nones):
+                logger.critical("couldn't save changes to database")
+
+                return "Es ist ein Fehler aufgetreten!"
 
             logger.debug("saved changes to database")
 
-            return "Der %s-Counter von %s wurde um %d erhöht!" % (
+            return ("Der %s-Counter von %s wurde um %d erhöht!" % (
                 counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
+                    + answerAppendix)
         else:
             query, nones = WriteSaveQuery.writeSaveQuery(
                 'discord',
@@ -940,7 +991,10 @@ class ProcessUserInput:
                 dcUserDb
             )
 
-            self.database.runQueryOnDatabase(query, nones)
+            if not self.database.runQueryOnDatabase(query, nones):
+                logger.critical("couldn't save changes to database")
+
+                return "Es ist ein Fehler aufgetreten!"
 
             return "%s hat einen %s-Counter von %d!" % (
                 getTagStringFromId(str(user.id)), counter.getNameOfCounter(), counter.getCounterValue())
