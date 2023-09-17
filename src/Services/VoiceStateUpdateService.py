@@ -3,8 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-import discord
-from discord import Member, VoiceState
+from discord import Member, VoiceState, Client
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
@@ -23,7 +22,7 @@ class VoiceStateUpdateService:
     Handles every VoiceState and keeps the database up to date
     """
 
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: Client):
         """
         :param client:
         :raise ConnectionError:
@@ -75,8 +74,8 @@ class VoiceStateUpdateService:
             dcUserDb['started_stream_at'] = None
             dcUserDb['started_webcam_at'] = None
 
-            await self.channelService.checkChannelForMoving(member)
             await self.notificationService.runNotificationsForMember(member, dcUserDb)
+            await self.channelService.checkChannelForMoving(member)
             await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
 
             # save user so a whatsapp message can be sent properly

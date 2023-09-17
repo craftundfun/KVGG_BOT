@@ -48,7 +48,7 @@ class ChannelService:
         # send DMs after moving all users to prioritize and speed up the moving process
         for user in members:
             try:
-                await sendDM(user, "Du wurdest verschoben da ihr mind. zu zweit in 'warte auf Mitspieler/innen' wart.")
+                await sendDM(user, "Du wurdest verschoben, da ihr mind. zu zweit in 'warte auf Mitspieler/innen' wart.")
             except Exception as error:
                 logger.error("couldn't send DM to %s (%d)" % (user.name, user.id), exc_info=error)
 
@@ -74,14 +74,14 @@ class ChannelService:
                                int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value),
                                int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_SIEBEN_AMERICA.value), ]
 
-            for i in range(1, len(channels) - 1):
-                if channels[i].id in dontUseChannels:
+            for channel in channels:
+                if channel.id in dontUseChannels:
                     continue
 
-                if len(channels[i].members) == 0:
-                    logger.debug("%s (%d) channel free to move" % (channels[i].name, channels[i].id))
+                if len(channel.members) == 0:
+                    logger.debug("%s (%d) channel free to move" % (channel.name, channel.id))
 
-                    return channels[i]
+                    return channel
 
             logger.debug("all voice channels are full")
 
