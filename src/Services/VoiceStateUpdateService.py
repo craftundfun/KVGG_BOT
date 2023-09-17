@@ -6,10 +6,11 @@ from datetime import datetime
 import discord
 from discord import Member, VoiceState
 
-from src.Services.Database import Database
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.ChannelService import ChannelService
+from src.Services.Database import Database
 from src.Services.NotificationService import NotificationService
 from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
@@ -32,6 +33,7 @@ class VoiceStateUpdateService:
         self.waHelper = WhatsAppHelper()
         self.notificationService = NotificationService(self.client)
         self.felixCounter = FelixCounter()
+        self.channelService = ChannelService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -73,6 +75,7 @@ class VoiceStateUpdateService:
             dcUserDb['started_stream_at'] = None
             dcUserDb['started_webcam_at'] = None
 
+            await self.channelService.checkChannelForMoving(member)
             await self.notificationService.runNotificationsForMember(member, dcUserDb)
             await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
 
@@ -164,6 +167,6 @@ class VoiceStateUpdateService:
         )
 
         if not self.database.runQueryOnDatabase(query, nones):
-            logger.critical("couldnt save DiscordUser to database")
+            logger.critical("couldn't save DiscordUser to database")
         else:
             logger.debug("updated %s" % dcUserDb['username'])
