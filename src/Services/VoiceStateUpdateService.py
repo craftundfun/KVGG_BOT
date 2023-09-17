@@ -75,12 +75,14 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
 
             await self.notificationService.runNotificationsForMember(member, dcUserDb)
-            await self.channelService.checkChannelForMoving(member)
             await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
 
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+
+            # move is the last step to avoid channel confusion
+            await self.channelService.checkChannelForMoving(member)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
