@@ -1,22 +1,19 @@
 from __future__ import annotations
 
-import array
 import asyncio
-import json
 import logging
 import os
 import string
 from datetime import datetime, timedelta
 
 import discord
-import requests
 from discord import Message, Client, Member, VoiceChannel
 from discord.state import Channel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper import WriteSaveQuery
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
+from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.RoleId import RoleId
@@ -30,18 +27,6 @@ from src.Services.RelationService import RelationService, RelationTypeEnum
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
-
-
-def getMessageParts(content: string) -> array:
-    """
-    Splits the string at spaces, removes empty splits
-
-    :param content: String to split
-    :return:
-    """
-    messageParts = content.split(' ')
-
-    return [part for part in messageParts if part.strip() != ""]
 
 
 def getUserIdByTag(tag: string) -> int | None:
@@ -119,8 +104,8 @@ class ProcessUserInput:
 
         dcUserDb['welcome_back_notification'] = 1 if setting else 0
 
-        self.__saveDiscordUserToDatabase(dcUserDb)
-        logger.debug("saved changes to database")
+        if self.__saveDiscordUserToDatabase(dcUserDb):
+            logger.debug("saved changes to database")
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
@@ -138,12 +123,18 @@ class ProcessUserInput:
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
+
+            return
         elif channel is None:
             logger.warning("no channel provided")
 
+            return
+
+        # if we are in docker, don't count a message from the test environment
         if channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value and SECRET_KEY:
             logger.debug("can grant an increase of the message counter")
 
+            # message_count_all_time can be None -> None-safe operation
             if dcUserDb['message_count_all_time']:
                 dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
             else:
@@ -156,17 +147,17 @@ class ProcessUserInput:
             else:
                 await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
-        logger.debug("saved changes to database")
-        self.__saveDiscordUserToDatabase(dcUserDb)
+        if self.__saveDiscordUserToDatabase(dcUserDb):
+            logger.debug("saved changes to database")
 
-    def __saveDiscordUserToDatabase(self, data):
+    def __saveDiscordUserToDatabase(self, data: dict) -> bool:
         """
         Helper to save a DiscordUser from this class into the database
 
         :param data: Data
         :return:
         """
-        query, nones = WriteSaveQuery.writeSaveQuery(
+        query, nones = writeSaveQuery(
             "discord",
             data['id'],
             data
@@ -174,39 +165,11 @@ class ProcessUserInput:
 
         if self.database.runQueryOnDatabase(query, nones):
             logger.debug("saved changed DiscordUser to database")
-        else:
-            logger.critical("couldn't save DiscordUser to database")
 
-    @validateKeys
-    async def answerJoke(self, member: Member, category: str):
-        """
-        Answers a joke from an API
+            return True
+        logger.critical("couldn't save DiscordUser to database")
 
-        :param member: Member, who requested the joke
-        :param category: Optional category of the joke - might not work due to API limitations
-        :return:
-        """
-        logger.debug("%s requested a joke" % member.name)
-
-        payload = {
-            'language': 'de',
-            'category': category,
-        }
-
-        answer = requests.get(
-            'https://witzapi.de/api/joke',
-            params=payload,
-        )
-
-        if answer.status_code != 200:
-            logger.warning("API sent an invalid response!")
-
-            return "Es gab Probleme beim Erreichen der API - kein Witz."
-
-        answer = answer.content.decode('utf-8')
-        data = json.loads(answer)
-
-        return data[0]['text']
+        return False
 
     @validateKeys
     async def moveUsers(self, channel: VoiceChannel, member: Member) -> string:
@@ -223,9 +186,8 @@ class ProcessUserInput:
             logger.debug("member is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
-        elif channelStart.id not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
-                                                                                                        RoleId.ADMIN,
-                                                                                                        RoleId.MOD):
+        elif (channelStart.id not in ChannelIdWhatsAppAndTracking.getValues()
+              and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
             logger.debug("starting channel is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -245,6 +207,7 @@ class ProcessUserInput:
 
         for role in member.roles:
             permissions = channel.permissions_for(role)
+
             if permissions.view_channel and permissions.connect:
                 canProceed = True
 
@@ -266,14 +229,14 @@ class ProcessUserInput:
 
                 return "Ich habe dazu leider keine Berechtigung!"
             except discord.HTTPException as e:
-                logger.warning("Something went wrong!", exc_info=e)
+                logger.warning("something went wrong!", exc_info=e)
 
                 return "Irgendetwas ist schief gelaufen!"
 
         try:
             loop.run_until_complete(asyncioGenerator())
         except Exception as e:
-            logger.error("Somthing went wrong while using asyncio!", exc_info=e)
+            logger.error("something went wrong while using asyncio!", exc_info=e)
 
             return "Irgendetwas ist schief gelaufen!"
 
@@ -292,61 +255,19 @@ class ProcessUserInput:
         :param param: Optional amount of time added or subtracted
         :return:
         """
-        time = None
-
         if timeName == "online":
             time = OnlineTime.OnlineTime()
         elif timeName == "stream":
             time = StreamTime.StreamTime()
         elif timeName == "uni":
             time = UniversityTime.UniversityTime()
+        else:
+            logger.critical("undefined entry was reached!")
+
+            return "Es gab ein Problem"
 
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
-        # all users
-        """
-        if userTag == 'all' and param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            logger.debug("increasing time of all online users")
-
-            try:
-                correction = int(param)
-            except ValueError:
-                logger.debug("given string couldn't be converted to a number")
-
-                return "Deine Korrektur war keine Zahl!"
-
-            users = getOnlineUsers(self.databaseConnection)
-
-            if users is None:
-                logger.debug("no one is online")
-
-                return "Es ist keiner online der Zeit dazu bekommen könnte!"
-
-            reply = ""
-
-            for user in users:
-                if user['channel_id'] in ChannelIdUniversityTracking.getValues():
-                    user['university_time_online'] += correction
-                    user['formated_university_time'] = getFormattedTime(user['university_time_online'])
-                    reply += "Die Uni-Zeit von %s wurde um %d erhöht!\n" % (
-                        getTagStringFromId(user['user_id']), correction)
-
-                elif user['channel_id'] in ChannelIdWhatsAppAndTracking.getValues():
-                    user['time_online'] += correction
-                    user['formated_time'] = getFormattedTime(user['time_online'])
-                    reply += "Die Online-Zeit von %s wurde um %d erhöht!\n" % (
-                        getTagStringFromId(user['user_id']), correction)
-
-                    if user['started_stream_at'] or user['started_webcam_at']:
-                        user['time_streamed'] += correction
-                        user['formatted_stream_time'] = getFormattedTime(user['time_streamed'])
-                        reply += "Die Stream-Zeit von %s wurde um %d erhöht!\n" % (
-                            getTagStringFromId(user['user_id']), correction)
-
-                self.__saveDiscordUserToDatabase(user['id'], user)
-
-            return reply
-        """
         dcUserDb = getDiscordUser(user)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
@@ -384,7 +305,7 @@ class ProcessUserInput:
             return time.getStringForTime(dcUserDb)
 
     @validateKeys
-    async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str):
+    async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
         """
         Lets the user change their WhatsApp settings
 
@@ -413,21 +334,25 @@ class ProcessUserInput:
                 # !whatsapp join on
                 if switch == 'on':
                     whatsappSettings['receive_join_notification'] = 1
-
                 # !whatsapp join off
                 elif switch == 'off':
                     whatsappSettings['receive_join_notification'] = 0
+                else:
+                    logger.critical("undefined entry was reached")
 
+                    return "Es gab ein Problem."
             # !whatsapp leave
             elif action == 'leave':
                 # !whatsapp leave on
                 if switch == 'on':
                     whatsappSettings['receive_leave_notification'] = 1
-
                 # !whatsapp leave off
                 elif switch == 'off':
                     whatsappSettings['receive_leave_notification'] = 0
+                else:
+                    logger.critical("undefined entry was reached")
 
+                    return "Es gab ein Problem."
         # !whatsapp uni
         elif type == 'Uni':
             if action == 'join':
@@ -435,14 +360,21 @@ class ProcessUserInput:
                     whatsappSettings['receive_uni_join_notification'] = 1
                 elif switch == 'off':
                     whatsappSettings['receive_uni_join_notification'] = 0
+                else:
+                    logger.critical("undefined entry was reached")
 
+                    return "Es gab ein Problem."
             elif action == 'leave':
                 if switch == 'on':
                     whatsappSettings['receive_uni_leave_notification'] = 1
                 elif switch == 'off':
                     whatsappSettings['receive_uni_leave_notification'] = 0
+                else:
+                    logger.critical("undefined entry was reached")
 
-        query, nones = WriteSaveQuery.writeSaveQuery(
+                    return "Es gab ein Problem."
+
+        query, nones = writeSaveQuery(
             "whatsapp_setting",
             whatsappSettings['id'],
             whatsappSettings
@@ -455,7 +387,7 @@ class ProcessUserInput:
         else:
             logger.critical("couldn't save changes to database")
 
-            return "Es gab ein Problem beim speichern deiner Einstellungen."
+            return "Es gab ein Problem beim Speichern deiner Einstellung."
 
     @validateKeys
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:
@@ -469,7 +401,7 @@ class ProcessUserInput:
         logger.debug("%s requested our leaderboard" % member.name)
 
         try:
-            rs = RelationService(self.client)
+            relationService = RelationService(self.client)
         except ConnectionError as error:
             logger.error("failure to start RelationService", exc_info=error)
 
@@ -483,17 +415,17 @@ class ProcessUserInput:
                 answer += "__**Leaderboard - Relationen**__\n"
                 answer += "----------------------------\n\n"
 
-                if online := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
+                if online := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
                     answer += "- __Online-Pärchen__:\n"
                     answer += online
                     answer += "\n"
 
-                if stream := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
+                if stream := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
                     answer += "- __Stream-Pärchen__:\n"
                     answer += stream
                     answer += "\n"
 
-                if university := await rs.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
+                if university := await relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
                     answer += "- __Lern-Pärchen__:\n"
                     answer += university
                     answer += "\n"
@@ -609,11 +541,11 @@ class ProcessUserInput:
             for index, user in enumerate(usersOnlineTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
 
-        if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.ONLINE):
-            answer += "\n- __Online-Pärchen__:\n"
-            answer += relationAnswer
-
-        del relationAnswer
+        # check if there was no error creating the service
+        if relationService in locals():
+            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
+                answer += "\n- __Online-Pärchen__:\n"
+                answer += relationAnswer
 
         if usersStreamTime and len(usersStreamTime) != 0:
             answer += "\n- __Stream-Zeit__:\n"
@@ -621,9 +553,10 @@ class ProcessUserInput:
             for index, user in enumerate(usersStreamTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
-        if relationAnswer := await rs.getLeaderboardFromType(RelationTypeEnum.STREAM):
-            answer += "\n- __Stream-Pärchen__:\n"
-            answer += relationAnswer
+        if relationService in locals():
+            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
+                answer += "\n- __Stream-Pärchen__:\n"
+                answer += relationAnswer
 
         if usersMessageCount and len(usersMessageCount) != 0:
             answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
@@ -644,7 +577,7 @@ class ProcessUserInput:
 
         return answer
 
-    def __leaderboardHelperCounter(self, users, counter: Counter) -> string:
+    def __leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
         """
         Helper for listing a leaderboard entry for given counter
 
@@ -663,9 +596,9 @@ class ProcessUserInput:
 
         answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
 
-        for index, user in enumerate(users):
+        for index, user in enumerate(users, 1):
             counter.setDiscordUser(user)
-            answer += "\t%d: %s - %d\n" % (index + 1, user['username'], counter.getCounterValue())
+            answer += "\t%d: %s - %d\n" % (index, user['username'], counter.getCounterValue())
 
         return answer
 
@@ -781,7 +714,7 @@ class ProcessUserInput:
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -841,7 +774,7 @@ class ProcessUserInput:
             else:
                 counter.setCounterValue(counter.getCounterValue() + value)
 
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb
@@ -858,7 +791,7 @@ class ProcessUserInput:
                 counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
                     + answerAppendix)
         else:
-            query, nones = WriteSaveQuery.writeSaveQuery(
+            query, nones = writeSaveQuery(
                 'discord',
                 dcUserDb['id'],
                 dcUserDb

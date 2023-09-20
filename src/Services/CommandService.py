@@ -111,14 +111,7 @@ class CommandService:
                     answer = "Dieser Dienst wird aktuell nicht unterstüzt."
 
                 case Commands.JOKE:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.answerJoke(**kwargs)
+                    answer = ApiServices().getJoke(**kwargs)
 
                 case Commands.MOVE:
                     try:

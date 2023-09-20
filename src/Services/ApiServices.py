@@ -4,9 +4,10 @@ from io import BytesIO
 
 import discord
 import httpx
+import requests
 
-from src.Helper import ReadParameters
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.ReadParameters import getParameter, Parameters
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -15,7 +16,29 @@ class ApiServices:
     url = "https://api.api-ninjas.com/v1/"
 
     def __init__(self):
-        self.apiKey = ReadParameters.getParameter(ReadParameters.Parameters.API_KEY)
+        self.apiKey = getParameter(Parameters.API_KEY)
+
+    @validateKeys
+    async def getJoke(self, category: str) -> str:
+        payload = {
+            'language': 'de',
+            'category': category,
+        }
+
+        answer = requests.get(
+            'https://witzapi.de/api/joke',
+            params=payload,
+        )
+
+        if answer.status_code != 200:
+            logger.warning("API sent an invalid response!")
+
+            return "Es gab Probleme beim Erreichen der API - kein Witz."
+
+        answer = answer.content.decode('utf-8')
+        data = json.loads(answer)
+
+        return data[0]['text']
 
     @validateKeys
     async def getWeather(self, city: str) -> str:

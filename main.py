@@ -296,7 +296,6 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
     """
     await CommandService(client).runCommand(Commands.JOKE,
                                             interaction,
-                                            member=interaction.user,
                                             category=kategorie.value)
 
 
