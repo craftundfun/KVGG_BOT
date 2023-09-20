@@ -70,9 +70,9 @@ class WhatsAppHelper:
             return
 
         # gaming channel => true, university => false, other channels => function will return
-        if str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+        if update.channel.id in ChannelIdWhatsAppAndTracking.getValues():
             channelGaming = True
-        elif str(update.channel.id) in ChannelIdUniversityTracking.getValues():
+        elif update.channel.id in ChannelIdUniversityTracking.getValues():
             channelGaming = False
         else:
             logger.debug("user was outside of tracked channels")
@@ -153,11 +153,11 @@ class WhatsAppHelper:
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
-            if (str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues()
+            if (update.channel.id in ChannelIdWhatsAppAndTracking.getValues()
                     and user['receive_leave_notification']):
                 logger.debug("message for gaming channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
-            elif (str(update.channel.id) in ChannelIdUniversityTracking.getValues()
+            elif (update.channel.id in ChannelIdUniversityTracking.getValues()
                   and user['receive_uni_leave_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)

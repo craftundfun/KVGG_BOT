@@ -308,7 +308,7 @@ class ProcessUserInput:
             logger.debug("member is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
-        elif str(channelStart.id) not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
+        elif channelStart.id not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
                                                                                                              RoleId.ADMIN,
                                                                                                              RoleId.MOD):
             logger.debug("starting channel is not allowed to be moved")
@@ -320,7 +320,7 @@ class ProcessUserInput:
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if (str(channel.id) not in ChannelIdWhatsAppAndTracking.getValues()
+        if (channel.id not in ChannelIdWhatsAppAndTracking.getValues()
                 and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
             logger.debug("destination channel is outside of the allowed moving range")
 

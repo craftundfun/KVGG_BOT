@@ -23,7 +23,7 @@ def getQuotesChannel(client: Client):
     :param client: Discord-Client
     :return: Channel | None - Quotes-Channel
     """
-    return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(ChannelId.CHANNEL_QUOTES.value)
+    return client.get_guild(GuildId.GUILD_KVGG.value).get_channel(ChannelId.CHANNEL_QUOTES.value)
 
 
 class QuotesManager:
@@ -115,7 +115,7 @@ class QuotesManager:
             authorId = message.data['author']['id']
 
             if authorId:
-                author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+                author = await self.client.get_guild(GuildId.GUILD_KVGG.value).fetch_member(authorId)
 
                 if author:
                     try:

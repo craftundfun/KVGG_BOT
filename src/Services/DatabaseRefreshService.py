@@ -97,7 +97,7 @@ class DatabaseRefreshService:
                 user['full_muted_at'] = None
 
             # update nick
-            if member := self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(user['user_id'])):
+            if member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user['user_id'])):
                 user['username'] = member.nick if member.nick else member.name
 
             query, nones = writeSaveQuery(
@@ -233,7 +233,7 @@ class DatabaseRefreshService:
         logger.debug("fetched %s members from database" % len(dcUsersDb))
 
         for dcUserDb in dcUsersDb:
-            member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+            member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb['user_id']))
 
             if not member:
                 continue

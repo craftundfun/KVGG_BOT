@@ -24,7 +24,7 @@ class ChannelService:
         :return:
         """
         # only move out of this channel
-        if member.voice.channel.id != int(ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value):
+        if member.voice.channel.id != ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
             return
 
         # ignore members who are alone
@@ -60,7 +60,7 @@ class ChannelService:
 
         :return:
         """
-        categories = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).categories
+        categories = self.client.get_guild(GuildId.GUILD_KVGG.value).categories
 
         for category in categories:
             if category.id != Categories.GAMING.value:
@@ -69,10 +69,10 @@ class ChannelService:
             channels = category.voice_channels
             # return value from guild.categories already sorted them by position
             # channels = sorted(channels, key=lambda channel: channel.position)
-            dontUseChannels = [int(ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_EIN_DREIVIERTEL.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_SIEBEN_AMERICA.value), ]
+            dontUseChannels = [ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value,
+                               ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_EIN_DREIVIERTEL.value,
+                               ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value,
+                               ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_SIEBEN_AMERICA.value, ]
 
             for channel in channels:
                 if channel.id in dontUseChannels:

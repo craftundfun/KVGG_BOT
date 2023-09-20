@@ -64,7 +64,7 @@ class RelationService:
                 "VALUES (%s, %s, %s, %s)"
 
         self.database.runQueryOnDatabase(query,
-                                              (member1['id'], member2['id'], type.value, datetime.now(),))
+                                         (member1['id'], member2['id'], type.value, datetime.now(),))
 
         return True
 
@@ -175,20 +175,20 @@ class RelationService:
 
         try:
             otherMembersInChannel = voiceStateBefore.channel.members
-            whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-            allTrackedChannels: set = whatsappChannels | ChannelIdUniversityTracking.getValues()
+            whatsappChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
+            allTrackedChannels: set[int] = whatsappChannels | ChannelIdUniversityTracking.getValues()
 
             if len(otherMembersInChannel) <= 0:
                 logger.debug("last member in channel, relations were handled by their partners")
 
                 return
 
-            if str(voiceStateBefore.channel.id) not in allTrackedChannels:
+            if voiceStateBefore.channel.id not in allTrackedChannels:
                 logger.debug("relation outside of allowed region")
 
                 return
 
-            if str(voiceStateBefore.channel.id) in ChannelIdWhatsAppAndTracking.getValues():
+            if voiceStateBefore.channel.id in ChannelIdWhatsAppAndTracking.getValues():
                 type = RelationTypeEnum.ONLINE
             else:
                 type = RelationTypeEnum.UNIVERSITY
@@ -235,10 +235,10 @@ class RelationService:
 
         :return:
         """
-        whatsAppChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-        allTrackedChannels: set = ChannelIdUniversityTracking.getValues() | whatsAppChannels
+        whatsAppChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
+        allTrackedChannels: set[int] = ChannelIdUniversityTracking.getValues() | whatsAppChannels
 
-        for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
             # skip none voice channels
             if channel.type != ChannelType.voice:
                 continue
@@ -250,7 +250,7 @@ class RelationService:
                 continue
 
             # skip none tracked channels
-            if str(channel.id) not in allTrackedChannels:
+            if channel.id not in allTrackedChannels:
                 continue
 
             members = channel.members
@@ -261,7 +261,7 @@ class RelationService:
                     logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
 
                     # depending on the channel increase correct relation
-                    if str(channel.id) in whatsAppChannels:
+                    if channel.id in whatsAppChannels:
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
                     else:
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)

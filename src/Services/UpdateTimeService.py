@@ -29,9 +29,9 @@ class UpdateTimeService:
         self.client: Client = client
         self.database = Database()
 
-        self.uniChannels: set = ChannelIdUniversityTracking.getValues()
-        self.whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-        self.allowedChannels: set = self.uniChannels | self.whatsappChannels
+        self.uniChannels: set[int] = ChannelIdUniversityTracking.getValues()
+        self.whatsappChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
+        self.allowedChannels: set[int] = self.uniChannels | self.whatsappChannels
 
         self.experienceService = ExperienceService(self.client)
         self.achievementService = AchievementService(self.client)
@@ -42,8 +42,8 @@ class UpdateTimeService:
 
         :return:
         """
-        for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
-            if str(channel.id) in self.allowedChannels and len(channel.members) > 0:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
+            if channel.id in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
     def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
@@ -97,7 +97,7 @@ class UpdateTimeService:
         """
         for channel in self.__getChannels():
             # specify a type of channel for easier distinguishing later
-            if str(channel.id) in self.uniChannels:
+            if channel.id in self.uniChannels:
                 channelType = "uni"
             else:
                 channelType = "gaming"
