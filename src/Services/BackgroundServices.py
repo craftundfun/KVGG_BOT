@@ -1,4 +1,4 @@
-import logging
+import logging.handlers
 import traceback
 
 import discord
@@ -6,12 +6,20 @@ from discord.ext import tasks, commands
 
 from src.Helper.EmailService import send_exception_mail
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
+from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Services import DatabaseRefreshService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService
 
 logger = logging.getLogger("KVGG_BOT")
+
+loggerTime = logging.getLogger("TIME")
+fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/times.txt', when='midnight', backupCount=5)
+
+fileHandler.setFormatter(CustomFormatterFile())
+loggerTime.addHandler(fileHandler)
+loggerTime.setLevel(logging.INFO)
 
 
 class BackgroundServices(commands.Cog):
@@ -30,9 +38,11 @@ class BackgroundServices(commands.Cog):
     @tasks.loop(seconds=60)
     async def minutely(self):
         logger.debug("running minutely-job")
+        loggerTime.info("start")
 
         try:
             logger.debug("running updateTimesAndExperience")
+            loggerTime.info("updateTimeService")
 
             uts = UpdateTimeService(self.client)
 
@@ -48,6 +58,7 @@ class BackgroundServices(commands.Cog):
 
         try:
             logger.debug("running callReminder")
+            loggerTime.info("reminderService")
 
             rs = ReminderService(self.client)
 
@@ -63,6 +74,7 @@ class BackgroundServices(commands.Cog):
 
         try:
             logger.debug("running increaseRelations")
+            loggerTime.info("relationService")
 
             rs = RelationService(self.client)
 
@@ -78,6 +90,7 @@ class BackgroundServices(commands.Cog):
 
         try:
             logger.debug("running updateFelixCounter")
+            loggerTime.info("updateFelixCounter")
 
             fc = FelixCounter()
 
@@ -86,6 +99,8 @@ class BackgroundServices(commands.Cog):
             logger.critical("encountered exception while executing updateFelixCounter", exc_info=e)
 
             send_exception_mail(traceback.format_exc())
+
+        loggerTime.info("end")
 
     @DeprecationWarning
     @tasks.loop(minutes=30)
