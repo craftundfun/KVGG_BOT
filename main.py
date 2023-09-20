@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import asyncio
 import logging.handlers
 import os
 import sys
@@ -65,34 +64,6 @@ logger.addHandler(fileHandler)
 logger.addHandler(consoleHandler)
 
 logger.info("\n\n----Initial bot start!----\n\n")
-
-
-@DeprecationWarning
-def thread_wrapper(func, args):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(func(args))
-    loop.close()
-
-
-@DeprecationWarning
-async def some_thread(client: discord.Client):
-    """
-    JUST FOR TESTING PURPOSES
-
-    :param client:
-    :return:
-    """
-    while True:
-        # await client.fetch_guild(int(GuildId.GUILD_KVGG.value))
-        # await client.fetch_user(555430341389844500)
-        for mem in client.get_all_members():
-            if mem.id == 555430341389844500:
-                member = mem
-                break
-
-        print(member.status)
-        await asyncio.sleep(2)
 
 
 class MyClient(discord.Client):

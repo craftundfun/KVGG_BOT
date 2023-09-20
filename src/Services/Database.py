@@ -4,8 +4,9 @@ from typing import Tuple
 
 import mysql
 from mysql.connector import MySQLConnection
-from src.Helper.ReadParameters import getParameter, Parameters
+
 from src.Helper.EmailService import send_exception_mail
+from src.Helper.ReadParameters import getParameter, Parameters
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -133,32 +134,6 @@ class Database:
             return None
 
         return connection
-
-    @DeprecationWarning
-    def runQueryWithoutFetching(self, query: str, parameters: Tuple = None) -> bool:
-        """
-        Runs query without fetching, for example delete queries.
-
-        :param parameters:
-        :param query:
-        :return:
-        """
-        with self.connection.cursor() as cursor:
-            success = True
-
-            try:
-                if parameters:
-                    cursor.execute(query, parameters)
-                else:
-                    cursor.execute(query)
-            except Exception as error:
-                logger.error("couldn't run query on database: %s" % query, exc_info=error)
-
-                success = False
-            finally:
-                self.connection.commit()
-
-                return success
 
     def __del__(self):
         self.connection.close()

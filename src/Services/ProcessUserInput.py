@@ -19,13 +19,11 @@ from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Id import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
-from src.Id.ChatCommand import ChatCommand
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
     OlegCounter, JjCounter, CookieCounter, CarlCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services import QuotesManager
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
@@ -126,46 +124,6 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
-    @DeprecationWarning
-    async def processMessage(self, message: Message):
-        """
-        Increases the message count and adds XP
-
-        :param message:
-        :return:
-        """
-        logger.info("%s initated the processing of his / her message" % message.author.name)
-
-        if message.channel.guild.id is None or message.author.id is None:
-            logger.warning("GuildId or AuthorId were None")
-
-            return
-
-        dcUserDb = getDiscordUser(self.databaseConnection, message.author)
-
-        if not dcUserDb:
-            logger.warning("Couldn't fetch DiscordUser!")
-
-            return
-
-        if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
-            if dcUserDb['message_count_all_time']:
-                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
-            else:
-                dcUserDb['message_count_all_time'] = 1
-        elif not SECRET_KEY:
-            logger.info("Overwrite message count")
-
-            if dcUserDb['message_count_all_time']:
-                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
-            else:
-                dcUserDb['message_count_all_time'] = 1
-
-        es = ExperienceService.ExperienceService(self.client)
-        # await es.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, dcUserDb)
-
-        self.__saveDiscordUserToDatabase(dcUserDb)
-
     async def raiseMessageCounter(self, member: Member, channel: Channel):
         """
         Increases the message count if the given user if he / she used an interaction
@@ -201,20 +159,6 @@ class ProcessUserInput:
         logger.debug("saved changes to database")
         self.__saveDiscordUserToDatabase(dcUserDb)
 
-    @DeprecationWarning
-    def __getDiscordUserFromDatabase(self, userId: int) -> dict | None:
-        with self.databaseConnection.cursor() as cursor:
-            query = "SELECT * FROM discord WHERE user_id = %s"
-
-            cursor.execute(query, ([userId]))
-            dcUserDb = cursor.fetchall()
-
-            if not dcUserDb:
-                pass
-                return None
-
-            return dict(zip(cursor.column_names, dcUserDb[0]))
-
     def __saveDiscordUserToDatabase(self, data):
         """
         Helper to save a DiscordUser from this class into the database
@@ -232,35 +176,6 @@ class ProcessUserInput:
             logger.debug("saved changed DiscordUser to database")
         else:
             logger.critical("couldn't save DiscordUser to database")
-
-    @DeprecationWarning
-    async def __processCommand(self, message: Message):
-        """
-        :param message:
-        :return:
-        """
-        command = message.content
-
-        if not command.startswith('!'):
-            qm = QuotesManager.QuotesManager(self.client)
-            await qm.checkForNewQuote(message)
-
-            return
-
-        command = self.__getCommand(command)
-
-        # close the connection to the database at the end
-        self.databaseConnection.close()
-
-    @DeprecationWarning
-    def __getCommand(self, command: string) -> ChatCommand | None:
-        command = command.split(' ')[0]
-
-        for enum_command in ChatCommand:
-            if enum_command.value == command:
-                return enum_command
-
-        return None
 
     @validateKeys
     async def answerJoke(self, member: Member, category: str):
@@ -309,8 +224,8 @@ class ProcessUserInput:
 
             return "Du bist mit keinem Voicechannel verbunden!"
         elif channelStart.id not in ChannelIdWhatsAppAndTracking.getValues() and not hasUserWantedRoles(member,
-                                                                                                             RoleId.ADMIN,
-                                                                                                             RoleId.MOD):
+                                                                                                        RoleId.ADMIN,
+                                                                                                        RoleId.MOD):
             logger.debug("starting channel is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -467,49 +382,6 @@ class ProcessUserInput:
             logger.debug("returning time")
 
             return time.getStringForTime(dcUserDb)
-
-    @DeprecationWarning
-    async def sendHelp(self, message: Message):
-        messageParts = getMessageParts(message.content)
-
-        if len(messageParts) < 2:
-            output = ""
-
-            with self.databaseConnection.cursor() as cursor:
-                for chatCommand in ChatCommand:
-                    query = "SELECT command, explanation FROM commands WHERE command = %s"
-
-                    cursor.execute(query, (chatCommand.value,))
-
-                    command = cursor.fetchone()
-                    cursor.reset()
-
-                    output += "**__" + str(command[0]) + "__**: " + str(command[1]) + "\n\n"
-
-            await message.reply(output)
-
-        elif len(messageParts) == 2:
-            command = self.__getCommand(messageParts[1])
-
-            if not command:
-                await message.reply("Diesen Befehl gibt es nicht!")
-
-                return
-            elif command == ChatCommand.XP:
-                pass
-                return
-
-            query = "SELECT execute_explanation FROM commands WHERE command = %s"
-
-            with self.databaseConnection.cursor() as cursor:
-                cursor.execute(query, (command.value,))
-
-                commandExplanation = cursor.fetchone()
-
-            if not commandExplanation[0]:
-                await message.reply("Schreib einfach '%s', mehr gibt es nicht!" % command.value)
-            else:
-                await message.reply("'%s'" % commandExplanation[0])
 
     @validateKeys
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str):
@@ -1138,47 +1010,3 @@ class ProcessUserInput:
             else:
                 return "Es lief kein %s-Timer für %s!" % (
                     counter.getNameOfCounter(), getTagStringFromId(str(user.id)))
-
-    @DeprecationWarning
-    @validateKeys
-    async def sendLogs(self, member: Member, amount: int) -> string:
-        """
-        Answer a given amount of Logs from our database
-
-        :param member: Member, who requested the insight
-        :param amount: Amount of Logs to be returned
-        :return: string - Answer
-        """
-        logger.info("%s requested %d Logs" % (member.name, amount))
-
-        if hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            with self.databaseConnection.cursor() as cursor:
-                query = "SELECT discord.user_id, logs.command, logs.created_at " \
-                        "FROM logs " \
-                        "INNER JOIN discord " \
-                        "WHERE discord_user_id = discord.id " \
-                        "LIMIT %s"
-
-                cursor.execute(query, (amount,))
-
-                logs = cursor.fetchall()
-
-                if not logs:
-                    logger.warning("Couldn't fetch Logs!")
-
-                    return "Es ist ein Fehler aufgetreten!"
-
-            answer = "Die letzten %d Logs:\n\n" % amount
-
-            for index, log in enumerate(logs):
-                date: datetime = log[2]
-                command = log[1]
-                user = log[0]
-
-                answer += "%d. \"**%s**\" von %s am %s\n" % (
-                    index, command, getTagStringFromId(user), date.strftime("%Y-%m-%d %H:%M:%S"))
-
-            return answer
-
-        else:
-            return "Du darfst diese Aktion nicht ausführen!"
