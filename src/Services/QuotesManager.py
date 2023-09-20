@@ -6,12 +6,12 @@ import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -23,7 +23,7 @@ def getQuotesChannel(client: Client):
     :param client: Discord-Client
     :return: Channel | None - Quotes-Channel
     """
-    return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
+    return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(ChannelId.CHANNEL_QUOTES.value)
 
 
 class QuotesManager:

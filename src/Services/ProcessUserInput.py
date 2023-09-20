@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import discord
 import requests
 from discord import Message, Client, Member, VoiceChannel
+from discord.state import Channel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import WriteSaveQuery
@@ -147,7 +148,7 @@ class ProcessUserInput:
 
             return
 
-        if message.channel.id != int(ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value):
+        if message.channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
             if dcUserDb['message_count_all_time']:
                 dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
             else:
@@ -165,7 +166,7 @@ class ProcessUserInput:
 
         self.__saveDiscordUserToDatabase(dcUserDb)
 
-    async def raiseMessageCounter(self, member: Member, channel):
+    async def raiseMessageCounter(self, member: Member, channel: Channel):
         """
         Increases the message count if the given user if he / she used an interaction
 
@@ -182,7 +183,7 @@ class ProcessUserInput:
         elif channel is None:
             logger.warning("no channel provided")
 
-        if channel.id != int(ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value) and SECRET_KEY:
+        if channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value and SECRET_KEY:
             logger.debug("can grant an increase of the message counter")
 
             if dcUserDb['message_count_all_time']:

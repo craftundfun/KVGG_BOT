@@ -2,9 +2,10 @@ import logging
 from datetime import datetime
 
 from discord import Message
+from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
+
 from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Helper.CreateNewDatabaseConnection import getDatabaseConnection
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -27,7 +28,7 @@ class LogHelper:
         """
         logger.info("%s initiated saving a Log" % message.author.name)
 
-        if not message.channel.id == int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value):
+        if not message.channel.id == ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value:
             return
 
         dcUserDb = getDiscordUser(self.databaseConnection, message.author)
