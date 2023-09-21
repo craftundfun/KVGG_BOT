@@ -17,8 +17,16 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id import ChannelId
 from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
 from src.Id.RoleId import RoleId
-from src.InheritedCommands.NameCounter import Counter, ReneCounter, FelixCounter, PaulCounter, BjarneCounter, \
-    OlegCounter, JjCounter, CookieCounter, CarlCounter
+from src.InheritedCommands.NameCounter import FelixCounter
+from src.InheritedCommands.NameCounter.BjarneCounter import BjarneCounter
+from src.InheritedCommands.NameCounter.CarlCounter import CarlCounter
+from src.InheritedCommands.NameCounter.CookieCounter import CookieCounter
+from src.InheritedCommands.NameCounter.Counter import Counter
+from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
+from src.InheritedCommands.NameCounter.JjCounter import JjCounter
+from src.InheritedCommands.NameCounter.OlegCounter import OlegCounter
+from src.InheritedCommands.NameCounter.PaulCounter import PaulCounter
+from src.InheritedCommands.NameCounter.ReneCounter import ReneCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
@@ -626,7 +634,6 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    # TODO improve code duplicates. working but kinda shitty
     @validateKeys
     async def accessNameCounterAndEdit(self, counterName: str,
                                        user: Member,
@@ -641,28 +648,27 @@ class ProcessUserInput:
         :param param: Optional amount of time to add / subtract
         :return:
         """
-        # counter = None
+        match counterName:
+            case "Bjarne":
+                counter = BjarneCounter()
+            case "Carl":
+                counter = CarlCounter()
+            case "Cookie":
+                counter = CookieCounter()
+            case "Felix":
+                counter = FelixCounter()
+            case "JJ":
+                counter = JjCounter()
+            case "Oleg":
+                counter = OlegCounter()
+            case "Paul":
+                counter = PaulCounter()
+            case "Rene":
+                counter = ReneCounter()
+            case _:
+                logger.critical("reached unreachable code!")
 
-        if "Bjarne" == counterName:
-            counter = BjarneCounter.BjarneCounter()
-        elif "Carl" == counterName:
-            counter = CarlCounter.CarlCounter()
-        elif "Cookie" == counterName:
-            counter = CookieCounter.CookieCounter()
-        elif "Felix" == counterName:
-            counter = FelixCounter.FelixCounter()
-        elif "JJ" == counterName:
-            counter = JjCounter.JjCounter()
-        elif "Oleg" == counterName:
-            counter = OlegCounter.OlegCounter()
-        elif "Paul" == counterName:
-            counter = PaulCounter.PaulCounter()
-        elif "Rene" == counterName:
-            counter = ReneCounter.ReneCounter()
-        else:
-            logger.critical("reached unreachable code!")
-
-            return "Es ist ein Fehler aufgetreten!"
+                return "Es ist ein Fehler aufgetreten!"
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
@@ -676,137 +682,69 @@ class ProcessUserInput:
 
         counter.setDiscordUser(dcUserDb)
 
-        # increase counter and member is Mod / Admin to overwrite the limit to increase
-        if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            try:
-                value = int(param)
-            except ValueError:
-                logger.debug("parameter was not convertable to int")
+        if not param:
+            return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
+                                                        counter.getNameOfCounter(),
+                                                        counter.getCounterValue())
 
-                return "Dein eingegebener Parameter war ungültig! Bitte gib eine Zahl ein!"
+        try:
+            value = int(param)
+        except ValueError:
+            logger.debug("parameter was not convertable to int")
 
-            # cant increase own cookie counter to avoid xp-boost abuse
-            if isinstance(counter, CookieCounter.CookieCounter):
-                if int(dcUserDb['user_id']) == member.id and value > 0:
-                    logger.debug("%s tried to increase his own cookie-counter" % member.name)
+            return "Dein eingegebener Parameter war ungültig! Bitte gib eine (korrekte) Zahl ein!"
 
-                    return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
+        # user trying to add his own counters
+        if int(dcUserDb['user_id']) == member.id:
+            # don't allow increasing cookie counter
+            if isinstance(counter, CookieCounter) and value > 0:
+                logger.debug("%s tried to increase his / her own cookie-counter" % member.name)
 
-            if int(dcUserDb['user_id']) == member.id and value < 0:
-                logger.debug("%s tried to reduce his own counter" % member.name)
+                return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
 
-                return "Du darfst deinen eigenen Counter nicht verringern!"
+            # don't allow reducing any counter
+            if value < 0:
+                logger.debug("%s tried to reduce his / her own counter")
 
-            # special case for Cookie-Counter
-            if isinstance(counter, CookieCounter.CookieCounter):
-                if counter.getCounterValue() + value >= 0:
-                    counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+                return "Du darfst deinen Counter nicht selber verringern!"
 
-                    answerAppendix = ("\n\n"
-                                      + getTagStringFromId(str(user.id))
-                                      + ", du hast für deinen Keks evtl. einen neuen XP-Boost erhalten. "
-                                        "Schau mal nach!")
-                else:
-                    counter.setCounterValue(0, user, self.client)
-            # dont go negative
-            elif counter.getCounterValue() + value < 0:
-                counter.setCounterValue(0)
-            else:
-                counter.setCounterValue(counter.getCounterValue() + value)
+        # only allow privileged users to increase counter by great amounts
+        if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD) and not -1 <= value <= 1:
+            logger.debug("%s wanted to edit the counter to greatly" % member.name)
 
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+            return "Du darfst einen Counter nur um -1 verringern oder +1 erhöhen!"
 
-            if not self.database.runQueryOnDatabase(query, nones):
-                logger.critical("couldnt save changes to database")
+        # special case for cookie-counter due to xp-boost
+        if isinstance(counter, CookieCounter) and value >= 1:
+            counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
 
-                return "Es ist ein Fehler aufgetreten!"
-
-            logger.debug("saved changes to database")
-
-            return ("Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
-                    + answerAppendix)
-        # param but no privileged user
-        elif param:
-            try:
-                value = int(param)
-            except ValueError:
-                logger.debug("parameter was not convertable to int")
-
-                return "Dein eingegebener Parameter war ungültig!"
-
-            # cant increase own cookie counter to avoid xp-boost abuse
-            if isinstance(counter, CookieCounter.CookieCounter):
-                if int(dcUserDb['user_id']) == member.id and value > 0:
-                    logger.debug("%s tried to increase his own cookie-counter" % member.name)
-
-                    return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
-
-            if int(dcUserDb['user_id']) == member.id and value < 0:
-                logger.debug("%s tried to reduce his own counter" % member.name)
-
-                return "Du darfst deinen eigenen Counter nicht verringern!"
-            elif value == 0:
-                logger.debug("%s tried to reduce counter with 0" % member.name)
-
-                return "0 ist keine gültige Anpassung!"
-
-            value = 1 if value >= 0 else -1
-
-            # special case for Cookie-Counter
-            if isinstance(counter, CookieCounter.CookieCounter):
-                if counter.getCounterValue() + value >= 0:
-                    counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
-
-                    answerAppendix = ("\n\n"
-                                      + getTagStringFromId(str(user.id))
-                                      + ", du hast für deinen Keks evtl. einen neuen XP-Boost erhalten. "
-                                        "Schau mal nach!")
-                else:
-                    counter.setCounterValue(0, user, self.client)
-            # dont go negative
-            elif counter.getCounterValue() + value < 0:
-                counter.setCounterValue(0)
-            else:
-                counter.setCounterValue(counter.getCounterValue() + value)
-
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
-
-            if not self.database.runQueryOnDatabase(query, nones):
-                logger.critical("couldn't save changes to database")
-
-                return "Es ist ein Fehler aufgetreten!"
-
-            logger.debug("saved changes to database")
-
-            return ("Der %s-Counter von %s wurde um %d erhöht!" % (
-                counter.getNameOfCounter(), getTagStringFromId(str(user.id)), value)
-                    + answerAppendix)
+            answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
+                                                                          "XP-Boost erhalten.")
         else:
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+            counter.setCounterValue(counter.getCounterValue() + value)
 
-            if not self.database.runQueryOnDatabase(query, nones):
-                logger.critical("couldn't save changes to database")
+        # dont decrease to counter into negative
+        if counter.getCounterValue() < 0:
+            counter.setCounterValue(0)
 
-                return "Es ist ein Fehler aufgetreten!"
+        query, nones = writeSaveQuery(
+            'discord',
+            dcUserDb['id'],
+            dcUserDb,
+        )
 
-            return "%s hat einen %s-Counter von %d!" % (
-                getTagStringFromId(str(user.id)), counter.getNameOfCounter(), counter.getCounterValue())
+        if not self.database.runQueryOnDatabase(query, nones):
+            logger.critical("couldn't save changes to database")
+
+            return "Es ist ein Fehler aufgetreten."
+
+        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
+                                                               getTagStringFromId(str(user.id)),
+                                                               value)
+                + answerAppendix)
 
     @validateKeys
-    async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None):
+    async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None) -> str:
         """
         Handles the Feli-Timer for the given user
 
@@ -816,7 +754,7 @@ class ProcessUserInput:
         :param time: Optional time to start the timer at
         :return:
         """
-        logger.debug("Handling Felix-Timer by %s" % member.name)
+        logger.debug("handling Felix-Timer by %s" % member.name)
 
         dcUserDb = getDiscordUser(user)
 
@@ -825,121 +763,87 @@ class ProcessUserInput:
 
             return "Bitte tagge deinen User korrekt!"
 
-        counter = FelixCounter.FelixCounter(dcUserDb)
+        counter = FelixCounter(dcUserDb)
 
-        if action == "start":
-            logger.debug("start chosen")
-
-            if dcUserDb['channel_id'] is None and counter.getFelixTimer() is None:
-                date = None
-
-                if time:
-                    try:
-                        timeToStart = datetime.strptime(time, "%H:%M")
-                        current = datetime.now()
-                        timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
-
-                        # if the time is set to the next day
-                        if timeToStart < datetime.now():
-                            timeToStart = timeToStart + timedelta(days=1)
-
-                        date = timeToStart
-                    except ValueError:
-                        try:
-                            minutesFromNow = int(time)
-                        except ValueError:
-                            logger.debug("no time or amount of minutes was given")
-
-                            return ("Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um "
-                                    "den Timer um 09:04 Uhr zu starten!")
-
-                        timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
-                        date = timeToStart
-                else:
-                    date = datetime.now()
-
-                if not date:
-                    logger.debug("no date was given")
-
-                    return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
-
-                link = FelixCounter.LIAR
-
-                if member.nick:
-                    username = member.nick
-                else:
-                    username = member.name
-
-                counter.setFelixTimer(date)
-                self.__saveDiscordUserToDatabase(dcUserDb)
-
-                answer = "Der %s-Timer von %s wird um %s Uhr gestartet!" % (
-                    counter.getNameOfCounter(), getTagStringFromId(str(user.id)), date.strftime("%H:%M"))
-
-                try:
-                    await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro Minute "
-                                       "bekommst du ab dann einen %s-Counter dazu! Um den Timer zu "
-                                       "stoppen komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 "
-                                       "Minuten!\n"
-                                 % (
-                                     counter.getNameOfCounter(),
-                                     username, date.strftime("%H:%M"),
-                                     counter.getNameOfCounter(),
-                                 ))
-                    await sendDM(user, link)
-                except Exception as error:
-                    logger.error("couldn't send DM to %s" % user.name, exc_info=error)
-
-                logger.debug("send dms to %s" % user.name)
-
-                return answer
-
-            elif dcUserDb['channel_id'] is not None:
-                logger.debug("%s is online" % user.name)
-
-                return "%s ist gerade online, du kannst für ihn / sie keinen %s-Timer starten!" % (
-                    getTagStringFromId(str(user.id)), counter.getNameOfCounter())
-
-            elif counter.getFelixTimer() is not None:
-                logger.debug("Felix-Timer is already running")
+        if action == FelixCounter.FELIX_COUNTER_START_KEYWORD:
+            if counter.getFelixTimer():
+                logger.debug("felix-Timer is already running")
 
                 return "Es läuft bereits ein Timer!"
 
+            if dcUserDb['channel_id']:
+                logger.debug("%s is online" % user.name)
+
+                return ("%s ist gerade online. Du kannst für ihn / sie keinen %s-Timer starten!" %
+                        (getTagStringFromId(str(user.id)), counter.getNameOfCounter()))
+
+            if not time:
+                date = datetime.now()
             else:
-                logger.critical("No matching condition were found for starting a Felix-Timer!")
+                # user gave time of day
+                try:
+                    timeToStart = datetime.strptime(time, "%H:%M")
+                    current = datetime.now()
+                    timeToStart = timeToStart.replace(year=current.year, month=current.month, day=current.day)
 
-                return "Es ist ein Fehler aufgetreten!"
+                    # if the time is set to the next day
+                    if timeToStart < datetime.now():
+                        timeToStart = timeToStart + timedelta(days=1)
 
-        elif action == "stop":
+                    date = timeToStart
+                except ValueError:
+                    # user gave minutes from now instead
+                    try:
+                        minutesFromNow = int(time)
+                    except ValueError:
+                        logger.debug("no time or amount of minutes was given")
+
+                        return ("Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den "
+                                "Timer um 09:04 Uhr zu starten!")
+
+                    timeToStart = datetime.now() + timedelta(minutes=minutesFromNow)
+                    date = timeToStart
+
+            # I don't think it's necessary, but don't change a running system (too much)
+            if not date:
+                logger.debug("no date was given")
+
+                return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
+
+            counter.setFelixTimer(date)
+            self.__saveDiscordUserToDatabase(dcUserDb)
+
+            try:
+                await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
+                                   "bekommst du ab der Uhrzeit einen %s-Counter dazu! Um den Timer zu stoppen komm "
+                                   "(vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n")
+                await sendDM(user, FelixCounter.LIAR)
+            except Exception as error:
+                logger.error("couldn't send DM to %s" % user.name, exc_info=error)
+            else:
+                logger.debug("send DMs to %s" % user.name)
+
+                return "Der %s-Timer von %s wird um %s Uhr gestartet." % (counter.getNameOfCounter(),
+                                                                          getTagStringFromId(str(user.id)),
+                                                                          date.strftime("%H_%M"))
+        else:
             logger.debug("stop chosen")
 
-            if counter.getFelixTimer() is not None:
-                if counter.getDiscordUser()['user_id'] == str(member.id):
-                    logger.debug("user wanted to stop his / her own Felix-Timer")
+            if counter.getFelixTimer() is None:
+                return "Es lief kein %s-Timer für %s!" % (counter.getNameOfCounter(), getTagStringFromId(str(user.id)))
 
-                    return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
+            if str(counter.getDiscordUser()['user_id']) == str(member.id):
+                logger.debug("user wanted to stop his / her own Felix-Timer")
 
-                counter.setFelixTimer(None)
+                return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
-                if member.nick:
-                    username = member.nick
-                else:
-                    username = member.name
+            counter.setFelixTimer(None)
+            self.__saveDiscordUserToDatabase(dcUserDb)
 
-                answer = ("Der %s-Timer von %s wurde beendet!"
-                          % (counter.getNameOfCounter(), getTagStringFromId(str(user.id))))
+            try:
+                await sendDM(user, "Dein %s-Timer wurde beendet!" % (counter.getNameOfCounter()))
+            except Exception as error:
+                logger.error("couldn't send DM to %s" % dcUserDb['username'], exc_info=error)
 
-                self.__saveDiscordUserToDatabase(dcUserDb)
-
-                try:
-                    await sendDM(user, "Dein %s-Timer wurde von %s beendet!" % (counter.getNameOfCounter(), username))
-                except Exception as error:
-                    logger.error("couldnt send DM to %s" % dcUserDb['username'], exc_info=error)
-
-                logger.debug("sent dm to %s" % user.name)
-
-                return answer
-
-            else:
-                return "Es lief kein %s-Timer für %s!" % (
-                    counter.getNameOfCounter(), getTagStringFromId(str(user.id)))
+            return "Der %s-Timer von %s wurde beendet." % (counter.getNameOfCounter(),
+                                                           getTagStringFromId(str(user.id)))

@@ -25,7 +25,7 @@ def getAllKeywords() -> list:
 
 class FelixCounter(Counter):
 
-    def __init__(self, dcUserDb=None):
+    def __init__(self, dcUserDb: dict = None):
         super().__init__('Felix', dcUserDb)
 
     def getCounterValue(self) -> int:
