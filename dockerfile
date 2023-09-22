@@ -1,12 +1,16 @@
 FROM python:3.10.12
 
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+
 RUN python3 -m pip install -U "discord.py[voice]"
-RUN pip install mysql-connector-python
-RUN pip install requests
+#RUN pip install mysql-connector-python
+#RUN pip install requests
 RUN apt-get install libffi-dev
-RUN pip install mutagen
-RUN pip install nest-asyncio
-RUN pip install httpx
+#RUN pip install mutagen
+#RUN pip install nest-asyncio
+#RUN pip install httpx
 
 
 COPY main.py .

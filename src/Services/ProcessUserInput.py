@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 
 import discord
 from discord import Message, Client, Member, VoiceChannel
-from discord.state import Channel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
@@ -117,7 +116,7 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
-    async def raiseMessageCounter(self, member: Member, channel: Channel):
+    async def raiseMessageCounter(self, member: Member, channel):
         """
         Increases the message count if the given user if he / she used an interaction
 
