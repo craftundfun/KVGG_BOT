@@ -765,9 +765,6 @@ class ExperienceService:
         # 99 mod 10 > 101 mod 10 -> achievement for 100
         if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
                 > xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value):
-            print("xp: %d" % xp['xp_amount'])
-            print("- %d" % (xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value))
-
             await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.XP,
                                                                        (xp['xp_amount']
                                                                         - (xp[
