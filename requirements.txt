@@ -3,3 +3,4 @@ requests~=2.31.0
 mutagen
 nest-asyncio
 httpx~=0.24.1
+discord.py~=2.3.2
