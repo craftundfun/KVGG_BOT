@@ -1,0 +1,3 @@
+WTForms
+flask
+flask-login
