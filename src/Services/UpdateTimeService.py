@@ -112,6 +112,11 @@ class UpdateTimeService:
                 if not self.__eligibleForGettingTime((dcUserDb, channelType), channel):
                     continue
 
+                # update commonly changing things
+                dcUserDb['channel_id'] = channel.id
+                dcUserDb['username'] = member.nick if member.nick else member.name
+                dcUserDb['profile_picture_discord'] = member.display_avatar
+
                 if channelType == "gaming":
                     # time_online can be None -> None-safe operation
                     if not dcUserDb['time_online']:
