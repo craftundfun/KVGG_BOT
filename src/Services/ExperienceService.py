@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import math
@@ -314,6 +315,8 @@ class ExperienceService:
         else:
             inventory = []
 
+        # TODO remove after investigation
+        invBefore = copy.deepcopy(inventory)
         inventory.append(boost)
 
         xp['xp_boosts_inventory'] = json.dumps(inventory)
@@ -326,7 +329,17 @@ class ExperienceService:
         if not self.database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
 
-        logger.debug("saved granted boost to database")
+        print("------------------------------------------------------")
+        print("boost:")
+        print(str(boost) + "\n")
+        print("inventory für: %s" % member.name)
+        print("vorher:")
+        print(str(invBefore))
+        print("nacher:")
+        print(str(inventory))
+        print("SQL-statement: %s" % query)
+
+        logger.debug("saved granted boost to database for %s" % member.name)
 
     @validateKeys
     async def spinForXpBoost(self, member: Member) -> string:
