@@ -329,15 +329,15 @@ class ExperienceService:
         if not self.database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
 
-        print("------------------------------------------------------")
-        print("boost:")
-        print(str(boost) + "\n")
-        print("inventory für: %s" % member.name)
-        print("vorher:")
-        print(str(invBefore))
-        print("nacher:")
-        print(str(inventory))
-        print("SQL-statement: %s" % query)
+        logger.debug("------------------------------------------------------")
+        logger.debug("boost:")
+        logger.debug(str(boost) + "\n")
+        logger.debug("inventory für: %s" % member.name)
+        logger.debug("vorher:")
+        logger.debug(str(invBefore))
+        logger.debug("nacher:")
+        logger.debug(str(inventory))
+        logger.debug("SQL-statement: %s" % query)
 
         logger.debug("saved granted boost to database for %s" % member.name)
 
