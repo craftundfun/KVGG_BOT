@@ -204,8 +204,7 @@ class ProcessUserInput:
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if (channel not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
-                and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD)):
+        if channel not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
             logger.debug("destination channel is outside of the allowed moving range")
 
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
