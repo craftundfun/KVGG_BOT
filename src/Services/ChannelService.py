@@ -3,8 +3,8 @@ import logging
 from discord import Client, Member, VoiceChannel
 
 from src.Helper.SendDM import sendDM
-from src.Id.Categories import Categories
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories
+from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
@@ -24,7 +24,7 @@ class ChannelService:
         :return:
         """
         # only move out of this channel
-        if member.voice.channel.id != int(ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value):
+        if member.voice.channel.id != ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
             return
 
         # ignore members who are alone
@@ -60,19 +60,19 @@ class ChannelService:
 
         :return:
         """
-        categories = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).categories
+        categories = self.client.get_guild(GuildId.GUILD_KVGG.value).categories
 
         for category in categories:
-            if category.id != Categories.GAMING.value:
+            if category.id != TrackedCategories.GAMING.value:
                 continue
 
             channels = category.voice_channels
             # return value from guild.categories already sorted them by position
             # channels = sorted(channels, key=lambda channel: channel.position)
-            dontUseChannels = [int(ChannelIdWhatsAppAndTracking.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_EIN_DREIVIERTEL.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value),
-                               int(ChannelIdWhatsAppAndTracking.CHANNEL_GAMING_SIEBEN_AMERICA.value), ]
+            dontUseChannels = [ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value,
+                               ChannelId.CHANNEL_GAMING_EIN_DREIVIERTEL.value,
+                               ChannelId.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value,
+                               ChannelId.CHANNEL_GAMING_SIEBEN_AMERICA.value, ]
 
             for channel in channels:
                 if channel.id in dontUseChannels:

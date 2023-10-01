@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import logging
 import random
-import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -23,7 +22,7 @@ def getQuotesChannel(client: Client):
     :param client: Discord-Client
     :return: Channel | None - Quotes-Channel
     """
-    return client.get_guild(int(GuildId.GUILD_KVGG.value)).get_channel(int(ChannelId.CHANNEL_QUOTES.value))
+    return client.get_guild(GuildId.GUILD_KVGG.value).get_channel(ChannelId.CHANNEL_QUOTES.value)
 
 
 class QuotesManager:
@@ -40,7 +39,7 @@ class QuotesManager:
         self.client = client
 
     @validateKeys
-    def answerQuote(self, member: Member) -> string | None:
+    def answerQuote(self, member: Member) -> str | None:
         """
         Returns a random quote from our database
 
@@ -115,7 +114,7 @@ class QuotesManager:
             authorId = message.data['author']['id']
 
             if authorId:
-                author = await self.client.get_guild(int(GuildId.GUILD_KVGG.value)).fetch_member(authorId)
+                author = await self.client.get_guild(GuildId.GUILD_KVGG.value).fetch_member(authorId)
 
                 if author:
                     try:

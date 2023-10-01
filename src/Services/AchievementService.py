@@ -14,7 +14,7 @@ class AchievementService:
 
     def __init__(self, client: Client):
         self.client = client
-        self.channel = self.client.get_channel(int(ChannelId.CHANNEL_ACHIEVEMENTS.value))
+        self.channel = self.client.get_channel(ChannelId.CHANNEL_ACHIEVEMENTS.value)
 
     async def sendAchievementAndGrantBoost(self, member: Member, kind: AchievementParameter, value: int):
         """
@@ -149,6 +149,6 @@ class AchievementService:
                 logger.error("the achievement couldn't be sent", exc_info=error)
         else:
             try:
-                await self.client.get_channel(int(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)).send(message)
+                await self.client.get_channel(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value).send(message)
             except Exception as error:
                 logger.error("the test-achievement couldn't be sent", exc_info=error)

@@ -27,12 +27,8 @@ class VoiceStateUpdateService:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
-        self.waHelper = WhatsAppHelper()
-        self.notificationService = NotificationService(self.client)
-        self.felixCounter = FelixCounter()
-        self.channelService = ChannelService(self.client)
+        self.waHelper = WhatsAppHelper(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -74,15 +70,31 @@ class VoiceStateUpdateService:
             dcUserDb['started_stream_at'] = None
             dcUserDb['started_webcam_at'] = None
 
-            await self.notificationService.runNotificationsForMember(member, dcUserDb)
-            await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
+            try:
+                notificationService = NotificationService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start NotificationService", exc_info=error)
+            else:
+                await notificationService.runNotificationsForMember(member, dcUserDb)
+
+            try:
+                felixCounter = FelixCounter()
+            except ConnectionError as error:
+                logger.error("failure to start FelixCounter", exc_info=error)
+            else:
+                await felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
 
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
             self.waHelper.sendOnlineNotification(member, voiceStateAfter)
 
-            # move is the last step to avoid channel confusion
-            await self.channelService.checkChannelForMoving(member)
+            try:
+                channelService = ChannelService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start ChannelService", exc_info=error)
+            else:
+                # move is the last step to avoid channel confusion
+                await channelService.checkChannelForMoving(member)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -161,13 +173,18 @@ class VoiceStateUpdateService:
         :param dcUserDb: DiscordUser to save
         :return:
         """
-        query, nones = writeSaveQuery(
-            'discord',
-            dcUserDb['id'],
-            dcUserDb
-        )
-
-        if not self.database.runQueryOnDatabase(query, nones):
-            logger.critical("couldn't save DiscordUser to database")
+        try:
+            database = Database()
+        except ConnectionError as error:
+            logger.error("couldn't establish database connection", exc_info=error)
         else:
-            logger.debug("updated %s" % dcUserDb['username'])
+            query, nones = writeSaveQuery(
+                'discord',
+                dcUserDb['id'],
+                dcUserDb
+            )
+
+            if not database.runQueryOnDatabase(query, nones):
+                logger.critical("couldn't save DiscordUser to database")
+            else:
+                logger.debug("updated %s" % dcUserDb['username'])

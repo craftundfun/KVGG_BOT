@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 
 from discord import Client, Member
 
-from src.Services.Database import Database
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.Counter import Counter
+from src.Services.Database import Database
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -25,7 +25,7 @@ def getAllKeywords() -> list:
 
 class FelixCounter(Counter):
 
-    def __init__(self, dcUserDb=None):
+    def __init__(self, dcUserDb: dict = None):
         super().__init__('Felix', dcUserDb)
 
     def getCounterValue(self) -> int:
@@ -78,7 +78,7 @@ class FelixCounter(Counter):
             else:
                 dcUserDb['felix_counter_start'] = None
 
-                member = client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(dcUserDb['user_id']))
+                member = client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb['user_id']))
 
                 if member:
                     try:

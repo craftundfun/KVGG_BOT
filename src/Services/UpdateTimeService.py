@@ -6,10 +6,10 @@ from discord import Client, VoiceChannel
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.MuteParameter import MuteParameter
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
@@ -29,9 +29,9 @@ class UpdateTimeService:
         self.client: Client = client
         self.database = Database()
 
-        self.uniChannels: set = ChannelIdUniversityTracking.getValues()
-        self.whatsappChannels: set = ChannelIdWhatsAppAndTracking.getValues()
-        self.allowedChannels: set = self.uniChannels | self.whatsappChannels
+        self.whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
+        self.universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
+        self.allowedChannels: list[VoiceChannel] = self.whatsappChannels + self.universityChannels
 
         self.experienceService = ExperienceService(self.client)
         self.achievementService = AchievementService(self.client)
@@ -42,8 +42,8 @@ class UpdateTimeService:
 
         :return:
         """
-        for channel in self.client.get_guild(int(GuildId.GUILD_KVGG.value)).channels:
-            if str(channel.id) in self.allowedChannels and len(channel.members) > 0:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
+            if channel in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
     def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
@@ -54,39 +54,57 @@ class UpdateTimeService:
         :param channel:
         :return:
         """
+        dcUserDb, channelType = dcUserDbAndChannelType
+
         # ignore all restrictions except for at least two members for uni counting
-        if dcUserDbAndChannelType[1] == "uni" and len(channel.members) > 1:
+        if channelType == "uni" and len(channel.members) > 1:
+            logger.debug("%s in university channel and not alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
         # if user is alone only look at full-mute
         if len(channel.members) == 1:
             # not full muted -> grant time
-            if (fullMutedAt := dcUserDbAndChannelType[0]['full_muted_at']) is None:
+            if (fullMutedAt := dcUserDb['full_muted_at']) is None:
+                logger.debug("%s not full-muted and alone => ACCEPTED" % dcUserDb['username'])
+
                 return True
 
             # longer than allowed to be full muted
             if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
+                logger.debug("%s too long full-muted and alone => DENIED" % dcUserDb['username'])
+
                 return False
 
             # full-muted but in time
+            logger.debug("%s not too long full-muted and alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
-        mutedAt: datetime = dcUserDbAndChannelType[0]['muted_at']
-        fullMutedAt: datetime = dcUserDbAndChannelType[0]['full_muted_at']
+        mutedAt: datetime = dcUserDb['muted_at']
+        fullMutedAt: datetime = dcUserDb['full_muted_at']
 
         # user is not (full-) muted
         if not mutedAt or not fullMutedAt:
+            logger.debug("%s not (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
         # user is too long muted
         if (datetime.now() - mutedAt).seconds // 60 >= MuteParameter.MUTE_LIMIT.value:
+            logger.debug("%s too long muted and not alone => DENIED" % dcUserDb['username'])
+
             return False
 
         # user is too long full muted
         if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
+            logger.debug("%s too long full-muted and not alone => DENIED" % dcUserDb['username'])
+
             return False
 
         # user is within allowed times to be (full-) muted
+        logger.debug("%s not too long (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
+
         return True
 
     async def updateTimesAndExperience(self):
@@ -97,7 +115,7 @@ class UpdateTimeService:
         """
         for channel in self.__getChannels():
             # specify a type of channel for easier distinguishing later
-            if str(channel.id) in self.uniChannels:
+            if channel in self.universityChannels:
                 channelType = "uni"
             else:
                 channelType = "gaming"
@@ -111,6 +129,11 @@ class UpdateTimeService:
                 # user cant get time -> continue with next user
                 if not self.__eligibleForGettingTime((dcUserDb, channelType), channel):
                     continue
+
+                # update commonly changing things
+                dcUserDb['channel_id'] = channel.id
+                dcUserDb['username'] = member.nick if member.nick else member.name
+                dcUserDb['profile_picture_discord'] = member.display_avatar
 
                 if channelType == "gaming":
                     # time_online can be None -> None-safe operation
@@ -127,6 +150,7 @@ class UpdateTimeService:
                                                                                    AchievementParameter.ONLINE,
                                                                                    dcUserDb['time_online'])
 
+                    logger.debug("%s gets XP for being online" % member.name)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
 
                     # increase time for streaming
@@ -140,6 +164,7 @@ class UpdateTimeService:
                                                                                        AchievementParameter.STREAM,
                                                                                        dcUserDb['time_streamed'])
 
+                        logger.debug("%s gets XP for streaming" % member.name)
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
 

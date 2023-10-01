@@ -27,7 +27,7 @@ def writeSaveQuery(table_name: string, primary_key: string, data: dict) -> (str,
     parameters = ()
 
     # create Tuple for None-parameter
-    for i in range(how_many_None):
+    for _ in range(how_many_None):
         parameters = parameters + (None,)
 
     return update_query, parameters

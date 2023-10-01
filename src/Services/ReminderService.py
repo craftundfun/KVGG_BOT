@@ -265,7 +265,7 @@ class ReminderService:
         :param reminder: Remainder entry from the database
         :return:
         """
-        member: Member = self.client.get_guild(int(GuildId.GUILD_KVGG.value)).get_member(int(reminder["user_id"]))
+        member: Member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(reminder["user_id"]))
 
         if not member:
             logger.warning("couldn't fetch member with userId from Guild")

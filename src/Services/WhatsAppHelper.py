@@ -2,21 +2,21 @@ from __future__ import annotations
 
 import json
 import logging
-import string
 from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
 import discord.app_commands
-from discord import VoiceState, Member
+from discord import VoiceState, Member, Client
+from discord.app_commands import Choice
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
-from src.Services.Database import Database
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
+from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -26,11 +26,12 @@ class WhatsAppHelper:
     Creates and manages WhatsApp-messages
     """
 
-    def __init__(self):
+    def __init__(self, client: Client):
         """
         :raise ConnectionError:
         """
         self.database = Database()
+        self.client = client
 
     def __getUsersForMessage(self) -> List[Dict[str, Any]] | None:
         """
@@ -64,15 +65,18 @@ class WhatsAppHelper:
         """
         logger.debug("creating Online-Notification for %s" % member.name)
 
-        # if a channel does not count time
-        if str(update.channel.id) not in ChannelIdWhatsAppAndTracking.getValues() and str(
-                update.channel.id) not in ChannelIdUniversityTracking.getValues():
-            logger.debug("user was outside of tracked channels")
+        if member.bot:
+            logger.debug("user was a bot")
 
             return
 
-        if member.bot:
-            logger.debug("user was a bot")
+        # gaming channel => true, university => false, other channels => function will return
+        if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
+            channelGaming = True
+        elif update.channel.id in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
+            channelGaming = False
+        else:
+            logger.debug("user was outside of tracked channels")
 
             return
 
@@ -104,19 +108,17 @@ class WhatsAppHelper:
 
                 continue
 
-            if (triggerDcUserDb['channel_id'] in ChannelIdWhatsAppAndTracking.getValues()
-                    and user['receive_join_notification']):
+            if channelGaming and user['receive_join_notification']:
                 logger.debug("message for gaming channels")
 
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
-            elif (triggerDcUserDb['channel_id'] in ChannelIdUniversityTracking.getValues()
-                  and user['receive_uni_join_notification']):
+            elif not channelGaming and user['receive_uni_join_notification']:
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
 
     def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
         """
-        Creates an offline notification, but only for allowed channels and users who are opted-in
+        Creates an offline notification, but only for allowed channels and users who are opted in
 
         :param dcUserDb: DiscordUser that caused the notification
         :param update: VoiceStateUpdate
@@ -152,16 +154,16 @@ class WhatsAppHelper:
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
-            if (str(update.channel.id) in ChannelIdWhatsAppAndTracking.getValues()
+            if (update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
                     and user['receive_leave_notification']):
                 logger.debug("message for gaming channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
-            elif (str(update.channel.id) in ChannelIdUniversityTracking.getValues()
+            elif (update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
                   and user['receive_uni_leave_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
-    def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: string):
+    def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: str):
         """
         If a DiscordUser switches channel within a timeinterval the unsent message will be edited
 
@@ -224,7 +226,7 @@ class WhatsAppHelper:
         :param isJoinMessage: Specify looking for join or leave messages
         :return:
         """
-        logger.debug("retracting messages from Queue for %s" % dcUserDb['username'])
+        logger.debug("retracting messages from queue for %s" % dcUserDb['username'])
 
         messages = getUnsentMessagesFromTriggerUser(dcUserDb, isJoinMessage)
 
@@ -240,7 +242,7 @@ class WhatsAppHelper:
                 logger.critical("couldn't save to database")
 
     def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, whatsappSetting: dict,
-                               usernameFromTriggerUser: string):
+                               usernameFromTriggerUser: str):
         """
         Saves the message into the queue
 
@@ -306,14 +308,14 @@ class WhatsAppHelper:
         logger.debug("saved new message to database")
 
     @validateKeys
-    def addOrEditSuspendDay(self, member: Member, weekday: discord.app_commands.Choice, start: str, end: str):
+    def addOrEditSuspendDay(self, member: Member, weekday: Choice, start: str, end: str):
         """
         Enables a given time interval for the member to not receive messages in
 
         :param member: Member, who requested the interval
         :param weekday: Choice of the day to edit
-        :param start: Starttime
-        :param end: Endtime
+        :param start: Start-time
+        :param end: End-time
         :return:
         """
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
@@ -321,7 +323,7 @@ class WhatsAppHelper:
         whatsappSetting = self.database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
-            logger.debug("%s is no registered for whatsapp messages" % member.name)
+            logger.debug("%s is not registered for whatsapp messages" % member.name)
 
             return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
 
