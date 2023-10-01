@@ -1,6 +1,7 @@
 from enum import Enum
 
 
+@DeprecationWarning
 class ChannelIdWhatsAppAndTracking(Enum):
     CHANNEL_QUATSCHEN = 745373345746518066
 

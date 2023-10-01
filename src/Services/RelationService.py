@@ -3,13 +3,13 @@ import logging
 from datetime import datetime
 from enum import Enum
 
-from discord import ChannelType, Member, VoiceState, Client
+from discord import ChannelType, Member, VoiceState, Client, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
@@ -175,20 +175,21 @@ class RelationService:
 
         try:
             otherMembersInChannel = voiceStateBefore.channel.members
-            whatsappChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
-            allTrackedChannels: set[int] = whatsappChannels | ChannelIdUniversityTracking.getValues()
+            whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
+            universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
+            allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
 
             if len(otherMembersInChannel) <= 0:
                 logger.debug("last member in channel, relations were handled by their partners")
 
                 return
 
-            if voiceStateBefore.channel.id not in allTrackedChannels:
+            if voiceStateBefore.channel not in allTrackedChannels:
                 logger.debug("relation outside of allowed region")
 
                 return
 
-            if voiceStateBefore.channel.id in ChannelIdWhatsAppAndTracking.getValues():
+            if voiceStateBefore.channel in whatsappChannels:
                 type = RelationTypeEnum.ONLINE
             else:
                 type = RelationTypeEnum.UNIVERSITY
@@ -235,8 +236,9 @@ class RelationService:
 
         :return:
         """
-        whatsAppChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
-        allTrackedChannels: set[int] = ChannelIdUniversityTracking.getValues() | whatsAppChannels
+        whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
+        universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
+        allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
 
         for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
             # skip none voice channels
@@ -250,7 +252,7 @@ class RelationService:
                 continue
 
             # skip none tracked channels
-            if channel.id not in allTrackedChannels:
+            if channel not in allTrackedChannels:
                 continue
 
             members = channel.members
@@ -261,7 +263,7 @@ class RelationService:
                     logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
 
                     # depending on the channel increase correct relation
-                    if channel.id in whatsAppChannels:
+                    if channel in whatsappChannels:
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
                     else:
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)
@@ -275,6 +277,7 @@ class RelationService:
         """
         Returns the top 3 relations from the given type
 
+        :param limit:
         :param type: RelationTypeEnum to choose which relation to look at
         :return:
         """

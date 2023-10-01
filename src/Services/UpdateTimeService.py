@@ -6,10 +6,10 @@ from discord import Client, VoiceChannel
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.MuteParameter import MuteParameter
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
@@ -29,9 +29,9 @@ class UpdateTimeService:
         self.client: Client = client
         self.database = Database()
 
-        self.uniChannels: set[int] = ChannelIdUniversityTracking.getValues()
-        self.whatsappChannels: set[int] = ChannelIdWhatsAppAndTracking.getValues()
-        self.allowedChannels: set[int] = self.uniChannels | self.whatsappChannels
+        self.whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
+        self.universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
+        self.allowedChannels: list[VoiceChannel] = self.whatsappChannels + self.universityChannels
 
         self.experienceService = ExperienceService(self.client)
         self.achievementService = AchievementService(self.client)
@@ -43,7 +43,7 @@ class UpdateTimeService:
         :return:
         """
         for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
-            if channel.id in self.allowedChannels and len(channel.members) > 0:
+            if channel in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
     def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
@@ -97,7 +97,7 @@ class UpdateTimeService:
         """
         for channel in self.__getChannels():
             # specify a type of channel for easier distinguishing later
-            if channel.id in self.uniChannels:
+            if channel in self.universityChannels:
                 channelType = "uni"
             else:
                 channelType = "gaming"

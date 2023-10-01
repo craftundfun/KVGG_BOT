@@ -6,14 +6,14 @@ from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
 import discord.app_commands
-from discord import VoiceState, Member
+from discord import VoiceState, Member, Client
 from discord.app_commands import Choice
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
-from src.Id.ChannelIdWhatsAppAndTracking import ChannelIdWhatsAppAndTracking
+from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Services.Database import Database
@@ -26,11 +26,12 @@ class WhatsAppHelper:
     Creates and manages WhatsApp-messages
     """
 
-    def __init__(self):
+    def __init__(self, client: Client):
         """
         :raise ConnectionError:
         """
         self.database = Database()
+        self.client = client
 
     def __getUsersForMessage(self) -> List[Dict[str, Any]] | None:
         """
@@ -70,9 +71,9 @@ class WhatsAppHelper:
             return
 
         # gaming channel => true, university => false, other channels => function will return
-        if update.channel.id in ChannelIdWhatsAppAndTracking.getValues():
+        if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
             channelGaming = True
-        elif update.channel.id in ChannelIdUniversityTracking.getValues():
+        elif update.channel.id in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
             channelGaming = False
         else:
             logger.debug("user was outside of tracked channels")
@@ -153,11 +154,11 @@ class WhatsAppHelper:
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
-            if (update.channel.id in ChannelIdWhatsAppAndTracking.getValues()
+            if (update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
                     and user['receive_leave_notification']):
                 logger.debug("message for gaming channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
-            elif (update.channel.id in ChannelIdUniversityTracking.getValues()
+            elif (update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
                   and user['receive_uni_leave_notification']):
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)

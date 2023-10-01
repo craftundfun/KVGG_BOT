@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from discord import Client, Member
 
 from src.Helper.SendDM import sendDM
-from src.Id.ChannelIdUniversityTracking import ChannelIdUniversityTracking
+from src.Id.Categories import UniversityCategory
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService, isDoubleWeekend
 
@@ -29,7 +29,7 @@ class NotificationService:
         :return: dcUserDb
         """
         # don't send any notifications to university users
-        if member.voice.channel.id in ChannelIdUniversityTracking.getValues():
+        if member.voice.channel.category in UniversityCategory.getValues():
             return
 
         await self.__sendNewsletter(member, dcUserDb)

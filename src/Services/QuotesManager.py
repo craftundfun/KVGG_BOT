@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import random
-import string
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
@@ -40,7 +39,7 @@ class QuotesManager:
         self.client = client
 
     @validateKeys
-    def answerQuote(self, member: Member) -> string | None:
+    def answerQuote(self, member: Member) -> str | None:
         """
         Returns a random quote from our database
 

@@ -29,7 +29,7 @@ class VoiceStateUpdateService:
         :raise ConnectionError:
         """
         self.client = client
-        self.waHelper = WhatsAppHelper()
+        self.waHelper = WhatsAppHelper(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)

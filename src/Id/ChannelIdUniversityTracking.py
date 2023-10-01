@@ -1,6 +1,7 @@
 from enum import Enum
 
 
+@DeprecationWarning
 class ChannelIdUniversityTracking(Enum):
     UNI_1 = 803322264056496158
 
