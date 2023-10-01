@@ -15,5 +15,5 @@ class ChannelIdUniversityTracking(Enum):
     UNI_6_AMERICA = 927763900643049583
 
     @classmethod
-    def getValues(cls) -> set:
+    def getValues(cls) -> set[int]:
         return set(channel.value for channel in ChannelIdUniversityTracking)
