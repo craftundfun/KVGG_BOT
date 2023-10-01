@@ -17,7 +17,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id import ChannelId
 from src.Id.Categories import TrackedCategories
 from src.Id.RoleId import RoleId
-from src.InheritedCommands.NameCounter import FelixCounter
+from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
 from src.InheritedCommands.NameCounter.BjarneCounter import BjarneCounter
 from src.InheritedCommands.NameCounter.CarlCounter import CarlCounter
 from src.InheritedCommands.NameCounter.CookieCounter import CookieCounter
@@ -103,8 +103,6 @@ class ProcessUserInput:
         :param setting:
         :return:
         """
-        # TODO make extra class for changing settings
-
         if not (dcUserDb := getDiscordUser(member)):
             logger.warning("couldn't fetch DiscordUser")
 
@@ -308,7 +306,8 @@ class ProcessUserInput:
         else:
             logger.debug("returning time")
 
-            return time.getStringForTime(dcUserDb)
+            return ("Du hast nicht die benötigten Rechte um Zeit hinzuzufügen!\n\n"
+                    + time.getStringForTime(dcUserDb))
 
     @validateKeys
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
@@ -405,6 +404,16 @@ class ProcessUserInput:
         :return:
         """
         logger.debug("%s requested our leaderboard" % member.name)
+
+        if type == "xp":
+            try:
+                es = ExperienceService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start ExperienceService", exc_info=error)
+
+                answer = "Es ist ein Fehler aufgetreten."
+            else:
+                return es.sendXpLeaderboard(member=member)
 
         try:
             relationService = RelationService(self.client)
@@ -570,14 +579,14 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter.ReneCounter())
-        answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter.FelixCounter())
-        answer += self.__leaderboardHelperCounter(usersPaulCounter, PaulCounter.PaulCounter())
-        answer += self.__leaderboardHelperCounter(usersBjarneCounter, BjarneCounter.BjarneCounter())
-        answer += self.__leaderboardHelperCounter(usersOlegCounter, OlegCounter.OlegCounter())
-        answer += self.__leaderboardHelperCounter(usersJjCounter, JjCounter.JjCounter())
-        answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter.CookieCounter())
-        answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter.CarlCounter())
+        answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter())
+        answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter())
+        answer += self.__leaderboardHelperCounter(usersPaulCounter, PaulCounter())
+        answer += self.__leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
+        answer += self.__leaderboardHelperCounter(usersOlegCounter, OlegCounter())
+        answer += self.__leaderboardHelperCounter(usersJjCounter, JjCounter())
+        answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter())
+        answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter())
 
         logger.debug("sending leaderboard")
 
@@ -763,7 +772,7 @@ class ProcessUserInput:
 
         counter = FelixCounter(dcUserDb)
 
-        if action == FelixCounter.FELIX_COUNTER_START_KEYWORD:
+        if action == FelixCounterKeyword.FELIX_COUNTER_START_KEYWORD:
             if counter.getFelixTimer():
                 logger.debug("felix-Timer is already running")
 
@@ -814,8 +823,13 @@ class ProcessUserInput:
             try:
                 await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
                                    "bekommst du ab der Uhrzeit einen %s-Counter dazu! Um den Timer zu stoppen komm "
-                                   "(vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n")
-                await sendDM(user, FelixCounter.LIAR)
+                                   "(vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n"
+                             % (counter.getNameOfCounter(),
+                                member.nick if member.nick else member.name,
+                                date.strftime("%H:%M"),
+                                counter.getNameOfCounter())
+                             )
+                await sendDM(user, FelixCounterKeyword.LIAR)
             except Exception as error:
                 logger.error("couldn't send DM to %s" % user.name, exc_info=error)
             else:
@@ -823,7 +837,7 @@ class ProcessUserInput:
 
                 return "Der %s-Timer von %s wird um %s Uhr gestartet." % (counter.getNameOfCounter(),
                                                                           getTagStringFromId(str(user.id)),
-                                                                          date.strftime("%H_%M"))
+                                                                          date.strftime("%H:%M"))
         else:
             logger.debug("stop chosen")
 

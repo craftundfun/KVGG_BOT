@@ -54,39 +54,57 @@ class UpdateTimeService:
         :param channel:
         :return:
         """
+        dcUserDb, channelType = dcUserDbAndChannelType
+
         # ignore all restrictions except for at least two members for uni counting
-        if dcUserDbAndChannelType[1] == "uni" and len(channel.members) > 1:
+        if channelType == "uni" and len(channel.members) > 1:
+            logger.debug("%s in university channel and not alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
         # if user is alone only look at full-mute
         if len(channel.members) == 1:
             # not full muted -> grant time
-            if (fullMutedAt := dcUserDbAndChannelType[0]['full_muted_at']) is None:
+            if (fullMutedAt := dcUserDb['full_muted_at']) is None:
+                logger.debug("%s not full-muted and alone => ACCEPTED" % dcUserDb['username'])
+
                 return True
 
             # longer than allowed to be full muted
             if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
+                logger.debug("%s too long full-muted and alone => DENIED" % dcUserDb['username'])
+
                 return False
 
             # full-muted but in time
+            logger.debug("%s not too long full-muted and alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
-        mutedAt: datetime = dcUserDbAndChannelType[0]['muted_at']
-        fullMutedAt: datetime = dcUserDbAndChannelType[0]['full_muted_at']
+        mutedAt: datetime = dcUserDb['muted_at']
+        fullMutedAt: datetime = dcUserDb['full_muted_at']
 
         # user is not (full-) muted
         if not mutedAt or not fullMutedAt:
+            logger.debug("%s not (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
+
             return True
 
         # user is too long muted
         if (datetime.now() - mutedAt).seconds // 60 >= MuteParameter.MUTE_LIMIT.value:
+            logger.debug("%s too long muted and not alone => DENIED" % dcUserDb['username'])
+
             return False
 
         # user is too long full muted
         if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
+            logger.debug("%s too long full-muted and not alone => DENIED" % dcUserDb['username'])
+
             return False
 
         # user is within allowed times to be (full-) muted
+        logger.debug("%s not too long (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
+
         return True
 
     async def updateTimesAndExperience(self):
@@ -132,6 +150,7 @@ class UpdateTimeService:
                                                                                    AchievementParameter.ONLINE,
                                                                                    dcUserDb['time_online'])
 
+                    logger.debug("%s gets XP for being online" % member.name)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
 
                     # increase time for streaming
@@ -145,6 +164,7 @@ class UpdateTimeService:
                                                                                        AchievementParameter.STREAM,
                                                                                        dcUserDb['time_streamed'])
 
+                        logger.debug("%s gets XP for streaming" % member.name)
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
 

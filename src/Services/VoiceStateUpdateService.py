@@ -17,7 +17,6 @@ from src.Services.WhatsAppHelper import WhatsAppHelper
 logger = logging.getLogger("KVGG_BOT")
 
 
-# TODO test
 class VoiceStateUpdateService:
     """
     Handles every VoiceState and keeps the database up to date

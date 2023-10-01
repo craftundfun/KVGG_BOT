@@ -345,15 +345,15 @@ async def answerQuote(interaction: discord.Interaction):
 ])
 @app_commands.describe(zeit="Wähle die Zeit aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
-@app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
-async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: Member, param: int = None):
+@app_commands.describe(zeit_hinzufuegen="Ändere den Wert eines Counter um den gegebenen Wert.")
+async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user: Member, zeit_hinzufuegen: int = None):
     """
     Calls the access time function in ProcessUserInput from this interaction
 
     :param interaction: Interaction object of the call
     :param zeit: Chosen time to look / edit
     :param user: Tagged user to access time from
-    :param param: Optional parameter for Admins and Mods
+    :param zeit_hinzufuegen: Optional parameter for Admins and Mods
     :return:
     """
     await CommandService(client).runCommand(Commands.TIME,
@@ -361,7 +361,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
                                             timeName=zeit.value,
                                             user=user,
                                             member=interaction.user,
-                                            param=param)
+                                            param=zeit_hinzufuegen)
 
 
 """NAME COUNTER"""
@@ -383,15 +383,16 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 ])
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
-@app_commands.describe(param="Ändere den Wert eines Counter um den gegebenen Wert.")
-async def counter(interaction: discord.Interaction, counter: Choice[str], user: Member, param: int = None):
+@app_commands.describe(counter_hinzufuegen="Ändere den Wert eines Counter um den gegebenen Wert.")
+async def counter(interaction: discord.Interaction, counter: Choice[str], user: Member,
+                  counter_hinzufuegen: int = None):
     """
     Calls the access name counter with the correct counter
 
     :param interaction: Interaction object of the call
     :param counter: Name of the chosen counter
     :param user: Tagged user to get information from
-    :param param: Optional parameter for Admins and Mods
+    :param counter_hinzufuegen: Optional parameter for Admins and Mods
     :return:
     """
     await CommandService(client).runCommand(Commands.COUNTER,
@@ -399,47 +400,47 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
                                             counterName=counter.value,
                                             user=user,
                                             member=interaction.user,
-                                            param=param)
+                                            param=counter_hinzufuegen)
 
 
 """MANAGE WHATSAPP SETTINGS"""
 
 
 @tree.command(name="whatsapp",
-              description="Lässt dich deine Benachrichtigunseinstellungen ändern.",
+              description="Lässt dich deine Benachrichtigungseinstellungen ändern.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.choices(type=[
+@app_commands.choices(typ=[
     Choice(name="Gaming", value="Gaming"),
     Choice(name="Uni", value="Uni"),
 ])
-@app_commands.describe(type="Kategorie der Nachrichten")
-@app_commands.choices(action=[
+@app_commands.describe(typ="Kategorie der Nachrichten")
+@app_commands.choices(aktion=[
     Choice(name="join", value="join"),
     Choice(name="leave", value="leave"),
 ])
-@app_commands.describe(action="Benachrichtigungskategorie")
-@app_commands.choices(switch=[
-    Choice(name="on", value="on"),
-    Choice(name="off", value="off"),
+@app_commands.describe(aktion="Benachrichtigungskategorie")
+@app_commands.choices(einstellung=[
+    Choice(name="an", value="on"),
+    Choice(name="aus", value="off"),
 ])
-@app_commands.describe(switch="Einstellung")
-async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[str], action: Choice[str],
-                                 switch: Choice[str]):
+@app_commands.describe(einstellung="Einstellung")
+async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[str], aktion: Choice[str],
+                                 einstellung: Choice[str]):
     """
     Calls the manage whatsapp settings from ProcessUserInput from this interaction
 
     :param interaction: Interaction object of the call
-    :param type: Type of the whatsapp messages
-    :param action: Action for the type of messages
-    :param switch: Switch on or off
+    :param typ: Type of the whatsapp messages
+    :param aktion: Action for the type of messages
+    :param einstellung: Switch on or off
     :return:
     """
     await CommandService(client).runCommand(Commands.WHATSAPP,
                                             interaction,
                                             member=interaction.user,
-                                            type=type.value,
-                                            action=action.value,
-                                            switch=switch.value)
+                                            type=typ.value,
+                                            action=aktion.value,
+                                            switch=einstellung.value)
 
 
 """SEND LEADERBOARD"""
@@ -450,11 +451,13 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, type: Choice[
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(typ=[
     Choice(name="relationen", value="relations"),
+    Choice(name="XP", value="xp")
 ])
 async def sendLeaderboard(interaction: discord.Interaction, typ: Choice[str] = None):
     """
     Calls the send leaderboard from ProcessUserInput from this interaction
 
+    :param typ:
     :param interaction: Interaction object of the call
     :return:
     """
@@ -502,25 +505,25 @@ async def spinForXpBoost(interaction: discord.Interaction):
               description="Listet dir dein XP-Boost Inventory auf oder wähle welche zum Benutzen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(action=[
-    Choice(name="list", value="list"),
-    Choice(name="use", value="use"),
+    Choice(name="auflisten", value="list"),
+    Choice(name="benutzen", value="use"),
 ])
 @app_commands.describe(action="Wähle die Aktion die du ausführen möchtest!")
-@app_commands.describe(zeile="Wähle einen XP-Boost in Zeile x oder mit 'all' alle!")
-async def handleXpInventory(interaction: discord.Interaction, action: Choice[str], zeile: str = None):
+@app_commands.describe(nummer="Wähle einen XP-Boost in Zeile x oder mit 'all' alle!")
+async def handleXpInventory(interaction: discord.Interaction, action: Choice[str], nummer: str = None):
     """
     Calls the handle inventory from ExperienceService from this interaction
 
     :param interaction: Interaction object of the call
     :param action: Action that will be performed which is listing all boosts or use some
-    :param zeile: Optional row number to choose a Xp-Boost
+    :param nummer: Optional row number to choose a Xp-Boost
     :return:
     """
     await CommandService(client).runCommand(Commands.XP_INVENTORY,
                                             interaction,
                                             member=interaction.user,
                                             action=action.value,
-                                            row=zeile)
+                                            row=nummer)
 
 
 """HANDLE XP REQUEST"""
@@ -541,51 +544,41 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     await CommandService(client).runCommand(Commands.XP, interaction, member=interaction.user, user=user)
 
 
-"""XP LEADERBOARD"""
-
-
-@tree.command(name="xp_leaderboard",
-              description="Listet dir unsere XP-Bestenliste auf.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def getXpLeaderboard(interaction: discord.Interaction):
-    await CommandService(client).runCommand(Commands.XP_LEADERBOARD, interaction, member=interaction.user)
-
-
-"""XP NOTIFICATION"""
+"""NOTIFICATIONS"""
 
 
 @tree.command(name="notifications",
               description="Lässt dich deine Benachrichtigungen einstellen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.choices(category=[
-    Choice(name="xp", value="xp"),
-    Choice(name="welcome", value="welcome"),
+@app_commands.choices(kategorie=[
+    Choice(name="Doppel-XP-Wochenende", value="xp"),
+    Choice(name="Willkommen", value="welcome"),
 ])
-@app_commands.describe(category="Wähle deine Nachrichten-Kategorie")
+@app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
-    Choice(name="on", value="on"),
-    Choice(name="off", value="off"),
+    Choice(name="an", value="on"),
+    Choice(name="aus", value="off"),
 ])
 @app_commands.describe(action="Wähle deine Einstellung")
-async def handleNotificationSettings(interaction: discord.Interaction, category: Choice[str], action: Choice[str]):
+async def handleNotificationSettings(interaction: discord.Interaction, kategorie: Choice[str], action: Choice[str]):
     """
     Lets the member change their notification settings, such as double-xp-weekend or welcome back message
 
     :param interaction: Interaction from discord
-    :param category: Category of the notification
+    :param kategorie: Category of the notification
     :param action: On or off switch
     :return:
     """
-    logger.debug("received command notification: category = %s, action = %s, by %d" % (category.value, action.value,
+    logger.debug("received command notification: category = %s, action = %s, by %d" % (kategorie.value, action.value,
                                                                                        interaction.user.id))
 
-    if category.value == "xp":
+    if kategorie.value == "xp":
         await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
                                                 interaction,
                                                 member=interaction.user,
                                                 setting=action.value)
-    elif category.value == "welcome":
-        await CommandService(client).runCommand(Commands.NOTIFICATIONS_BACK,
+    elif kategorie.value == "welcome":
+        await CommandService(client).runCommand(Commands.NOTIFICATIONS_WELCOME_BACK,
                                                 interaction,
                                                 member=interaction.user,
                                                 setting=True if action.value == "on" else False)

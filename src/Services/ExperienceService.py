@@ -342,7 +342,7 @@ class ExperienceService:
         logger.debug("saved granted boost to database for %s" % member.name)
 
     @validateKeys
-    async def spinForXpBoost(self, member: Member) -> string:
+    def spinForXpBoost(self, member: Member) -> string:
         """
         Xp-Boost-Spin for member
 
@@ -459,7 +459,7 @@ class ExperienceService:
         return self.__getExperience(dcUserDb['user_id'])
 
     @validateKeys
-    async def handleXpRequest(self, member: Member, user: Member) -> string:
+    def handleXpRequest(self, member: Member, user: Member) -> string:
         """
         Handles the XP-Request of the given tag
 
@@ -539,7 +539,7 @@ class ExperienceService:
             return "Es ist leider ein Fehler aufgetreten."
 
     @validateKeys
-    async def handleXpInventory(self, member: Member, action: str, row: str = None):
+    def handleXpInventory(self, member: Member, action: str, row: str = None):
         """
         Handles the XP-Inventory
 

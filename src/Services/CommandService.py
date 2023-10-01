@@ -38,7 +38,7 @@ class Commands(Enum):
     WEATHER = 21
     CURRENCY_CONVERTER = 22
     QRCODE = 23
-    NOTIFICATIONS_BACK = 24
+    NOTIFICATIONS_WELCOME_BACK = 24
     CREATE_REMINDER = 25
     LIST_REMINDERS = 26
     DELETE_REMINDER = 27
@@ -84,9 +84,29 @@ class CommandService:
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
-        # TODO fix 2000 character bug
+        def splitStringAtMaxLength(string: str, maxLength: int = 2000) -> list[str]:
+            """
+            Splits the string at the nearest newline at 2000 characters.
+
+            :param string:
+            :param maxLength:
+            :return:
+            """
+            if not string:
+                return [""]
+
+            if len(string) <= maxLength:
+                return [string]
+
+            for i in range(maxLength, 0, -1):
+                if string[i] == '\n':
+                    return [string[:i], string[i + 1:]]
+
+            return [string[:maxLength], string[maxLength:]]
+
         try:
-            await ctx.followup.send(answer)
+            for part in splitStringAtMaxLength(answer):
+                await ctx.followup.send(part)
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
@@ -179,36 +199,35 @@ class CommandService:
 
                 case Commands.XP_SPIN:
                     try:
-                        answer = await ExperienceService(self.client).spinForXpBoost(**kwargs)
+                        es = ExperienceService(self.client)
                     except ConnectionError as error:
                         logger.error("failure to start ExperienceService", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = es.spinForXpBoost(**kwargs)
 
                 case Commands.XP_INVENTORY:
                     try:
-                        answer = await ExperienceService(self.client).handleXpInventory(**kwargs)
+                        es = ExperienceService(self.client)
                     except ConnectionError as error:
                         logger.error("failure to start ExperienceService", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = es.handleXpInventory(**kwargs)
+
                 case Commands.XP:
                     try:
-                        answer = await ExperienceService(self.client).handleXpRequest(**kwargs)
+                        es = ExperienceService(self.client)
                     except ConnectionError as error:
                         logger.error("failure to start ExperienceService", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = es.handleXpRequest(**kwargs)
 
-                case Commands.XP_LEADERBOARD:
-                    try:
-                        answer = ExperienceService(self.client).sendXpLeaderboard(**kwargs)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-
-                case Commands.NOTIFICATIONS_BACK:
+                case Commands.NOTIFICATIONS_WELCOME_BACK:
                     try:
                         pui = ProcessUserInput(self.client)
                     except ConnectionError as error:
@@ -220,11 +239,13 @@ class CommandService:
 
                 case Commands.NOTIFICATIONS_XP:
                     try:
-                        answer = ExperienceService(self.client).handleXpNotification(**kwargs)
+                        es = ExperienceService(self.client)
                     except ConnectionError as error:
                         logger.error("failure to start ExperienceService", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = es.handleXpNotification(**kwargs)
 
                 case Commands.FELIX_TIMER:
                     try:

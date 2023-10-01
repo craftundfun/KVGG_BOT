@@ -2,7 +2,7 @@ from enum import Enum
 
 
 class TrackedCategories(Enum):
-    SERVERVERWALTUNG = 623227011422355526  # TODO comment out
+    # SERVERVERWALTUNG = 623227011422355526
 
     GAMING = 623226859093491743
 
