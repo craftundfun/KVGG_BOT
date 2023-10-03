@@ -82,12 +82,17 @@ class RelationService:
 
             return None
 
+        if member_1.bot or member_2.bot:
+            logger.debug("one of the users were a bot")
+
+            return None
+
         dcUserDb_1: dict | None = getDiscordUser(member_1)
         dcUserDb_2: dict | None = getDiscordUser(member_2)
 
         if not dcUserDb_1 or not dcUserDb_2:
-            logger.warning(
-                "couldn't create relation, %s has no entity" % (member_1.name if not dcUserDb_1 else member_2.name))
+            logger.warning("couldn't create relation, %s has no entity"
+                           % (member_1.name if not dcUserDb_1 else member_2.name))
 
             return None
 

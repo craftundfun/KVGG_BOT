@@ -17,7 +17,7 @@ def getVoiceChannelsFromCategory(client: Client, *wantedCategories: TrackedCateg
     return channels if len(channels) != 0 else None
 
 
-def getVoiceChannelsFromCategoryEnum(client: Client, enum: Categories) -> list[VoiceChannel] | None:
+def getVoiceChannelsFromCategoryEnum(client: Client, enum: Categories) -> list[VoiceChannel]:
     serverCategories = client.get_guild(GuildId.GUILD_KVGG.value).categories
     channels = []
 
@@ -25,4 +25,4 @@ def getVoiceChannelsFromCategoryEnum(client: Client, enum: Categories) -> list[V
         if category.id in enum.getValues():
             channels.extend(category.voice_channels)
 
-    return channels if len(channels) != 0 else None
+    return channels

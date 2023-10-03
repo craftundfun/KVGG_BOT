@@ -9,6 +9,7 @@ from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
+from src.Services.VoiceClientService import VoiceClientService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -42,6 +43,7 @@ class Commands(Enum):
     CREATE_REMINDER = 25
     LIST_REMINDERS = 26
     DELETE_REMINDER = 27
+    PLAY_SOUND = 28
 
 
 class CommandService:
@@ -312,6 +314,10 @@ class CommandService:
                         answer = "Es ist ein Fehler aufgetreten."
                     else:
                         answer = rs.deleteReminder(**kwargs)
+
+                case Commands.PLAY_SOUND:
+                    voiceClientService = VoiceClientService(self.client)
+                    answer = await voiceClientService.play(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

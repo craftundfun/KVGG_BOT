@@ -25,6 +25,7 @@ from src.Services import ProcessUserInput, QuotesManager
 from src.Services.CommandService import CommandService, Commands
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.QuotesManager import QuotesManager
+from src.Services.VoiceClientService import Sounds
 from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 
 # set timezone to our time
@@ -773,7 +774,9 @@ async def listReminders(ctx: discord.interactions.Interaction):
     :param ctx:
     :return:
     """
-    await CommandService(client).runCommand(Commands.LIST_REMINDERS, ctx, member=ctx.user)
+    await CommandService(client).runCommand(Commands.LIST_REMINDERS,
+                                            ctx,
+                                            member=ctx.user)
 
 
 @tree.command(name="delete_reminder",
@@ -787,17 +790,80 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
     :param id:
     :return:
     """
-    await CommandService(client).runCommand(Commands.DELETE_REMINDER, ctx, member=ctx.user, id=id)
+    await CommandService(client).runCommand(Commands.DELETE_REMINDER,
+                                            ctx,
+                                            member=ctx.user,
+                                            id=id)
+
+
+"""PLAY SOUND"""
+
+
+@tree.command(name="play",
+              description="Spielt aktuell nur 'egal' von Michael Wendler in deinem Channel.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@app_commands.choices(sound=[
+    Choice(name="egal", value=Sounds.EGAL.value),
+])
+async def playSound(ctx: discord.interactions.Interaction, sound: Choice[str] = None):
+    """
+    Plays the given sound.
+    Currently only "egal" by Michael Wendler.
+
+    :param ctx: Interactions
+    :param sound: Chosen sound
+    :return:
+    """
+    await CommandService(client).runCommand(Commands.PLAY_SOUND,
+                                            ctx,
+                                            member=ctx.user,
+                                            sound=sound.value if sound else Sounds.EGAL.value)
 
 
 # FUCK YOU
 
+"""
+@tree.command(name="egal",
+              description="testing",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def beta(ctx: discord.interactions.Interaction):
+    voiceState = ctx.user.voice
+
+    if not voiceState:
+        print("not online")
+
+        return
+
+    channel = voiceState.channel
+
+    if not channel:
+        print("no channel")
+
+        return
+
+    if channel.category.id != TrackedCategories.SERVERVERWALTUNG.value:
+        print("wrong category")
+
+        return
+
+    try:
+        voiceClient: VoiceClient = await channel.connect()
+
+        if voiceClient.is_playing():
+            voiceClient.stop()
+
+        file = discord.FFmpegPCMAudio(source='./data/egal.mp3')
+        duration = MP3("./data/egal.mp3").info.length
+
+        voiceClient.play(file)
+        await sleep(duration)
+        await voiceClient.disconnect()
+
+    except Exception as error:
+        print(error)
+"""
 
 """
-@tree.command(name="beta-feature", description="Just dont use it",
-              guild=discord.Object(id=int(GuildId.GUILD_KVGG.value)))
-async def beta(ctx: discord.interactions.Interaction, src: str):
-    channel: discord.VoiceChannel = ctx.guild.get_channel(int(ChannelIdWhatsAppAndTracking.CHANNEL_STAFF.value))
     await channel.connect()
     # await sleep(1)
     voice_client = ctx.guild.voice_client
@@ -814,7 +880,6 @@ async def beta(ctx: discord.interactions.Interaction, src: str):
         pass
 
     out_file = None
-
 """
 
 restartTrys = 5
