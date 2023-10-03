@@ -290,7 +290,7 @@ class WhatsAppHelper:
                 return
         else:
             text = triggerDcUserDb[
-                       'username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel " + channel.name + "."
+                       'username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel '" + channel.name + "'."
             isJoinMessage = True
 
         query = "INSERT INTO message_queue (" \
