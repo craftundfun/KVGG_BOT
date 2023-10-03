@@ -11,7 +11,6 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
 from src.Services.NotificationService import NotificationService
-from src.Services.RelationService import RelationService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -156,13 +155,6 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
-
-            try:
-                rs = RelationService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start RelationService", exc_info=error)
-            else:
-                await rs.manageLeavingMember(member, voiceStateBefore)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 

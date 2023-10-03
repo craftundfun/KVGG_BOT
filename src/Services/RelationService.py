@@ -161,6 +161,7 @@ class RelationService:
         else:
             logger.debug("couldn't fetch relation")
 
+    @DeprecationWarning
     async def manageLeavingMember(self, member: Member, voiceStateBefore: VoiceState):
         """
         Sets the last parameters if one member leaves
