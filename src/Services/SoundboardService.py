@@ -49,11 +49,11 @@ class SoundboardService:
 
     def downloadFileFromURL(self, message: Message, url: str, loop: AbstractEventLoop):
         """
-        downloads file from direct message and does security checks
+        Downloads file from direct message and does security checks
 
-        :param message: message from the user
-        :param url: url to the file
-        :param loop: eventLoop from the dc-bot to return a message on error/success
+        :param message: Message from the user
+        :param url: Url to the file
+        :param loop: EventLoop from the dc-bot to return a message on error/success
         :return:
         """
         authorId = message.author.id
@@ -141,9 +141,9 @@ class SoundboardService:
 
     async def manageDirectMessage(self, message: Message):
         """
-        checks for author in message and starts file-download
+        Checks for author in message and starts file-download
 
-        :param message: message to check
+        :param message: Message to check
         :return:
         """
         if not message.author:
