@@ -1,5 +1,4 @@
 import asyncio
-import concurrent.futures
 import logging
 import os
 import threading
@@ -11,7 +10,6 @@ from urllib.parse import urlparse
 import discord
 import requests
 from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
-from discord.app_commands import Choice
 from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
@@ -30,6 +28,7 @@ def run_event_loop(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
 
+
 class SoundboardService:
     path = './data/sounds/'
     basepath = Path(__file__).parent.parent.parent
@@ -37,57 +36,102 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
-    @staticmethod
-    async def getPersonalSounds(interaction: discord.Interaction, current: str, _) -> list[Choice[str]]:
-        print(_)
-        member = interaction.user.id
-        basepath = os.path.dirname(__file__)
-        path = os.path.abspath(os.path.join(basepath, "..", "..", "..", f"{basepath}/data/sounds/{member}"))
-        print(path)
-
-        files = []
+    def searchInPersonalFiles(self, member: discord.Member, search: str) -> bool:
+        """ Überprüft ob die mp3 Datei sich in der Liste der eigenen Sounds befindet """
+        path = os.path.abspath(
+            os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{member.id}"))
 
         for filepath in os.listdir(path):
-            if os.path.isfile(os.path.join(path, filepath)):
-                files.append(filepath)
+            if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3' and filepath == search:
+                return True
 
-        return [Choice(name=file, value=file) for file in files if file.lower() in current.lower()]
+        return False
 
     def downloadFileFromURL(self, message: Message, url: str, loop: AbstractEventLoop):
         authorId = message.author.id
-        print("drin")
         url_parts = urlparse(url)
         response = requests.get(url)
 
         if response.status_code == 200:
             os.makedirs(f"{self.basepath}/data/sounds/{authorId}/", exist_ok=True)
 
-            with open(f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}",
-                      'wb+') as file:
-                file.write(response.content)
-                print("geschrieben in " + f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}")
+            filepath = f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}"
 
+            try:
+                with open(filepath, 'wb+') as file:
+                    file.write(response.content)
+                    logger.debug(f"mp3 written in {filepath}")
+            except Exception as error:
+                logger.error(f"couldnt save .mp3 in {filepath}", exc_info=error)
+
+                # Inform User
                 asyncio.run_coroutine_threadsafe(
-                    sendDM(self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId), "FERTIG"),
+                    sendDM(
+                        self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                        "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuch eine andere Datei " +
+                        "oder wende dich an unserem Support."
+                    ),
                     loop
                 )
+
+                return
+
+            try:
+                mp3 = MP3(filepath)
+
+                if mp3.info.length > 20:
+                    asyncio.run_coroutine_threadsafe(
+                        sendDM(
+                            self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                            "Bitte lad eine .mp3 Datei hoch die weniger als 20 Sekunden lang ist."
+                        ),
+                        loop
+                    )
+                    os.remove(filepath)
+
+                    return
+            except Exception as error:
+                logger.error(f"user {message.author.name} did not upload mp3", exc_info=error)
+                os.remove(filepath)
+
+                # Kill User
+                asyncio.run_coroutine_threadsafe(
+                    sendDM(
+                        self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                        "Bitte lad eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten melde " +
+                        "dich bei unserem Support."
+                    ),
+                    loop
+                )
+
+                return
+
+            asyncio.run_coroutine_threadsafe(
+                sendDM(
+                    self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                    "Deine Datei wurde erfolgreich gespeichert."
+                ),
+                loop
+            )
+        else:
+            asyncio.run_coroutine_threadsafe(
+                sendDM(
+                    self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                    "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuch eine andere Datei " +
+                    "oder wende dich an unserem Support."
+                ),
+                loop
+            )
 
     async def manageDirectMessage(self, message: Message):
         if not (author := message.author):
             logger.debug("DM had no author given")
 
-        # url = "https://speed.hetzner.de/100MB.bin"
-        url = "https://speed.hetzner.de/1GB.bin"
+        url = message.attachments[0].url
         loop = asyncio.get_event_loop()
 
         job_thread = threading.Thread(target=self.downloadFileFromURL, args=(message, url, loop))
         job_thread.start()
-
-        # thread = threading.Thread(target=asyncio.run, args=(self.downloadFileFromURL(message, url, loop, ),))
-        # thread.start()
-
-        print("return")
-
 
     async def play(self, member: Member, sound: str) -> str:
         """
@@ -97,13 +141,9 @@ class SoundboardService:
         :param sound: Sound to play
         :return:
         """
-        match sound:
-            case Sounds.EGAL.value:
-                sound = Sounds.EGAL
-            case _:
-                logger.warning("undefined enum entry was reached")
-
-                return "Es gab ein Problem."
+        if not self.searchInPersonalFiles(member=member, search=sound):
+            logger.debug(f"file {sound} not found")
+            return "Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als PN schickst."
 
         if not (voiceState := member.voice):
             return "Du bist mit keinem Channel verbunden!"
@@ -111,17 +151,19 @@ class SoundboardService:
         if voiceState.channel not in getVoiceChannelsFromCategoryEnum(self.client, Categories.TrackedCategories):
             return "Dein Channel / die Kategorie ist nicht berechtigt Sounds abzuspielen."
 
-        if not await self.__playSound(voiceState.channel, sound):
+        filepath = f"{member.id}/{sound}"
+
+        if not await self.__playSound(voiceState.channel, filepath):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."
 
-    async def __playSound(self, channel: VoiceChannel, sound: Sounds) -> bool:
+    async def __playSound(self, channel: VoiceChannel, filepath: str, ) -> bool:
         """
         Tries to play the sound in the given channel.
 
         :param channel: Channel to play the sound in
-        :param sound: sound to play
+        :param filepath: sound to play
         :return:
         """
         try:
@@ -140,7 +182,7 @@ class SoundboardService:
 
             return False
 
-        file = FFmpegPCMAudio(source=(filepath := self.path + sound.value))
+        file = FFmpegPCMAudio(source=(filepath := self.path + filepath))
         duration = MP3(filepath).info.length
 
         try:

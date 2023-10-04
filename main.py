@@ -187,7 +187,7 @@ class MyClient(discord.Client):
                 logger.error("failure to start QuotesManager", exc_info=error)
             else:
                 await qm.checkForNewQuote(message)
-        elif message.attachments and isinstance(message.channel, DMChannel):
+        elif message.attachments and message.content == '' and isinstance(message.channel, DMChannel):
             await SoundboardService(client).manageDirectMessage(message)
         else:
             logger.debug("message empty or from a bot")
@@ -812,7 +812,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
 
-    return [Choice(name=file, value=file) for file in os.listdir(path) if current.lower() in file.lower()]
+    return [Choice(name=file, value=file) for file in os.listdir(path) if
+            current.lower() in file.lower() and file[-4:] == '.mp3']
 
 
 @tree.command(name="play",

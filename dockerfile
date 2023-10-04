@@ -6,10 +6,11 @@ COPY data ./data
 COPY src ./src
 COPY parameters.yaml .
 
+RUN apt-get update && apt-get install -y ffmpeg
 RUN pip install -r requirements.txt
 RUN python3 -m pip install -U "discord.py[voice]"
 RUN apt-get install libffi-dev
-RUN apt-get install -y ffmpeg
+
 
 ENV PATH="/usr/bin/ffmpeg:${PATH}"
 
