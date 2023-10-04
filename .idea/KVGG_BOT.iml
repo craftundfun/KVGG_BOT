@@ -5,7 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv_3.10" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.10.12 WSL (Ubuntu): (/home/axellotl/.virtualenvs/progback/bin/python)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (KVGG_BOT)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

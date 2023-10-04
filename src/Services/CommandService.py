@@ -44,6 +44,7 @@ class Commands(Enum):
     LIST_REMINDERS = 26
     DELETE_REMINDER = 27
     PLAY_SOUND = 28
+    STOP_SOUND = 29
 
 
 class CommandService:
@@ -318,6 +319,10 @@ class CommandService:
                 case Commands.PLAY_SOUND:
                     voiceClientService = SoundboardService(self.client)
                     answer = await voiceClientService.play(**kwargs)
+
+                case Commands.STOP_SOUND:
+                    voiceClientService = SoundboardService(self.client)
+                    answer = await voiceClientService.stop(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

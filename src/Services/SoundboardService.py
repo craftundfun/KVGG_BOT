@@ -18,6 +18,7 @@ from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
 
+
 def run_event_loop(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
@@ -32,14 +33,17 @@ class SoundboardService:
 
     def searchInPersonalFiles(self, member: discord.Member, search: str) -> bool:
         """
-        Checks if Sound is in the sound direcory of the user.
+        Checks if Sound is in the sound directory of the user.
 
         :param member: Member, who used the command
         :param search: Name of the mp3 File
         :return:
         """
         path = os.path.abspath(
-            os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{member.id}"))
+            os.path.join(
+                self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{member.id}"
+            )
+        )
 
         for filepath in os.listdir(path):
             if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3' and filepath == search:
@@ -49,7 +53,7 @@ class SoundboardService:
 
     def downloadFileFromURL(self, message: Message, url: str, loop: AbstractEventLoop):
         """
-        Downloads file from direct message and does security checks
+        Downloads file from a direct message and do security checks
 
         :param message: Message from the user
         :param url: Url to the file
@@ -65,7 +69,7 @@ class SoundboardService:
                 self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                 "Deine Datei wird nun verarbeitet..."
             ),
-            loop
+            loop,
         )
 
         if response.status_code == 200:
@@ -78,7 +82,7 @@ class SoundboardService:
                     file.write(response.content)
                     logger.debug(f"mp3 written in {filepath}")
             except Exception as error:
-                logger.error(f"couldnt save .mp3 in {filepath}", exc_info=error)
+                logger.error(f"couldn't save .mp3 in {filepath}", exc_info=error)
 
                 # Inform User
                 asyncio.run_coroutine_threadsafe(
@@ -87,7 +91,7 @@ class SoundboardService:
                         "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuch eine andere Datei " +
                         "oder wende dich an unserem Support."
                     ),
-                    loop
+                    loop,
                 )
 
                 return
@@ -99,25 +103,25 @@ class SoundboardService:
                     asyncio.run_coroutine_threadsafe(
                         sendDM(
                             self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
-                            "Bitte lad eine .mp3 Datei hoch die weniger als 20 Sekunden lang ist."
+                            "Bitte lade eine .mp3 Datei hoch die weniger als 20 Sekunden lang ist."
                         ),
-                        loop
+                        loop,
                     )
                     os.remove(filepath)
 
                     return
             except Exception as error:
-                logger.error(f"user {message.author.name} did not upload mp3", exc_info=error)
+                logger.error(f"user {message.author.name} did not upload a mp3", exc_info=error)
                 os.remove(filepath)
 
-                # Kill User
+                # warn user
                 asyncio.run_coroutine_threadsafe(
                     sendDM(
                         self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
-                        "Bitte lad eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten melde " +
+                        "Bitte lade eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten, melde " +
                         "dich bei unserem Support."
                     ),
-                    loop
+                    loop,
                 )
 
                 return
@@ -127,27 +131,29 @@ class SoundboardService:
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Deine Datei wurde erfolgreich gespeichert."
                 ),
-                loop
+                loop,
             )
         else:
             asyncio.run_coroutine_threadsafe(
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
-                    "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuch eine andere Datei " +
+                    "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuche eine andere Datei " +
                     "oder wende dich an unserem Support."
                 ),
-                loop
+                loop,
             )
 
     async def manageDirectMessage(self, message: Message):
         """
-        Checks for author in message and starts file-download
+        Checks for author in a message and starts file-download
 
         :param message: Message to check
         :return:
         """
         if not message.author:
-            logger.debug("DM had no author given")
+            logger.warning("DM had no author given")
+
+            return
 
         url = message.attachments[0].url
         loop = asyncio.get_event_loop()
@@ -191,12 +197,12 @@ class SoundboardService:
         """
         try:
             voiceClient: VoiceClient = await channel.connect()
-        except ClientException as error:
-            logger.warning("already connected to a voicechannel", exc_info=error)
+        except ClientException:
+            logger.warning("already connected to a voicechannel")
 
             return False
         except Exception as error:
-            logger.error("an error occured while joining a voice channel", exc_info=error)
+            logger.error("an error occurred while joining a voice channel", exc_info=error)
 
             return False
 
@@ -220,3 +226,35 @@ class SoundboardService:
             return True
         finally:
             await voiceClient.disconnect()
+
+    async def stop(self, member: Member) -> str:
+        """
+        If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the
+        channel.
+
+        :param member:
+        :return:
+        """
+        if not (voiceState := member.voice):
+            logger.debug("%s was not in a channel" % member.name)
+
+            return "Du befindest dich aktuell in keinem VoiceChannel!"
+
+        voiceClient = self.client.get_guild(GuildId.GUILD_KVGG.value).voice_client
+
+        if not voiceClient:
+            logger.debug("bot is not connected to a voice channel")
+
+            return "Der Bot ist aktuell in keinem Channel aktiv."
+
+        channelBot = voiceClient.channel
+
+        if voiceState.channel != channelBot:
+            logger.debug("%s and the bot are not connected to the same channel" % member.name)
+
+            return "Du befindest nicht im selben Channel wie der Bot!"
+
+        await voiceClient.disconnect(force=True)
+        logger.debug("sound was stopped by %s" % member.name)
+
+        return "Das Abspielen des Sounds wurde beendet."
