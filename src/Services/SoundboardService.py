@@ -3,7 +3,6 @@ import logging
 import os
 import threading
 from asyncio import sleep, AbstractEventLoop
-from enum import Enum
 from pathlib import Path
 from urllib.parse import urlparse
 
