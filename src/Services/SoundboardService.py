@@ -1,14 +1,14 @@
 import asyncio
+import concurrent.futures
 import logging
 import os
 import threading
-from asyncio import sleep
+from asyncio import sleep, AbstractEventLoop
 from enum import Enum
 from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
-import nest_asyncio
 import requests
 from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
 from discord.app_commands import Choice
@@ -20,12 +20,15 @@ from src.Id import Categories
 from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
-nest_asyncio.apply()
 
 
 class Sounds(Enum):
     EGAL = "egal.mp3"
 
+
+def run_event_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
 
 class SoundboardService:
     path = './data/sounds/'
@@ -50,8 +53,7 @@ class SoundboardService:
 
         return [Choice(name=file, value=file) for file in files if file.lower() in current.lower()]
 
-    async def downloadFileFromURL(self, message: Message, url: str, loop):
-        nest_asyncio.apply()
+    def downloadFileFromURL(self, message: Message, url: str, loop: AbstractEventLoop):
         authorId = message.author.id
         print("drin")
         url_parts = urlparse(url)
@@ -63,26 +65,29 @@ class SoundboardService:
             with open(f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}",
                       'wb+') as file:
                 file.write(response.content)
-                print(
-                    "geschrieben in " + f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}")
+                print("geschrieben in " + f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}")
 
-                try:
-                    loop.run_until_complete(
-                        sendDM(self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId), "FERTIG"))
-                except Exception as error:
-                    logger.error("", exc_info=error)
+                asyncio.run_coroutine_threadsafe(
+                    sendDM(self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId), "FERTIG"),
+                    loop
+                )
 
     async def manageDirectMessage(self, message: Message):
-        nest_asyncio.apply()
         if not (author := message.author):
             logger.debug("DM had no author given")
 
-        url = "https://speed.hetzner.de/100MB.bin"
+        # url = "https://speed.hetzner.de/100MB.bin"
+        url = "https://speed.hetzner.de/1GB.bin"
         loop = asyncio.get_event_loop()
-        thread = threading.Thread(target=asyncio.run, args=(self.downloadFileFromURL(message, url, loop,),))
-        thread.start()
+
+        job_thread = threading.Thread(target=self.downloadFileFromURL, args=(message, url, loop))
+        job_thread.start()
+
+        # thread = threading.Thread(target=asyncio.run, args=(self.downloadFileFromURL(message, url, loop, ),))
+        # thread.start()
 
         print("return")
+
 
     async def play(self, member: Member, sound: str) -> str:
         """
