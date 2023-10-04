@@ -2,13 +2,15 @@ from __future__ import unicode_literals
 
 import logging.handlers
 import os
+import os.path
 import sys
 import time
 import traceback
+from typing import List
 
 import discord
 import nest_asyncio
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
@@ -25,7 +27,7 @@ from src.Services import ProcessUserInput, QuotesManager
 from src.Services.CommandService import CommandService, Commands
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.QuotesManager import QuotesManager
-from src.Services.VoiceClientService import Sounds
+from src.Services.SoundboardService import SoundboardService
 from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 
 # set timezone to our time
@@ -168,6 +170,11 @@ class MyClient(discord.Client):
         logger.debug("received new message")
 
         if not message.author.bot and not message.content == "":
+            if not message.channel:
+                logger.debug("no channel")
+
+                return
+
             try:
                 pui = ProcessUserInput.ProcessUserInput(self)
             except ConnectionError as error:
@@ -181,6 +188,8 @@ class MyClient(discord.Client):
                 logger.error("failure to start QuotesManager", exc_info=error)
             else:
                 await qm.checkForNewQuote(message)
+        elif message.attachments and isinstance(message.channel, DMChannel):
+            await SoundboardService(client).manageDirectMessage(message)
         else:
             logger.debug("message empty or from a bot")
 
@@ -799,13 +808,22 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
 """PLAY SOUND"""
 
 
+async def getPersonalSounds(
+    interaction: discord.Interaction,
+    current: str,
+) -> List[app_commands.Choice[str]]:
+    member = interaction.user.id
+    basepath = os.path.dirname(__file__)
+    path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
+
+    return [Choice(name=file, value=file) for file in os.listdir(path) if current.lower() in file.lower()]
+
+
 @tree.command(name="play",
               description="Spielt aktuell nur 'egal' von Michael Wendler in deinem Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.choices(sound=[
-    Choice(name="egal", value=Sounds.EGAL.value),
-])
-async def playSound(ctx: discord.interactions.Interaction, sound: Choice[str] = None):
+@app_commands.autocomplete(sound=getPersonalSounds)
+async def playSound(ctx: discord.interactions.Interaction, sound: str):
     """
     Plays the given sound.
     Currently only "egal" by Michael Wendler.
@@ -817,7 +835,7 @@ async def playSound(ctx: discord.interactions.Interaction, sound: Choice[str] = 
     await CommandService(client).runCommand(Commands.PLAY_SOUND,
                                             ctx,
                                             member=ctx.user,
-                                            sound=sound.value if sound else Sounds.EGAL.value)
+                                            sound=sound,)
 
 
 # FUCK YOU

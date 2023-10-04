@@ -1,8 +1,14 @@
 import logging
+import os
 from asyncio import sleep
 from enum import Enum
+from pathlib import Path
+from urllib.parse import urlparse
 
-from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException
+import discord
+import requests
+from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
+from discord.app_commands import Choice
 from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
@@ -15,11 +21,44 @@ class Sounds(Enum):
     EGAL = "egal.mp3"
 
 
-class VoiceClientService:
+class SoundboardService:
     path = './data/sounds/'
 
     def __init__(self, client: Client):
         self.client = client
+
+    @staticmethod
+    async def getPersonalSounds(interaction: discord.Interaction, current: str, _) -> list[Choice[str]]:
+        print(_)
+        member = interaction.user.id
+        basepath = os.path.dirname(__file__)
+        path = os.path.abspath(os.path.join(basepath, "..", "..", "..", f"{basepath}/data/sounds/{member}"))
+        print(path)
+
+        files = []
+
+        for filepath in os.listdir(path):
+            if os.path.isfile(os.path.join(path, filepath)):
+                files.append(filepath)
+
+        return [Choice(name=file, value=file) for file in files if file.lower() in current.lower()]
+
+    async def manageDirectMessage(self, message: Message):
+        if not (author := message.author):
+            logger.debug("DM had no author given")
+
+        basepath = Path(__file__).parent.parent.parent
+
+        for attachment in message.attachments:
+            url = attachment.url
+            url_parts = urlparse(url)
+            download = requests.get(url)
+
+            if download.status_code == 200:
+                os.makedirs(f"{basepath}/data/sounds/{author.id}/", exist_ok=True)
+
+                with open(f"{basepath}/data/sounds/{author.id}/{os.path.basename(url_parts.path)}", 'wb+') as file:
+                    file.write(download.content)
 
     async def play(self, member: Member, sound: str) -> str:
         """
