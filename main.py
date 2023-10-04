@@ -817,13 +817,12 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
 
 
 @tree.command(name="play",
-              description="Spielt aktuell nur 'egal' von Michael Wendler in deinem Channel.",
+              description="Spielt einen Sound aus deinen hochgeladenen Sounds.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.autocomplete(sound=getPersonalSounds)
 async def playSound(ctx: discord.interactions.Interaction, sound: str):
     """
     Plays the given sound.
-    Currently only "egal" by Michael Wendler.
 
     :param ctx: Interactions
     :param sound: Chosen sound
@@ -833,6 +832,15 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
                                             ctx,
                                             member=ctx.user,
                                             sound=sound, )
+
+
+@tree.command(name="stop",
+              description="Stoppt die Ausgabe des Bots wenn er sich in deinem Channel befindet.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def stopSound(ctx: discord.interactions.Interaction):
+    await CommandService(client).runCommand(Commands.STOP_SOUND,
+                                            ctx,
+                                            member=ctx.user, )
 
 
 # FUCK YOU
