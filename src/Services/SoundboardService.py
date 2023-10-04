@@ -19,11 +19,6 @@ from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
 
-
-class Sounds(Enum):
-    EGAL = "egal.mp3"
-
-
 def run_event_loop(loop):
     asyncio.set_event_loop(loop)
     loop.run_forever()
@@ -37,7 +32,13 @@ class SoundboardService:
         self.client = client
 
     def searchInPersonalFiles(self, member: discord.Member, search: str) -> bool:
-        """ Überprüft ob die mp3 Datei sich in der Liste der eigenen Sounds befindet """
+        """
+        Checks if Sound is in the sound direcory of the user.
+
+        :param member: Member, who used the command
+        :param search: Name of the mp3 File
+        :return:
+        """
         path = os.path.abspath(
             os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{member.id}"))
 
@@ -48,9 +49,25 @@ class SoundboardService:
         return False
 
     def downloadFileFromURL(self, message: Message, url: str, loop: AbstractEventLoop):
+        """
+        downloads file from direct message and does security checks
+
+        :param message: message from the user
+        :param url: url to the file
+        :param loop: eventLoop from the dc-bot to return a message on error/success
+        :return:
+        """
         authorId = message.author.id
         url_parts = urlparse(url)
         response = requests.get(url)
+
+        asyncio.run_coroutine_threadsafe(
+            sendDM(
+                self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
+                "Deine Datei wird nun verarbeitet..."
+            ),
+            loop
+        )
 
         if response.status_code == 200:
             os.makedirs(f"{self.basepath}/data/sounds/{authorId}/", exist_ok=True)
@@ -124,7 +141,13 @@ class SoundboardService:
             )
 
     async def manageDirectMessage(self, message: Message):
-        if not (author := message.author):
+        """
+        checks for author in message and starts file-download
+
+        :param message: message to check
+        :return:
+        """
+        if not message.author:
             logger.debug("DM had no author given")
 
         url = message.attachments[0].url
@@ -143,6 +166,7 @@ class SoundboardService:
         """
         if not self.searchInPersonalFiles(member=member, search=sound):
             logger.debug(f"file {sound} not found")
+
             return "Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als PN schickst."
 
         if not (voiceState := member.voice):
