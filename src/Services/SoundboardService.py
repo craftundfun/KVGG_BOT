@@ -1,20 +1,26 @@
+import asyncio
 import logging
 import os
+import threading
 from asyncio import sleep
 from enum import Enum
 from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
+import nest_asyncio
 import requests
 from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
 from discord.app_commands import Choice
 from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
+from src.Helper.SendDM import sendDM
 from src.Id import Categories
+from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
+nest_asyncio.apply()
 
 
 class Sounds(Enum):
@@ -23,6 +29,7 @@ class Sounds(Enum):
 
 class SoundboardService:
     path = './data/sounds/'
+    basepath = Path(__file__).parent.parent.parent
 
     def __init__(self, client: Client):
         self.client = client
@@ -43,22 +50,39 @@ class SoundboardService:
 
         return [Choice(name=file, value=file) for file in files if file.lower() in current.lower()]
 
+    async def downloadFileFromURL(self, message: Message, url: str, loop):
+        nest_asyncio.apply()
+        authorId = message.author.id
+        print("drin")
+        url_parts = urlparse(url)
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            os.makedirs(f"{self.basepath}/data/sounds/{authorId}/", exist_ok=True)
+
+            with open(f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}",
+                      'wb+') as file:
+                file.write(response.content)
+                print(
+                    "geschrieben in " + f"{self.basepath}/data/sounds/{authorId}/{os.path.basename(url_parts.path)}")
+
+                try:
+                    loop.run_until_complete(
+                        sendDM(self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId), "FERTIG"))
+                except Exception as error:
+                    logger.error("", exc_info=error)
+
     async def manageDirectMessage(self, message: Message):
+        nest_asyncio.apply()
         if not (author := message.author):
             logger.debug("DM had no author given")
 
-        basepath = Path(__file__).parent.parent.parent
+        url = "https://speed.hetzner.de/100MB.bin"
+        loop = asyncio.get_event_loop()
+        thread = threading.Thread(target=asyncio.run, args=(self.downloadFileFromURL(message, url, loop,),))
+        thread.start()
 
-        for attachment in message.attachments:
-            url = attachment.url
-            url_parts = urlparse(url)
-            download = requests.get(url)
-
-            if download.status_code == 200:
-                os.makedirs(f"{basepath}/data/sounds/{author.id}/", exist_ok=True)
-
-                with open(f"{basepath}/data/sounds/{author.id}/{os.path.basename(url_parts.path)}", 'wb+') as file:
-                    file.write(download.content)
+        print("return")
 
     async def play(self, member: Member, sound: str) -> str:
         """

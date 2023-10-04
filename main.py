@@ -6,7 +6,6 @@ import os.path
 import sys
 import time
 import traceback
-from typing import List
 
 import discord
 import nest_asyncio
@@ -808,10 +807,7 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
 """PLAY SOUND"""
 
 
-async def getPersonalSounds(
-    interaction: discord.Interaction,
-    current: str,
-) -> List[app_commands.Choice[str]]:
+async def getPersonalSounds(interaction: discord.Interaction, current: str) -> list[Choice[str]]:
     member = interaction.user.id
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
@@ -835,7 +831,7 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
     await CommandService(client).runCommand(Commands.PLAY_SOUND,
                                             ctx,
                                             member=ctx.user,
-                                            sound=sound,)
+                                            sound=sound, )
 
 
 # FUCK YOU
