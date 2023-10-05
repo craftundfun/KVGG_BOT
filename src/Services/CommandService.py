@@ -318,7 +318,7 @@ class CommandService:
 
                 case Commands.PLAY_SOUND:
                     voiceClientService = SoundboardService(self.client)
-                    answer = await voiceClientService.play(**kwargs)
+                    answer = await voiceClientService.play(ctx=interaction, **kwargs)
 
                 case Commands.STOP_SOUND:
                     voiceClientService = SoundboardService(self.client)

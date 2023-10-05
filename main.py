@@ -808,6 +808,13 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
 
 
 async def getPersonalSounds(interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+    """
+    Autocompletes the current input from the user with his / her own uploaded sounds
+
+    :param interaction: Interaction
+    :param current: Currently inputted string
+    :return:
+    """
     member = interaction.user.id
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
@@ -824,7 +831,7 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
     """
     Plays the given sound.
 
-    :param ctx: Interactions
+    :param ctx: Interaction
     :param sound: Chosen sound
     :return:
     """
