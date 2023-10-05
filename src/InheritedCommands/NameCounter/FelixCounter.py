@@ -75,7 +75,7 @@ class FelixCounter(Counter):
             # time to start is not yet reached
             if dcUserDb['felix_counter_start'] > datetime.now():
                 continue
-            print((datetime.now() - dcUserDb['felix_counter_start']).seconds // 60)
+
             # timer still active
             if (datetime.now() - dcUserDb['felix_counter_start']).seconds // 60 <= 2:
                 dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
