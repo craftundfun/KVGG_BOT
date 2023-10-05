@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from discord import Client, Member
 
@@ -72,8 +72,12 @@ class FelixCounter(Counter):
             return
 
         for dcUserDb in dcUsersDb:
+            # time to start is not yet reached
+            if dcUserDb['felix_counter_start'] > datetime.now():
+                continue
+            print((datetime.now() - dcUserDb['felix_counter_start']).seconds // 60)
             # timer still active
-            if (dcUserDb['felix_counter_start'] + timedelta(minutes=FELIX_COUNTER_MINUTES)) >= datetime.now():
+            if (datetime.now() - dcUserDb['felix_counter_start']).seconds // 60 <= 2:
                 dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
             else:
                 dcUserDb['felix_counter_start'] = None
