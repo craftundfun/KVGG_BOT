@@ -12,7 +12,7 @@ class TrackedCategories(Enum):
 
     @classmethod
     def getValues(cls) -> set[int]:
-        return set(channel.value for channel in TrackedCategories)
+        return set(category.value for category in TrackedCategories)
 
 
 class UniversityCategory(Enum):

@@ -141,6 +141,8 @@ class VoiceStateUpdateService:
                 self.__saveDiscordUser(dcUserDb)
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
 
+                await ChannelService.manageKneipe(voiceStateBefore.channel)
+
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
             logger.debug("%s left channel" % member.name)
@@ -155,6 +157,8 @@ class VoiceStateUpdateService:
             dcUserDb['last_online'] = datetime.now()
 
             self.__saveDiscordUser(dcUserDb)
+
+            await ChannelService.manageKneipe(voiceStateBefore.channel)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 

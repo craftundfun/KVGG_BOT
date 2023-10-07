@@ -27,6 +27,60 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
+    @validateKeys
+    async def deletePersonalSound(self, ctx: discord.interactions.Interaction, row: int) -> str:
+        """
+        Deletes the file at position row.
+
+        :param ctx:
+        :param row:
+        :return:
+        """
+        path = os.path.abspath(
+            os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{ctx.user.id}")
+        )
+
+        if not (0 <= row - 1 < len((dir := os.listdir(path)))):
+            logger.debug(f"user chose row {row - 1}, but that was not possible")
+
+            return "Deine Auswahl steht nicht zur Verfügung!"
+
+        try:
+            os.remove(os.path.join(path, dir[row - 1]))
+        except FileNotFoundError as error:
+            logger.error("user has no sounds uploaded yet", exc_info=error)
+
+            return "Diese Datei hat nicht existiert."
+        except Exception as error:
+            logger.error("problem while reading files from the system", exc_info=error)
+
+            return "Es ist ein Problem aufgetreten."
+        else:
+            return "Deine Datei wurde erfolgreich gelöscht."
+
+    @validateKeys
+    async def listPersonalSounds(self, ctx: discord.interactions.Interaction) -> str:
+        path = os.path.abspath(
+            os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{ctx.user.id}")
+        )
+        answer = "Du hast folgende Sounds hochgeladen:\n\n"
+
+        try:
+            for index, filepath in enumerate(os.listdir(path), start=1):
+                if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3':
+                    answer += f"{index}. {filepath}\n"
+        except FileNotFoundError as error:
+            logger.warning("user has no sounds uploaded yet", exc_info=error)
+
+            return ("Du hast keine Dateien hochgeladen. Wenn du welche hochladen möchtest, "
+                    "dann schicke sie mir einfach per DM.")
+        except Exception as error:
+            logger.error("problem while reading files from the system", exc_info=error)
+
+            return "Es ist ein Problem aufgetreten."
+        else:
+            return answer
+
     def searchInPersonalFiles(self, member: discord.Member, search: str) -> bool:
         """
         Checks if Sound is in the sound directory of the user.
