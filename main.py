@@ -850,6 +850,28 @@ async def stopSound(ctx: discord.interactions.Interaction):
                                             member=ctx.user, )
 
 
+@tree.command(name="list_sounds",
+              description="Listet dir all deine hochgeladenen Sounds auf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def listSounds(ctx: discord.interactions.Interaction):
+    """
+    Lists all sounds from a user
+
+    :param ctx:
+    :return:
+    """
+    await CommandService(client).runCommand(Commands.LIST_SOUNDS, ctx)
+
+
+@tree.command(name="delete_sound",
+              description="Lösche einen Sound aus deinen Sounds. Tipp: Liste mir '/list_sounds' deine Sounds vorher "
+                          "auf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
+async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
+    await CommandService(client).runCommand(Commands.DELETE_SOUND, interaction=ctx, row=nummer)
+
+
 """KNEIPE"""
 
 

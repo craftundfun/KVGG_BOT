@@ -47,6 +47,8 @@ class Commands(Enum):
     PLAY_SOUND = 28
     STOP_SOUND = 29
     KNEIPE = 30
+    LIST_SOUNDS = 31
+    DELETE_SOUND = 32
 
 
 class CommandService:
@@ -89,7 +91,7 @@ class CommandService:
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
-        def splitStringAtMaxLength(string: str, maxLength: int = 2000) -> list[str]:
+        def splitStringAtMaxLength(input_string: str, max_length: int = 2000) -> list[str]:
             """
             Splits the string at the nearest newline at 2000 characters.
 
@@ -97,17 +99,29 @@ class CommandService:
             :param maxLength:
             :return:
             """
-            if not string:
-                return [""]
+            # Initialisieren Sie eine leere Liste, um die Teilstrings zu speichern.
+            result = []
 
-            if len(string) <= maxLength:
-                return [string]
+            # Starten Sie den Index, um den langen String zu durchlaufen.
+            start = 0
 
-            for i in range(maxLength, 0, -1):
-                if string[i] == '\n':
-                    return [string[:i], string[i + 1:]]
+            while start < len(input_string):
+                # Suchen Sie nach einem Newline-Zeichen innerhalb der nächsten max_length Zeichen.
+                end = start + max_length
+                if end >= len(input_string):
+                    end = len(input_string)
+                else:
+                    # Suchen Sie rückwärts nach einem Newline-Zeichen.
+                    while end > start and input_string[end] != '\n':
+                        end -= 1
 
-            return [string[:maxLength], string[maxLength:]]
+                # Fügen Sie den Teilstring zwischen start und end (einschließlich end) zur Ergebnisliste hinzu.
+                result.append(input_string[start:end + 1])
+
+                # Aktualisieren Sie den Startindex für die nächste Iteration.
+                start = end + 1
+
+            return result
 
         try:
             for part in splitStringAtMaxLength(answer):
@@ -319,16 +333,24 @@ class CommandService:
                         answer = rs.deleteReminder(**kwargs)
 
                 case Commands.PLAY_SOUND:
-                    voiceClientService = SoundboardService(self.client)
-                    answer = await voiceClientService.play(ctx=interaction, **kwargs)
+                    soundboardService = SoundboardService(self.client)
+                    answer = await soundboardService.play(ctx=interaction, **kwargs)
 
                 case Commands.STOP_SOUND:
-                    voiceClientService = SoundboardService(self.client)
-                    answer = await voiceClientService.stop(**kwargs)
+                    soundboardService = SoundboardService(self.client)
+                    answer = await soundboardService.stop(**kwargs)
 
                 case Commands.KNEIPE:
                     channelService = ChannelService(self.client)
                     answer = await channelService.createKneipe()
+
+                case Commands.LIST_SOUNDS:
+                    soundboardService = SoundboardService(self.client)
+                    answer = await soundboardService.listPersonalSounds(ctx=interaction)
+
+                case Commands.DELETE_SOUND:
+                    soundboardService = SoundboardService(self.client)
+                    answer = await soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"
