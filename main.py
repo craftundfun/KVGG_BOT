@@ -850,6 +850,16 @@ async def stopSound(ctx: discord.interactions.Interaction):
                                             member=ctx.user, )
 
 
+"""KNEIPE"""
+
+
+@tree.command(name="kneipe",
+              description="Verschiebt Paul und Rene in einen eigenen Voice-Channel.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def kneipe(ctx: discord.interactions.Interaction):
+    await CommandService(client).runCommand(Commands.KNEIPE, ctx)
+
+
 # FUCK YOU
 
 """

@@ -5,6 +5,7 @@ import discord.interactions
 from discord import HTTPException, InteractionResponded
 
 from src.Services.ApiServices import ApiServices
+from src.Services.ChannelService import ChannelService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuotesManager import QuotesManager
@@ -45,6 +46,7 @@ class Commands(Enum):
     DELETE_REMINDER = 27
     PLAY_SOUND = 28
     STOP_SOUND = 29
+    KNEIPE = 30
 
 
 class CommandService:
@@ -323,6 +325,10 @@ class CommandService:
                 case Commands.STOP_SOUND:
                     voiceClientService = SoundboardService(self.client)
                     answer = await voiceClientService.stop(**kwargs)
+
+                case Commands.KNEIPE:
+                    channelService = ChannelService(self.client)
+                    answer = await channelService.createKneipe()
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

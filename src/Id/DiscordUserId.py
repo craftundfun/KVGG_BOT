@@ -1,0 +1,11 @@
+from enum import Enum
+
+
+class DiscordUserId(Enum):
+    PAUL = 555430341389844500
+
+    RENE = 261595914001448961
+
+    BJARNE = 416967436617777163
+
+    BJARNE_TAB = 908309856052731955

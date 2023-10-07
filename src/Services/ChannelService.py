@@ -1,10 +1,11 @@
 import logging
 
-from discord import Client, Member, VoiceChannel
+from discord import Client, Member, VoiceChannel, CategoryChannel
 
 from src.Helper.SendDM import sendDM
 from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
+from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 
 logger = logging.getLogger("KVGG_BOT")
@@ -14,6 +15,89 @@ class ChannelService:
 
     def __init__(self, client: Client):
         self.client = client
+
+    @staticmethod
+    async def manageKneipe(channel: VoiceChannel):
+        """
+        Deletes "Kneipe" if there are no members left in the channel.
+
+        :param channel:
+        :return:
+        """
+        if channel.name != "Kneipe":
+            return
+
+        if len(channel.members) != 0:
+            return
+
+        await channel.delete(reason="no one in channel anymore")
+
+    async def createKneipe(self) -> str:
+        """
+        Fetches Paul and Rene specifically from the guild to move them into a new channel.
+
+        :return:
+        """
+        rene = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(DiscordUserId.RENE.value)
+        paul = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(DiscordUserId.PAUL.value)
+
+        if not rene or not paul:
+            logger.warning("couldn't fetch paul or rene from the guild")
+
+            return "Es ist ein Fehler aufgetreten."
+
+        if not (reneVoice := rene.voice) or not (paulVoice := paul.voice):
+            logger.debug("Paul or Rene has no voice-state")
+
+            return "Paul und / oder Rene sind nicht online."
+
+        if reneVoice.channel != paulVoice.channel:
+            logger.debug("Rene and Paul are not within the same channel")
+
+            return "Paul und Rene sind nicht im gleichen Channel."
+
+        if reneVoice.channel.category.id not in TrackedCategories.getValues():
+            logger.debug("category was not withing gaming / quatschen / besondere events")
+
+            return "Dieser Command funktioniert nicht in deiner aktuellen Kategorie."
+
+        if voiceChannel := await self.__createNewChannel(reneVoice.channel.category):
+            try:
+                await paul.move_to(voiceChannel)
+                await rene.move_to(voiceChannel)
+            except Exception as error:
+                logger.error("couldn't move Paul and Rene into newly created channel", exc_info=error)
+
+                return "Es ist ein Fehler aufgetreten."
+            else:
+                return "Paul und René wurden erfolgreich verschoben."
+        else:
+            return "Es ist ein Fehler aufgetreten."
+
+    async def __createNewChannel(self, category: CategoryChannel,
+                                 name: str = "Kneipe",
+                                 userLimit: int = 2) -> VoiceChannel | None:
+        """
+        Creates a voice-channel in the given category
+
+        :param category: Category from the guild
+        :param name: Name of the channel, standard value is "Kneipe"
+        :param userLimit: Limits the channel users, standard is 2
+        :return:
+        """
+        if not category:
+            logger.critical("no category was given")
+
+            return None
+
+        try:
+            voiceChannel = await category.create_voice_channel(name=name, user_limit=userLimit)
+        except Exception as error:
+            logger.error("couldn't create voice-channel", exc_info=error)
+
+            return None
+        else:
+            return voiceChannel
 
     async def checkChannelForMoving(self, member: Member):
         """
