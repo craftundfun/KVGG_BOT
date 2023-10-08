@@ -16,6 +16,7 @@ from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.SendDM import sendDM
 from src.Id import Categories
 from src.Id.GuildId import GuildId
+from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -219,7 +220,7 @@ class SoundboardService:
             logger.debug(f"started thread for downloading '{url}'")
 
     @validateKeys
-    async def play(self, member: Member, sound: str, ctx: discord.interactions.Interaction) -> str:
+    async def playSound(self, member: Member, sound: str, ctx: discord.interactions.Interaction) -> str:
         """
         Starts to play the specified sounds in the channel from the member.
 
@@ -241,11 +242,13 @@ class SoundboardService:
 
         filepath = f"{member.id}/{sound}"
 
-        if not await self.__playSound(voiceState.channel, filepath, ctx):
+        logger.warning(f"soundboard: play: {self.path + filepath}")
+        if not await VoiceClientService(self.client).play(voiceState.channel, self.path + filepath, ctx, False):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."
 
+    @DeprecationWarning
     async def __playSound(self, channel: VoiceChannel, filepath: str, ctx: discord.interactions.Interaction) -> bool:
         """
         Tries to play the sound in the given channel.
@@ -288,6 +291,7 @@ class SoundboardService:
         finally:
             await voiceClient.disconnect()
 
+    @DeprecationWarning
     @validateKeys
     async def stop(self, member: Member) -> str:
         """

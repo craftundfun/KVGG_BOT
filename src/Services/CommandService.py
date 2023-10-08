@@ -11,6 +11,7 @@ from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
 from src.Services.SoundboardService import SoundboardService
+from src.Services.VoiceClientService import VoiceClientService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -334,11 +335,11 @@ class CommandService:
 
                 case Commands.PLAY_SOUND:
                     soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.play(ctx=interaction, **kwargs)
+                    answer = await soundboardService.playSound(ctx=interaction, **kwargs)
 
                 case Commands.STOP_SOUND:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.stop(**kwargs)
+                    voiceClientService = VoiceClientService(self.client)
+                    answer = await voiceClientService.stop(**kwargs)
 
                 case Commands.KNEIPE:
                     channelService = ChannelService(self.client)

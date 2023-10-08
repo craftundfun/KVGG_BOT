@@ -32,6 +32,8 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.RelationService import RelationService, RelationTypeEnum
+from src.Services.TTSService import TTSService
+from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
 SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
@@ -744,6 +746,17 @@ class ProcessUserInput:
             logger.critical("couldn't save changes to database")
 
             return "Es ist ein Fehler aufgetreten."
+
+        # send funny TTS for Counter-Receiver
+        if isinstance(counter, ReneCounter):
+            if user.voice:
+                logger.debug(f"playing TTS for {user.name}, because {member.name} increased the Rene-Counter")
+
+                if await TTSService().generateTTS(f"{dcUserDb['username']}, du bist dumm."):
+                    await VoiceClientService(self.client).play(user.voice.channel,
+                                                               "./data/sounds/tts.mp3",
+                                                               None,
+                                                               True, )
 
         return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
                                                                getTagStringFromId(str(user.id)),
