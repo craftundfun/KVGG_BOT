@@ -752,7 +752,12 @@ class ProcessUserInput:
             if user.voice:
                 logger.debug(f"playing TTS for {user.name}, because {member.name} increased the Rene-Counter")
 
-                if await TTSService().generateTTS(f"{dcUserDb['username']}, du bist dumm."):
+                if value >= 0:
+                    tts = f"{dcUserDb['username']}, du bist dumm."
+                else:
+                    tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
+
+                if await TTSService().generateTTS(tts):
                     await VoiceClientService(self.client).play(user.voice.channel,
                                                                "./data/sounds/tts.mp3",
                                                                None,

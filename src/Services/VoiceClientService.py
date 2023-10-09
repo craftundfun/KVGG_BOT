@@ -5,6 +5,8 @@ from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member
 from discord.interactions import Interaction
 from mutagen.mp3 import MP3
 
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+
 logger = logging.getLogger("KVGG_BOT")
 
 
@@ -96,6 +98,7 @@ class VoiceClientService:
             if self.voiceClientCorrespondingCTX:
                 self.voiceClientCorrespondingCTX = None
 
+    @validateKeys
     async def stop(self, member: Member) -> str:
         """
         If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the

@@ -242,7 +242,6 @@ class SoundboardService:
 
         filepath = f"{member.id}/{sound}"
 
-        logger.warning(f"soundboard: play: {self.path + filepath}")
         if not await VoiceClientService(self.client).play(voiceState.channel, self.path + filepath, ctx, False):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
