@@ -35,7 +35,7 @@ class NotificationService:
         if member.voice.channel.category in UniversityCategory.getValues():
             return
 
-        answer += await self.__sendNewsletter(member, dcUserDb)
+        answer += await self.__sendNewsletter(dcUserDb)
 
         if not await self.__xDaysOfflineMessage(member, dcUserDb):
             tempAnswer = await self.__welcomeBackMessage(member, dcUserDb)
@@ -45,7 +45,7 @@ class NotificationService:
                 answer += tempAnswer
                 answer += "\n------------------------------------------------------------------------------------\n"
 
-        tempAnswer = await self.__informAboutDoubleXpWeekend(member, dcUserDb)
+        tempAnswer = await self.__informAboutDoubleXpWeekend(dcUserDb)
 
         if tempAnswer != "":
             answer += "\n------------------------------------------------------------------------------------\n"
