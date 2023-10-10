@@ -64,7 +64,8 @@ class AchievementService:
                 xpService.grantXpBoost(member, AchievementParameter.STREAM)
             case AchievementParameter.XP:
                 tag = getTagStringFromId(str(member.id))
-                message = tag + ", du hast bereits " + str(value) + " XP gefarmt. Weiter so :cookie: :video_game:"
+                message = (tag + ", du hast bereits %s XP gefarmt. Weiter so :cookie: :video_game:"
+                           % '{:,}'.format(value).replace(',', '.'))
             case _:
                 logger.critical("reached undefined enum entry")
 
