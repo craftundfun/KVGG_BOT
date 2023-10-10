@@ -71,17 +71,21 @@ class VoiceStateUpdateService:
 
             try:
                 notificationService = NotificationService(self.client)
+
+                await notificationService.runNotificationsForMember(member, dcUserDb)
             except ConnectionError as error:
                 logger.error("failure to start NotificationService", exc_info=error)
-            else:
-                await notificationService.runNotificationsForMember(member, dcUserDb)
+            except Exception as error:
+                logger.error("a problem occurred in runNotificationsForMember", exc_info=error)
 
             try:
                 felixCounter = FelixCounter()
+
+                await felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
             except ConnectionError as error:
                 logger.error("failure to start FelixCounter", exc_info=error)
-            else:
-                await felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
+            except Exception as error:
+                logger.error("a problem occurred in checkFelixCounterAndSendStopMessage", exc_info=error)
 
             # save user so a whatsapp message can be sent properly
             self.__saveDiscordUser(dcUserDb)
@@ -89,11 +93,14 @@ class VoiceStateUpdateService:
 
             try:
                 channelService = ChannelService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start ChannelService", exc_info=error)
-            else:
+
                 # move is the last step to avoid channel confusion
                 await channelService.checkChannelForMoving(member)
+            except ConnectionError as error:
+                logger.error("failure to start ChannelService", exc_info=error)
+            except Exception as error:
+                logger.error("a problem occured in checkChannelForMoving", exc_info=error)
+
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
