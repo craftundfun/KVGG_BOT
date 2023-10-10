@@ -778,10 +778,13 @@ class ExperienceService:
         # 99 mod 10 > 101 mod 10 -> achievement for 100
         if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
                 > xp['xp_amount'] % AchievementParameter.XP_AMOUNT.value):
-            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.XP,
-                                                                       (xp['xp_amount']
-                                                                        - (xp[
-                                                                               'xp_amount'] % AchievementParameter.XP_AMOUNT.value)))
+            # rip formatting
+            await (self.
+                   achievementService.
+                   sendAchievementAndGrantBoost(member,
+                                                AchievementParameter.XP,
+                                                (xp['xp_amount'] - (xp['xp_amount']
+                                                                    % AchievementParameter.XP_AMOUNT.value))))
 
         logger.debug("saved changes to database")
 

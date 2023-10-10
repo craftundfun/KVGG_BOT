@@ -818,9 +818,11 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
     member = interaction.user.id
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
+    choices = [Choice(name=file, value=file) for file in os.listdir(path) if
+               current.lower() in file.lower() and file[-4:] == '.mp3']
 
-    return [Choice(name=file, value=file) for file in os.listdir(path) if
-            current.lower() in file.lower() and file[-4:] == '.mp3']
+    # cap return to 25 results to comply to discord autocomplete limitations
+    return choices[:25]
 
 
 @tree.command(name="play",
