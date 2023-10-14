@@ -85,22 +85,24 @@ class UpdateTimeService:
         fullMutedAt: datetime = dcUserDb['full_muted_at']
 
         # user is not (full-) muted
-        if not mutedAt or not fullMutedAt:
+        if not mutedAt and not fullMutedAt:
             logger.debug("%s not (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
 
             return True
 
-        # user is too long muted
-        if (datetime.now() - mutedAt).seconds // 60 >= MuteParameter.MUTE_LIMIT.value:
-            logger.debug("%s too long muted and not alone => DENIED" % dcUserDb['username'])
+        if mutedAt:
+            # user is too long muted
+            if (datetime.now() - mutedAt).seconds // 60 >= MuteParameter.MUTE_LIMIT.value:
+                logger.debug("%s too long muted and not alone => DENIED" % dcUserDb['username'])
 
-            return False
+                return False
 
-        # user is too long full muted
-        if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
-            logger.debug("%s too long full-muted and not alone => DENIED" % dcUserDb['username'])
+        if fullMutedAt:
+            # user is too long full muted
+            if (datetime.now() - fullMutedAt).seconds // 60 >= MuteParameter.FULL_MUTE_LIMIT.value:
+                logger.debug("%s too long full-muted and not alone => DENIED" % dcUserDb['username'])
 
-            return False
+                return False
 
         # user is within allowed times to be (full-) muted
         logger.debug("%s not too long (full-) muted and not alone => ACCEPTED" % dcUserDb['username'])
