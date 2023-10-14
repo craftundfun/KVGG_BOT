@@ -181,6 +181,6 @@ class UpdateTimeService:
                 query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
                 if not self.database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database")
+                    logger.critical("couldn't save changes to database for %s" % dcUserDb['username'])
 
                     continue

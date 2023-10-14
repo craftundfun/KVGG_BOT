@@ -69,7 +69,8 @@ class SoundboardService:
         try:
             for index, filepath in enumerate(os.listdir(path), start=1):
                 if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3':
-                    answer += f"{index}. {filepath}\n"
+                    seconds = MP3(os.path.join(path, filepath)).info.length
+                    answer += f"{index}. {filepath} - {str(seconds)[:4]} Sekunden\n"
         except FileNotFoundError as error:
             logger.warning("user has no sounds uploaded yet", exc_info=error)
 
