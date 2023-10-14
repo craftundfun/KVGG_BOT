@@ -4,7 +4,7 @@ from enum import Enum
 import discord.interactions
 from discord import HTTPException, InteractionResponded
 
-from src.Helper.SplitStringGracefullyAt2000Chars import splitStringAtMaxLength
+from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Services.ApiServices import ApiServices
 from src.Services.ChannelService import ChannelService
 from src.Services.ExperienceService import ExperienceService
