@@ -122,7 +122,7 @@ class UpdateTimeService:
 
             for member in channel.members:
                 if not (dcUserDb := getDiscordUser(member)):
-                    logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id,))
+                    logger.debug("couldn't fetch %s (%d) from database" % (member.name, member.id,))
 
                     continue
 
@@ -181,6 +181,6 @@ class UpdateTimeService:
                 query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
                 if not self.database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database")
+                    logger.critical("couldn't save changes to database for %s" % dcUserDb['username'])
 
                     continue

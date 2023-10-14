@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from discord import Client, Member
 
 from src.Helper.SendDM import sendDM
-from src.Helper.SplitStringGracefullyAt2000Chars import splitStringAtMaxLength
 from src.Id.Categories import UniversityCategory
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService, isDoubleWeekend
@@ -51,11 +50,10 @@ class NotificationService:
             answer += "\n------------------------------------------------------------------------------------\n"
             answer += tempAnswer
 
-        for part in splitStringAtMaxLength(answer):
-            try:
-                await sendDM(member, part)
-            except Exception as error:
-                logger.error(f"couldn't send DM to {member.name}", exc_info=error)
+        try:
+            await sendDM(member, answer)
+        except Exception as error:
+            logger.error(f"couldn't send DM to {member.name}", exc_info=error)
 
     async def __sendNewsletter(self, dcUserDb: dict) -> str:
         """

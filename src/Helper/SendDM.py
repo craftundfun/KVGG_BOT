@@ -3,6 +3,8 @@ from os import environ
 
 from discord import Member
 
+from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
+
 IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 logger = logging.getLogger("KVGG_BOT")
 
@@ -25,7 +27,7 @@ async def sendDM(member: Member, content: str):
         # if user is Bjarne still send DMs
         if not member.id == 416967436617777163 and not member.id == 214465971576897536:
             return
-        
+
         logger.debug("send exceptional DM to Bjarne, because we are in the IDE")
 
     if not member.dm_channel:
@@ -34,4 +36,5 @@ async def sendDM(member: Member, content: str):
         if not member.dm_channel:
             raise Exception("couldn't create DM channel with %s" % member.name)
 
-    await member.dm_channel.send(content)
+    for part in splitStringAtMaxLength(content):
+        await member.dm_channel.send(part)

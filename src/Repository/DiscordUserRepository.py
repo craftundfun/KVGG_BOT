@@ -2,35 +2,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import List, Dict, Any
-from discord import Message, Member, User
+
+from discord import Member, User
 
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
-
-
-@DeprecationWarning
-def __createDiscordUser(message: Message) -> None | dict:
-    """
-    Returns a new DiscordUser Dict with the information given by the message
-
-    :param message:
-    :return:
-    """
-    if message.author.bot:
-        return None
-
-    if username := not message.author.nick:
-        username = message.author.name
-
-    return {
-        'guild_id': message.guild.id,
-        'user_id': message.author.id,
-        'username': username,
-        'created_at': datetime.now().date(),
-        'time_streamed': 0
-    }
 
 
 def getDiscordUser(member: Member) -> dict | None:
@@ -103,7 +80,7 @@ def getDiscordUserById(userId: int) -> dict | None:
     Returns a discord user from the database.
     Doesn't create one if missing or else.
 
-    :param userId: int - Id of the user
+    :param userId: Int - ID of the user
     :return: dict | None
     """
     try:
@@ -121,23 +98,3 @@ def getDiscordUserById(userId: int) -> dict | None:
 
         return None
     return dcUserDb
-
-
-def getOnlineUsers() -> List[Dict[Any, Any]] | None:
-    """
-    Retrieves all current users that are online (according to our database)
-
-    :return: None | List[Dict[Any, Any]] List of all DiscordUsers
-    """
-    try:
-        database = Database()
-    except ConnectionError as error:
-        logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-        return None
-
-    query = "SELECT * " \
-            "FROM discord " \
-            "WHERE channel_id IS NOT NULL"
-
-    return database.fetchAllResults(query)
