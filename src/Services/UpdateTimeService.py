@@ -122,7 +122,7 @@ class UpdateTimeService:
 
             for member in channel.members:
                 if not (dcUserDb := getDiscordUser(member)):
-                    logger.critical("couldn't fetch %s (%d) from database" % (member.name, member.id,))
+                    logger.debug("couldn't fetch %s (%d) from database" % (member.name, member.id,))
 
                     continue
 
