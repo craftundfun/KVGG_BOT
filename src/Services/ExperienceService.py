@@ -76,7 +76,7 @@ class ExperienceService:
 
             return nextNextSaturday - now
 
-    def __getExperience(self, userId: int) -> dict | None:
+    def __getExperience(self, userId: int, lock: bool = False) -> dict | None:
         """
         Returns the Experience from the given user. If no entry exists, it will create one
 
@@ -89,6 +89,9 @@ class ExperienceService:
                 "FROM experience AS e " \
                 "INNER JOIN discord d ON e.discord_user_id = d.id " \
                 "WHERE d.user_id = %s"
+
+        if lock:
+            query += " FOR UPDATE"
 
         xp = self.database.fetchOneResult(query, (userId,))
 
@@ -134,9 +137,9 @@ class ExperienceService:
 
     def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> str | None:
         """
-        Calculates the XP-Boosts that were earned until now
+        Calculates the XP-Boosts earned until now
 
-        :param dcUserDbId: Id of the user
+        :param dcUserDbId: ID of the user
         :return: None | string JSON of earned boots, otherwise None
         """
         logger.debug("calculating xp boosts from previous data")
@@ -212,7 +215,7 @@ class ExperienceService:
 
     def __calculateXpFromPreviousData(self, userId: int) -> int:
         """
-        Calculates the XP that was earned until now
+        Calculates the XP earned until now
 
         :param userId: User of the Experience
         :return: int
@@ -249,12 +252,12 @@ class ExperienceService:
         :param kind: Kind of boost
         :return:
         """
-        if type(kind.value) != str:
+        if not isinstance(kind.value, str):
             logger.critical("false argument given")
 
             return
 
-        if not (xp := self.__getExperience(member.id)):
+        if not (xp := self.__getExperience(member.id, True)):
             logger.debug("couldn't fetch xp for %s" % member.name)
 
             return
@@ -328,18 +331,18 @@ class ExperienceService:
 
         if not self.database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
+        else:
+            logger.debug("------------------------------------------------------")
+            logger.debug("boost:")
+            logger.debug(str(boost) + "\n")
+            logger.debug("inventory für: %s" % member.name)
+            logger.debug("vorher:")
+            logger.debug(str(invBefore))
+            logger.debug("nachher:")
+            logger.debug(str(inventory))
+            logger.debug("SQL-statement: %s" % query)
 
-        logger.debug("------------------------------------------------------")
-        logger.debug("boost:")
-        logger.debug(str(boost) + "\n")
-        logger.debug("inventory für: %s" % member.name)
-        logger.debug("vorher:")
-        logger.debug(str(invBefore))
-        logger.debug("nacher:")
-        logger.debug(str(inventory))
-        logger.debug("SQL-statement: %s" % query)
-
-        logger.debug("saved granted boost to database for %s" % member.name)
+            logger.debug("saved granted boost to database for %s" % member.name)
 
     @validateKeys
     def spinForXpBoost(self, member: Member) -> string:
@@ -426,8 +429,8 @@ class ExperienceService:
             else:
                 logger.critical("couldn't save new boost into database!")
 
-                return "Herzlichen Glückwunsch, du hast gewonnen! Allerdings gab es ein Problem beim speichern. Bitte " \
-                       "wende dich an craftundfun für weitere Hilfe :/."
+                return ("Herzlichen Glückwunsch, du hast gewonnen! Allerdings gab es ein Problem beim speichern. "
+                        "Bitte wende dich an craftundfun für weitere Hilfe :/.")
         else:
             logger.debug("did not win xp boost")
 
@@ -648,8 +651,8 @@ class ExperienceService:
                     activeXpBoosts: list = json.loads(xp['active_xp_boosts'])
                     inventoryAfter: list = json.loads(xp['xp_boosts_inventory'])
 
-                    while numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value and currentPosInInventory < len(
-                            xpBoostsInventory):
+                    while (numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
+                           and currentPosInInventory < len(xpBoostsInventory)):
                         currentBoost = xpBoostsInventory[currentPosInInventory]
 
                         activeXpBoosts.append(currentBoost)
@@ -712,7 +715,7 @@ class ExperienceService:
                 else:
                     logger.debug("number out of range")
 
-                    return "Deine Eingabe war unültig!"
+                    return "Deine Eingabe war ungültig!"
 
         query, nones = writeSaveQuery(
             'experience',
