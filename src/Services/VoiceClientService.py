@@ -82,7 +82,8 @@ class VoiceClientService:
             if ctx:
                 await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
 
-            await sleep(duration)
+            # sleep one second longer to avoid hiccups at the start and the following abrupt ending
+            await sleep(duration + 1)
 
             return True
         except Exception as error:
@@ -90,7 +91,6 @@ class VoiceClientService:
 
             return False
         finally:
-            # TODO handle that differently, will disconnect overwritten plays
             if self.voiceClient:
                 await self.voiceClient.disconnect()
                 self.voiceClient = None
