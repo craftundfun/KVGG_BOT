@@ -344,6 +344,9 @@ class ExperienceService:
 
             logger.debug("saved granted boost to database for %s" % member.name)
 
+            if xp := self.__getExperience(member.id, True):
+                logger.debug("inventory: " + xp['xp_boosts_inventory'])
+
     @validateKeys
     def spinForXpBoost(self, member: Member) -> string:
         """
