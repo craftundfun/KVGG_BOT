@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, List, Dict
 
 import discord.app_commands
-from discord import VoiceState, Member, Client
+from discord import VoiceState, Member, Client, VoiceChannel
 from discord.app_commands import Choice
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
@@ -73,7 +73,7 @@ class WhatsAppHelper:
         # gaming channel => true, university => false, other channels => function will return
         if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
             channelGaming = True
-        elif update.channel.id in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
+        elif update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
             channelGaming = False
         else:
             logger.debug("user was outside of tracked channels")
@@ -241,7 +241,9 @@ class WhatsAppHelper:
             if not self.database.runQueryOnDatabase(query, (message['id'],)):
                 logger.critical("couldn't save to database")
 
-    def __queueWhatsAppMessage(self, triggerDcUserDb: dict, channel, whatsappSetting: dict,
+    def __queueWhatsAppMessage(self, triggerDcUserDb: dict,
+                               channel: VoiceChannel | None,
+                               whatsappSetting: dict,
                                usernameFromTriggerUser: str):
         """
         Saves the message into the queue
@@ -280,8 +282,7 @@ class WhatsAppHelper:
 
             # if there are no join message send leave
             if joinMessages is None or len(joinMessages) == 0:
-                text = triggerDcUserDb[
-                           'username'] + " (" + usernameFromTriggerUser + ") hat seinen Channel verlassen."
+                text = triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + ") hat seinen Channel verlassen."
                 isJoinMessage = False
             # if there is a join message, delete them and don't send leave
             else:
@@ -289,8 +290,8 @@ class WhatsAppHelper:
 
                 return
         else:
-            text = triggerDcUserDb[
-                       'username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel '" + channel.name + "'."
+            text = (triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel '"
+                    + channel.name + "'.")
             isJoinMessage = True
 
         query = "INSERT INTO message_queue (" \
