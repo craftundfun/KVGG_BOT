@@ -31,7 +31,7 @@ class NotificationService:
         answer = ""
 
         # don't send any notifications to university users
-        if member.voice.channel.category in UniversityCategory.getValues():
+        if member.voice.channel.category.id in UniversityCategory.getValues():
             return
 
         answer += await self.__sendNewsletter(dcUserDb)
