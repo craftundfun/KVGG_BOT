@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from datetime import datetime, timedelta
 
@@ -172,12 +174,31 @@ class ReminderService:
 
         answer = "Du hast folgende Reminder: (die vorderen Zahlen sind die individuellen IDs)\n\n"
 
+        def getTimeFromRepeatInMinutes(minutes: int | None) -> [int, int, int] | None:
+            """
+            Calculates the days, hours and minutes from repeat_in_minutes from each reminder.
+
+            :param minutes: Minutes for each repetition to convert into days, hours and minutes
+            """
+            if not minutes:
+                return None
+
+            days = minutes // (24 * 60)
+            remainingMinutes = minutes % (24 * 60)
+            hours = remainingMinutes // 60
+            minutes = remainingMinutes & 60
+
+            return days, hours, minutes
+
         for reminder in reminders:
+            repetition = getTimeFromRepeatInMinutes(reminder['repeat_in_minutes'])
+
             answer += "%d: '%s' am %s, Wiederholung: %s, Whatsapp: %s\n" % (
                 reminder['id'],
                 reminder['content'],
                 reminder['time_to_sent'].strftime("%d.%m.%Y %H:%M"),
-                "aktiviert" if reminder['repeat_in_minutes'] else "deaktiviert",
+                "aktiviert - alle %d Tage, %d Stunden, %d Minuten" % (
+                    repetition[0], repetition[1], repetition[2]) if repetition else "deaktiviert",
                 "aktiviert" if reminder['whatsapp'] else "deaktiviert")
 
         logger.debug("listed all reminders from %s" % member.name)
