@@ -74,9 +74,8 @@ class VoiceClientService:
         # save ctx to current voice-client
         self.voiceClientCorrespondingCTX = ctx
 
-        # https://chat.openai.com/share/0b830c28-696a-46d3-9cf3-4d59f674af9a
-        volume = 0.5
-        file = FFmpegPCMAudio(source=pathToSound, options=f"-filter:a volume={volume}")
+        # https://chat.openai.com/share/0b830c28-696a-46d3-9cf3-4d59f674af9a => for future volume control
+        file = FFmpegPCMAudio(source=pathToSound)
         duration = MP3(pathToSound).info.length
 
         try:
