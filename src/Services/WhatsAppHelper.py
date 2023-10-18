@@ -73,7 +73,7 @@ class WhatsAppHelper:
         # gaming channel => true, university => false, other channels => function will return
         if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
             channelGaming = True
-        elif update.channel.id in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
+        elif update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory):
             channelGaming = False
         else:
             logger.debug("user was outside of tracked channels")
