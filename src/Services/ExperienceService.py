@@ -346,6 +346,8 @@ class ExperienceService:
 
             if xp := self.__getExperience(member.id):
                 logger.debug("inventory: " + xp['xp_boosts_inventory'])
+            else:
+                logger.debug("couldn't fetch inventory again")
 
     @validateKeys
     def spinForXpBoost(self, member: Member) -> string:
