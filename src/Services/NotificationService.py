@@ -12,6 +12,8 @@ logger = logging.getLogger("KVGG_BOT")
 
 
 class NotificationService:
+    separator = "\n------------------------------------------------------------------------------------\n"
+
     def __init__(self, client: Client):
         """
         :param client:
@@ -22,13 +24,12 @@ class NotificationService:
 
     async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """
-        Sends all opted in notifications and advertisements. Returns the maybe edited dcUserDb.
+        Sends all opted in notifications and advertisements.
 
         :param member: Member, who will receive the messages.
         :param dcUserDb: Database user of the member.
-        :return: dcUserDb
         """
-        answer = ""
+        answer = self.separator
 
         # don't send any notifications to university users
         if member.voice.channel.category.id in UniversityCategory.getValues():
@@ -37,18 +38,13 @@ class NotificationService:
         answer += await self.__sendNewsletter(dcUserDb)
 
         if not await self.__xDaysOfflineMessage(member, dcUserDb):
-            tempAnswer = await self.__welcomeBackMessage(member, dcUserDb)
+            answer += await self.__welcomeBackMessage(member, dcUserDb)
 
-            if tempAnswer != "":
-                answer += "\n------------------------------------------------------------------------------------\n"
-                answer += tempAnswer
-                answer += "\n------------------------------------------------------------------------------------\n"
+        answer += await self.__informAboutDoubleXpWeekend(dcUserDb)
 
-        tempAnswer = await self.__informAboutDoubleXpWeekend(dcUserDb)
-
-        if tempAnswer != "":
-            answer += "\n------------------------------------------------------------------------------------\n"
-            answer += tempAnswer
+        # nothing to send
+        if answer == self.separator:
+            return
 
         try:
             await sendDM(member, answer)
@@ -93,7 +89,9 @@ class NotificationService:
                        + "\n\n")
 
         # remove last (two) newlines to return a clean string (end)
-        return answer.rstrip("\n")
+        answer.rstrip("\n")
+
+        return answer + self.separator
 
     async def __welcomeBackMessage(self, member: Member, dcUserDb: dict) -> str:
         """
@@ -168,7 +166,7 @@ class NotificationService:
 
         message += "\n\nViel Spaß!"
 
-        return message
+        return message + self.separator
 
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
@@ -215,4 +213,4 @@ class NotificationService:
 
         return ("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                "auf dem Server mit '/notifications' de- bzw. aktivieren!")
+                "auf dem Server mit '/notifications' de- bzw. aktivieren!") + self.separator
