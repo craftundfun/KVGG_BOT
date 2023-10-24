@@ -752,7 +752,7 @@ class ProcessUserInput:
             if user.voice:
                 logger.debug(f"playing TTS for {user.name}, because {member.name} increased the Rene-Counter")
 
-                if value >= 0:
+                if value > 0:
                     tts = f"{dcUserDb['username']}, du bist dumm."
                 else:
                     tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
