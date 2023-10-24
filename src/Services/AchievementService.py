@@ -56,16 +56,20 @@ class AchievementService:
 
                 xpService.grantXpBoost(member, AchievementParameter.ONLINE)
             case AchievementParameter.STREAM:
-                tag = getTagStringFromId(str(member.id))
                 message = tag + ", du hast nun schon " + str(hours) + (" Stunden gestreamt. Weiter so :cookie:"
                                                                        "\n\nAußerdem hast du einen neuen XP-Boost "
                                                                        "bekommen, schau mal nach!")
 
                 xpService.grantXpBoost(member, AchievementParameter.STREAM)
             case AchievementParameter.XP:
-                tag = getTagStringFromId(str(member.id))
                 message = (tag + ", du hast bereits %s XP gefarmt. Weiter so :cookie: :video_game:"
                            % '{:,}'.format(value).replace(',', '.'))
+            case AchievementParameter.ANNIVERSARY:
+                message = (":fireworks: :fireworks: Herzlichen Glückwunsch "
+                           + tag
+                           + ", du bist nun schon seit "
+                           + str(value)
+                           + " Jahren auf unserem Server! :fireworks: :fireworks:")
             case _:
                 logger.critical("reached undefined enum entry")
 

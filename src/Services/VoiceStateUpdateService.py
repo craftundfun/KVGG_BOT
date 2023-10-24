@@ -99,8 +99,7 @@ class VoiceStateUpdateService:
             except ConnectionError as error:
                 logger.error("failure to start ChannelService", exc_info=error)
             except Exception as error:
-                logger.error("a problem occured in checkChannelForMoving", exc_info=error)
-
+                logger.error("a problem occurred in checkChannelForMoving", exc_info=error)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:

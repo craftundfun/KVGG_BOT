@@ -5,3 +5,4 @@ nest-asyncio
 httpx~=0.24.1
 discord.py~=2.3.2
 gTTS~=2.4.0
+python-dateutil~=2.8.2

@@ -6,6 +6,8 @@ from discord.interactions import Interaction
 from mutagen.mp3 import MP3
 
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
+from src.Id.Categories import TrackedCategories
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -42,6 +44,15 @@ class VoiceClientService:
         # already playing something and not forced to play the new sound
         if self.voiceClient and not force:
             logger.debug("cant play sound, bot is in use")
+
+            return False
+
+        if not (allowedChannels := getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)):
+            logger.warning("couldn't fetch any channels from client")
+
+            return False
+        elif channel not in allowedChannels:
+            logger.warning("channel not in allowed spectrum")
 
             return False
 
