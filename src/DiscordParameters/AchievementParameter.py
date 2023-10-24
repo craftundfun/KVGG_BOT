@@ -15,3 +15,4 @@ class AchievementParameter(Enum):
     RELATION_ONLINE = "relation_online"
     RELATON_STREAM = "relation_stream"
     COOKIE = "cookie"
+    ANNIVERSARY = "anniversary"
