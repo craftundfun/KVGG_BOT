@@ -131,12 +131,23 @@ class BackgroundServices(commands.Cog):
         for user in users:
             member = guild.get_member(int(user['user_id']))
 
+            if not member:
+                logger.warning(f"couldn't fetch member for id: {str(user['user_id'])}")
+
+                continue
+
+            if member.bot:
+                continue
+
             if not member.joined_at:
                 continue
 
             utcJoinedAt = member.joined_at
             joinedAt = utcJoinedAt.replace(tzinfo=tz)
             now = datetime.datetime.now()
+
+            logger.debug(f"checking anniversary for: {member.nick if member.nick else member.name}")
+            logger.debug(f"comparing dates - joined at: {joinedAt} vs now: {now}")
 
             if not (joinedAt.month == now.month and joinedAt.day == now.day):
                 continue
