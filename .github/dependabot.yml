@@ -8,49 +8,57 @@ updates:
     package-manager: "pip"
 
   # Konfiguration für das mysql-connector-python-Paket
-  - package: name: "mysql-connector-python"
+  - package: 
+    name: "mysql-connector-python"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das requests-Paket
-  - package: name: "requests"
+  - package: 
+    name: "requests"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das mutagen-Paket
-  - package: name: "mutagen"
+  - package: 
+    name: "mutagen"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das nest-asyncio-Paket
-  - package: name: "nest-asyncio"
+  - package: 
+    name: "nest-asyncio"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das httpx-Paket
-  - package: name: "httpx"
+  - package: 
+    name: "httpx"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das discord.py-Paket
-  - package: name: "discord.py"
+  - package: 
+    name: "discord.py"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das gTTS-Paket
-  - package: name: "gTTS"
+  - package: 
+    name: "gTTS"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
 
   # Konfiguration für das python-dateutil-Paket
-  - package: name: "python-dateutil"
+  - package: 
+    name: "python-dateutil"
     directory: "/"  # Hier ebenfalls das Verzeichnis anpassen
     schedule:
       interval: "daily" # Aktualisierungsintervall anpassen, falls gewünscht
