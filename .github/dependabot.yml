@@ -9,7 +9,7 @@ updates:
       - "craftundfun"
     allow:
       - dependency-type: "direct"
-    versions:
+    package:
       - name: "mysql-connector-python"
         range: "~=8.1.0"
       - name: "requests"
