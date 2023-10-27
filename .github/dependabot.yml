@@ -14,20 +14,21 @@ updates:
       - "craftundfun"
     allow:
       - dependency-type: "direct"
-    package:
-      - name: "mysql-connector-python"
+    versions:
+      - "mysql-connector-python"
         range: "~=8.1.0"
-      - name: "requests"
+      - "requests"
         range: "~=2.31.0"
-      - name: "mutagen"
+      - "mutagen"
         range: "~=1.46.0"
-      - name: "nest-asyncio"
-      - name: "httpx"
+      - "nest-asyncio"
+      - "httpx"
         range: "~=0.24.1"
-      - name: "discord.py"
+      - "discord.py"
         range: "~=2.3.2"
-      - name: "gTTS"
+      - "gTTS"
         range: "~=2.4.0"
-      - name: "python-dateutil"
+      - "python-dateutil"
         range: "~=2.8.2"
+
 
