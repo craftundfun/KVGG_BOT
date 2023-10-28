@@ -1,6 +1,6 @@
 mysql-connector-python~=8.1.0
 requests~=2.31.0
-mutagen~=1.46.0
+mutagen~=1.47.0
 nest-asyncio
 httpx~=0.24.1
 discord.py~=2.3.2
