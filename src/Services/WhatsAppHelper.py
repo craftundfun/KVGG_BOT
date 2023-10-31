@@ -290,7 +290,7 @@ class WhatsAppHelper:
 
                 return
         else:
-            text = (triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + ") ist nun um Channel '"
+            text = (triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + ") ist nun im Channel '"
                     + channel.name + "'.")
             isJoinMessage = True
 
