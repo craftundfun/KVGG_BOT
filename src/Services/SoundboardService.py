@@ -95,11 +95,14 @@ class SoundboardService:
             os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{member.id}")
         )
 
-        for filepath in os.listdir(path):
-            if (os.path.isfile(os.path.join(path, filepath))
-                    and filepath[-4:] == ".mp3"
-                    and filepath == search):
-                return True
+        try:
+            for filepath in os.listdir(path):
+                if (os.path.isfile(os.path.join(path, filepath))
+                        and filepath[-4:] == ".mp3"
+                        and filepath == search):
+                    return True
+        except FileNotFoundError:
+            logger.warning(f"{member.name} has not uploaded a sound yet")
 
         return False
 
