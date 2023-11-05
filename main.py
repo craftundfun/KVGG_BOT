@@ -822,7 +822,10 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
     # cap return to 25 results to comply to discord autocomplete limitations
     counter = 0
 
-    for file in os.listdir(path) and counter <= 25:
+    for file in os.listdir(path):
+        if counter == 25:
+            break
+
         if not file[-4:] == '.mp3':
             continue
 
