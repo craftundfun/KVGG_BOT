@@ -897,6 +897,16 @@ async def kneipe(ctx: discord.interactions.Interaction):
     await CommandService(client).runCommand(Commands.KNEIPE, ctx)
 
 
+"""QUESTS"""
+
+
+@tree.command(name="list_quests",
+              description="Liste deine aktuellen Quests auf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def listQuests(ctx: discord.interactions.Interaction):
+    await CommandService(client).runCommand(Commands.LIST_QUESTS, ctx, member=ctx.user)
+
+
 # FUCK YOU
 
 """

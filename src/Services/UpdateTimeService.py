@@ -42,7 +42,7 @@ class UpdateTimeService:
 
         :return:
         """
-        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
             if channel in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 

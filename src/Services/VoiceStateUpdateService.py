@@ -11,6 +11,7 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
 from src.Services.NotificationService import NotificationService
+from src.Services.QuestService import QuestService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -100,6 +101,15 @@ class VoiceStateUpdateService:
                 logger.error("failure to start ChannelService", exc_info=error)
             except Exception as error:
                 logger.error("a problem occurred in checkChannelForMoving", exc_info=error)
+
+            try:
+                questService = QuestService(self.client)
+                print("going into quests")
+                questService.checkQuestsForJoinedMember(member)
+            except ConnectionError as error:
+                logger.error("failure to start QuestService", exc_info=error)
+            except Exception as error:
+                logger.error("a problem occurred in checkQuestsForJoinedMember", exc_info=error)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
