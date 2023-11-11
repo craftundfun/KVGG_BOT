@@ -66,12 +66,24 @@ class QuestService:
             if questType == QuestType.DAYS_ONLINE:
                 # if its same day the count cant be increased
                 if lastUpdated and lastUpdated.day == datetime.now().day:
+                    logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
+                                 f"continuing loop")
+
                     continue
+                else:
+                    logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
+                                 f"== current day, continuing to give value")
 
             elif questType == QuestType.ONLINE_STREAK:
                 # if its same day the count cant be increased
                 if lastUpdated and datetime.now().day == lastUpdated.day:
+                    logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
+                                 f"continuing loop")
+
                     continue
+                else:
+                    logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
+                                 f"== current day, continuing to give value")
 
                 # if the difference is too big, the progress will be lost
                 if lastUpdated and datetime.now().day - lastUpdated.day > 1:
@@ -99,6 +111,8 @@ class QuestService:
 
             if not self.database.runQueryOnDatabase(query, nones):
                 logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
+            else:
+                logger.debug(f"saved {quest} to database for {member.name}")
 
     async def __checkForFinishedQuest(self, member: Member, quest: dict):
         """
@@ -133,6 +147,8 @@ class QuestService:
             logger.error("failure to run query on database")
 
             return
+        else:
+            logger.debug(f"resettet {time.value}-quests")
 
         await self.__createQuestsForCurrentOnlineUsers(time)
 
@@ -164,6 +180,12 @@ class QuestService:
         for channel in self.__getChannels():
             for member in channel.members:
                 await self.__createQuestForMember(member, time)
+
+                # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
+                await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
+                logger.debug(f"added progress for {member.name} for online streak")
+                await self.addProgressToQuest(member, QuestType.DAYS_ONLINE)
+                logger.debug(f"added progress for {member.name} for days online")
 
     async def checkQuestsForJoinedMember(self, member: Member):
         """
