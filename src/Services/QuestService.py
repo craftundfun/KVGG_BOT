@@ -7,6 +7,7 @@ from discord import Client, Member, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories
@@ -273,6 +274,7 @@ class QuestService:
             if len(channel.members) > 0:
                 yield channel
 
+    @validateKeys
     def listQuests(self, member: Member) -> str:
         """
         Lists all the quests from a user.

@@ -173,7 +173,7 @@ class BackgroundServices(commands.Cog):
     async def refreshQuests(self):
         loggerTime.info("running refreshQuests")
 
-        now = datetime.datetime.now()
+        now = datetime.datetime.now().replace(tzinfo=tz)
 
         try:
             questService = QuestService(self.client)
