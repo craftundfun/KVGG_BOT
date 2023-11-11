@@ -74,7 +74,7 @@ class QuestService:
                     continue
 
                 # if the difference is too big, the progress will be lost
-                if datetime.now().day - lastUpdated.day > 1:
+                if lastUpdated and datetime.now().day - lastUpdated.day > 1:
                     # reset value due to loss in streak
                     quest['current_value'] = 0
                     quest['time_updated'] = None
