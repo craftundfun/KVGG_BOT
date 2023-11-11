@@ -285,7 +285,7 @@ class QuestService:
                  "FROM quest q INNER JOIN quest_discord_mapping qdm ON q.id = qdm.quest_id "
                  "WHERE q.id IN "
                  "(SELECT quest_id FROM quest_discord_mapping WHERE discord_id = "
-                 "(SELECT id FROM discord WHERE user_id = %s))")
+                 "(SELECT id FROM discord WHERE user_id = %s)) AND qdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")
 
         if not (quests := self.database.fetchAllResults(query, (member.id,))):
             logger.warning(f"couldn't fetch results for following query: {query}")
