@@ -31,6 +31,7 @@ from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
+from src.Services.QuestService import QuestService, QuestType
 from src.Services.RelationService import RelationService, RelationTypeEnum
 from src.Services.TTSService import TTSService
 from src.Services.VoiceClientService import VoiceClientService
@@ -148,6 +149,14 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
+            # check progress for sending a message
+            try:
+                questService = QuestService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start QuestService", exc_info=error)
+            else:
+                await questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
+
             try:
                 xp = ExperienceService(self.client)
             except ConnectionError as error:
@@ -175,6 +184,7 @@ class ProcessUserInput:
             logger.debug("saved changed DiscordUser to database")
 
             return True
+
         logger.critical("couldn't save DiscordUser to database")
 
         return False

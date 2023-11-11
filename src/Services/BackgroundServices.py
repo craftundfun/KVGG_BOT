@@ -45,6 +45,7 @@ class BackgroundServices(commands.Cog):
         logger.info("anniversary-job started")
 
         self.refreshQuests.start()
+        logger.info("refresh-quest-job started")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -152,7 +153,7 @@ class BackgroundServices(commands.Cog):
 
             utcJoinedAt = member.joined_at
             joinedAt = utcJoinedAt.replace(tzinfo=tz)
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().replace(tzinfo=tz)
 
             logger.debug(f"checking anniversary for: {member.nick if member.nick else member.name}")
             logger.debug(f"comparing dates - joined at: {joinedAt} vs now: {now}")
@@ -170,6 +171,8 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(time=midnight)
     async def refreshQuests(self):
+        loggerTime.info("running refreshQuests")
+
         now = datetime.datetime.now()
 
         try:
@@ -179,15 +182,15 @@ class BackgroundServices(commands.Cog):
 
             return
 
-        questService.resetQuests(QuestDates.DAILY)
+        await questService.resetQuests(QuestDates.DAILY)
         logger.debug("reset daily quests")
 
         # if monday reset weekly's as well
         if now.weekday() == 0:
-            questService.resetQuests(QuestDates.WEEKLY)
+            await questService.resetQuests(QuestDates.WEEKLY)
             logger.debug("reset weekly quests")
 
         # if 1st of month reset monthly's
         if now.day == 1:
-            questService.resetQuests(QuestDates.MONTHLY)
+            await questService.resetQuests(QuestDates.MONTHLY)
             logger.debug("reset monthly quests")

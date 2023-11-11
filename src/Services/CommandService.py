@@ -9,7 +9,7 @@ from src.Services.ApiServices import ApiServices
 from src.Services.ChannelService import ChannelService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
-from src.Services.QuestService import QuestService
+from src.Services.QuestService import QuestService, QuestType
 from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
 from src.Services.SoundboardService import SoundboardService
@@ -102,6 +102,13 @@ class CommandService:
             logger.error("couldn't send answer to command", exc_info=e)
 
         logger.debug("sent webhook-answer")
+
+        try:
+            questService = QuestService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start QuestService", exc_info=error)
+        else:
+            await questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """

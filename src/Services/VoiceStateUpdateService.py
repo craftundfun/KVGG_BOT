@@ -11,7 +11,7 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
 from src.Services.NotificationService import NotificationService
-from src.Services.QuestService import QuestService
+from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -102,10 +102,13 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error("a problem occurred in checkChannelForMoving", exc_info=error)
 
+            # create new quests and check the progress of existing ones
             try:
                 questService = QuestService(self.client)
-                print("going into quests")
-                questService.checkQuestsForJoinedMember(member)
+
+                await questService.checkQuestsForJoinedMember(member)
+                await questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
+                await questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             except ConnectionError as error:
                 logger.error("failure to start QuestService", exc_info=error)
             except Exception as error:
