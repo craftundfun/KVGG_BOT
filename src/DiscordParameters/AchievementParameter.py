@@ -8,6 +8,9 @@ class AchievementParameter(Enum):
     RELATION_STREAM_TIME_HOURS = 25
     XP_AMOUNT = 25000
     COOKIE_AMOUNT = -1
+    DAILY_QUEST_AMOUNT = -1
+    WEEKLY_QUEST_AMOUNT = -1
+    MONTHLY_QUEST_AMOUNT = -1
 
     ONLINE = "online"
     STREAM = "stream"
@@ -16,3 +19,6 @@ class AchievementParameter(Enum):
     RELATON_STREAM = "relation_stream"
     COOKIE = "cookie"
     ANNIVERSARY = "anniversary"
+    DAILY_QUEST = "daily_quest"
+    WEEKLY_QUEST = "weekly_quest"
+    MONTHLY_QUEST = "monthly_quest"

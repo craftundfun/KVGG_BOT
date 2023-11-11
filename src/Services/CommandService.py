@@ -9,6 +9,7 @@ from src.Services.ApiServices import ApiServices
 from src.Services.ChannelService import ChannelService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
+from src.Services.QuestService import QuestService, QuestType
 from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
 from src.Services.SoundboardService import SoundboardService
@@ -51,6 +52,7 @@ class Commands(Enum):
     KNEIPE = 30
     LIST_SOUNDS = 31
     DELETE_SOUND = 32
+    LIST_QUESTS = 33
 
 
 class CommandService:
@@ -100,6 +102,13 @@ class CommandService:
             logger.error("couldn't send answer to command", exc_info=e)
 
         logger.debug("sent webhook-answer")
+
+        try:
+            questService = QuestService(self.client)
+        except ConnectionError as error:
+            logger.error("failure to start QuestService", exc_info=error)
+        else:
+            await questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -321,6 +330,16 @@ class CommandService:
                 case Commands.DELETE_SOUND:
                     soundboardService = SoundboardService(self.client)
                     answer = await soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
+
+                case Commands.LIST_QUESTS:
+                    try:
+                        questService = QuestService(self.client)
+                    except ConnectionError as error:
+                        logger.error("failure to start ReminderService", exc_info=error)
+
+                        answer = "Es ist ein Fehler aufgetreten."
+                    else:
+                        answer = questService.listQuests(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"

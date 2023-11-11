@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from discord import Client, Member
 
+from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.SendDM import sendDM
 from src.Id.Categories import UniversityCategory
 from src.Services.Database import Database
@@ -21,6 +22,46 @@ class NotificationService:
         """
         self.client = client
         self.database = Database()
+
+    async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
+        """
+        Informs the member about new quests.
+
+        :param member: Member, who will be notified
+        :param time: Type of quest
+        :param quests: List of all new quests
+        """
+        message = f"__**Du hast folgende neue {time.value.capitalize()}-Quests**__:\n\n"
+
+        for quest in quests:
+            message += f"- {quest['description']}\n"
+
+        message = message.rstrip()
+        message += self.separator
+
+        await sendDM(member, message)
+
+    async def sendQuestFinishNotification(self, member: Member, questId: int):
+        """
+        Informs the member about a completed quest.
+
+        :param member: Member, who will be notified
+        :param questId: Primary-Key of the completed quest
+        """
+        query = "SELECT description, time_type FROM quest WHERE id = %s"
+
+        if not (quest := self.database.fetchOneResult(query, (questId,))):
+            logger.error("couldn't fetch data from database")
+
+            return
+
+        time: str = quest['time_type']
+
+        await sendDM(member, f"__**Hey {member.nick if member.nick else member.name}, "
+                             f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
+                             f"{quest['description']}\n\n"
+                             f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
+                             f"{self.separator}")
 
     async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """

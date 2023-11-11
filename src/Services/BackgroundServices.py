@@ -6,12 +6,14 @@ from dateutil.relativedelta import relativedelta
 from discord.ext import tasks, commands
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.DiscordParameters.QuestParameter import QuestDates
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Services import DatabaseRefreshService
 from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
+from src.Services.QuestService import QuestService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
 from src.Services.UpdateTimeService import UpdateTimeService
@@ -41,6 +43,9 @@ class BackgroundServices(commands.Cog):
 
         self.runAnniversary.start()
         logger.info("anniversary-job started")
+
+        self.refreshQuests.start()
+        logger.info("refresh-quest-job started")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -123,10 +128,14 @@ class BackgroundServices(commands.Cog):
         if not (users := database.fetchAllResults(query)):
             logger.error("couldn't fetch any users from the database")
 
+            return
+
         guild = self.client.get_guild(GuildId.GUILD_KVGG.value)
 
         if not guild:
             logger.error("couldn't fetch guild")
+
+            return
 
         for user in users:
             member = guild.get_member(int(user['user_id']))
@@ -144,7 +153,7 @@ class BackgroundServices(commands.Cog):
 
             utcJoinedAt = member.joined_at
             joinedAt = utcJoinedAt.replace(tzinfo=tz)
-            now = datetime.datetime.now()
+            now = datetime.datetime.now().replace(tzinfo=tz)
 
             logger.debug(f"checking anniversary for: {member.nick if member.nick else member.name}")
             logger.debug(f"comparing dates - joined at: {joinedAt} vs now: {now}")
@@ -159,3 +168,29 @@ class BackgroundServices(commands.Cog):
                 continue
 
             await achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
+
+    @tasks.loop(time=midnight)
+    async def refreshQuests(self):
+        loggerTime.info("running refreshQuests")
+
+        now = datetime.datetime.now().replace(tzinfo=tz)
+
+        try:
+            questService = QuestService(self.client)
+        except ConnectionError as error:
+            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
+
+            return
+
+        await questService.resetQuests(QuestDates.DAILY)
+        logger.debug("reset daily quests")
+
+        # if monday reset weekly's as well
+        if now.weekday() == 0:
+            await questService.resetQuests(QuestDates.WEEKLY)
+            logger.debug("reset weekly quests")
+
+        # if 1st of month reset monthly's
+        if now.day == 1:
+            await questService.resetQuests(QuestDates.MONTHLY)
+            logger.debug("reset monthly quests")

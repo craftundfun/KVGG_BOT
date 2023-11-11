@@ -303,6 +303,24 @@ class ExperienceService:
                     'description': ExperienceParameter.DESCRIPTION_COOKIE.value,
                 }
                 xp['last_cookie_boost'] = datetime.now()
+            case AchievementParameter.DAILY_QUEST:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_DAILY_QUEST.value,
+                    'remaining': ExperienceParameter.XP_BOOST_DAILY_QUEST_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_DAILY_QUEST.value,
+                }
+            case AchievementParameter.WEEKLY_QUEST:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_WEEKLY_QUEST.value,
+                    'remaining': ExperienceParameter.XP_BOOST_WEEKLY_QUEST_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_WEEKLY_QUEST.value,
+                }
+            case AchievementParameter.MONTHLY_QUEST:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_MONTHLY_QUEST.value,
+                    'remaining': ExperienceParameter.XP_BOOST_MONTHLY_QUEST_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_MONTHLY_QUEST.value,
+                }
             case _:
                 logger.critical("undefined enum entry was reached")
 

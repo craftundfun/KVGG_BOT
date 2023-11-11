@@ -15,6 +15,7 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
+from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -35,6 +36,7 @@ class UpdateTimeService:
 
         self.experienceService = ExperienceService(self.client)
         self.achievementService = AchievementService(self.client)
+        self.questService = QuestService(self.client)
 
     def __getChannels(self):
         """
@@ -42,7 +44,7 @@ class UpdateTimeService:
 
         :return:
         """
-        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
+        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
             if channel in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
@@ -148,7 +150,9 @@ class UpdateTimeService:
 
                     dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
+                    await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
+
                     logger.debug("%s got XP for being online" % member.name)
 
                     # increase time for streaming
@@ -157,12 +161,14 @@ class UpdateTimeService:
                         dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
                         dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
+                        await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
                         logger.debug("%s got XP for streaming" % member.name)
 
                     self.experienceService.reduceXpBoostsTime(member)
                     checkAchievementMembers.append((dcUserDb, member))
+
                 else:
                     # university_time_online can be None -> None-safe operation
                     if not dcUserDb['university_time_online']:
