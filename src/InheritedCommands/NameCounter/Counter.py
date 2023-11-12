@@ -19,7 +19,7 @@ class Counter(ABC):
         pass
 
     @abstractmethod
-    def setCounterValue(self, value: int):
+    async def setCounterValue(self, value: int):
         pass
 
     @abstractmethod

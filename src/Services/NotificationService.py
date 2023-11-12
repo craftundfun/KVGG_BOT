@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from discord import Client, Member
 
+from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.SendDM import sendDM
 from src.Id.Categories import UniversityCategory
@@ -22,6 +23,26 @@ class NotificationService:
         """
         self.client = client
         self.database = Database()
+
+    async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
+        """
+        Informs the user about the state of his XP-Inventory.
+
+        :param member: Member to inform and the inventory belongs to
+        :param currentAmount: Currently saved Boosts in the inventory
+        """
+        if currentAmount >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            message = ("**Dein XP-Boost-Inventar ist voll!**\n\nDu kannst ab jetzt keine weiteren Boosts in dein "
+                       "Inventar aufnehmen, bis du welche benutzt.")
+        elif currentAmount >= 25:
+            message = (f"**Achtung, dein XP-Boost-Inventar ist fast voll!**\n\nDu kannst noch "
+                       f"{ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value - currentAmount} XP-Boost in dein "
+                       f"Inventar aufnehmen. Danach ist es nicht mehr möglich welche zu bekommen! Also benutz besser "
+                       f"welche.")
+        else:
+            return
+
+        await sendDM(member, message + self.separator)
 
     async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
         """

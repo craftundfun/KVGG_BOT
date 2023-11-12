@@ -735,16 +735,16 @@ class ProcessUserInput:
 
         # special case for cookie-counter due to xp-boost
         if isinstance(counter, CookieCounter) and value >= 1:
-            counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+            await counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
 
             answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
                                                                           "XP-Boost erhalten.")
         else:
-            counter.setCounterValue(counter.getCounterValue() + value)
+            await counter.setCounterValue(counter.getCounterValue() + value)
 
         # dont decrease to counter into negative
         if counter.getCounterValue() < 0:
-            counter.setCounterValue(0)
+            await counter.setCounterValue(0)
 
         query, nones = writeSaveQuery(
             'discord',

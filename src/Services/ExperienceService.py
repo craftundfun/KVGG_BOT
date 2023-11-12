@@ -244,7 +244,7 @@ class ExperienceService:
 
         return amount
 
-    def grantXpBoost(self, member: Member, kind: AchievementParameter):
+    async def grantXpBoost(self, member: Member, kind: AchievementParameter):
         """
         Grants the member the specified xp-boost
 
@@ -332,6 +332,13 @@ class ExperienceService:
             if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
                 logger.debug("cant grant boost, too many inactive xp boosts")
 
+                try:
+                    from src.Services.NotificationService import NotificationService
+
+                    await NotificationService(self.client).informAboutXpBoostInventoryLength(member, len(inventory))
+                except ConnectionError as error:
+                    logger.error("failure to start NotificationService", exc_info=error)
+
                 return
         else:
             inventory = []
@@ -350,6 +357,13 @@ class ExperienceService:
         if not self.database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
         else:
+            try:
+                from src.Services.NotificationService import NotificationService
+
+                await NotificationService(self.client).informAboutXpBoostInventoryLength(member, len(inventory))
+            except ConnectionError as error:
+                logger.error("failure to start NotificationService", exc_info=error)
+
             logger.debug("------------------------------------------------------")
             logger.debug("boost:")
             logger.debug(str(boost) + "\n")
