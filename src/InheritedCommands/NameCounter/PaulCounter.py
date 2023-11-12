@@ -11,7 +11,7 @@ class PaulCounter(Counter):
             return self.dcUserDb['paul_counter']
         return -1
 
-    def setCounterValue(self, value: int):
+    async def setCounterValue(self, value: int):
         if self.dcUserDb:
             self.dcUserDb['paul_counter'] = value
 

@@ -131,7 +131,7 @@ class QuestService:
             else:
                 boost = AchievementParameter.MONTHLY_QUEST
 
-            self.experienceService.grantXpBoost(member, boost)
+            await self.experienceService.grantXpBoost(member, boost)
 
     async def resetQuests(self, time: QuestDates):
         """

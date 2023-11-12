@@ -54,13 +54,13 @@ class AchievementService:
                                                                        "\n\nAußerdem hast du einen neuen XP-Boost "
                                                                        "bekommen, schau mal nach!")
 
-                xpService.grantXpBoost(member, AchievementParameter.ONLINE)
+                await xpService.grantXpBoost(member, AchievementParameter.ONLINE)
             case AchievementParameter.STREAM:
                 message = tag + ", du hast nun schon " + str(hours) + (" Stunden gestreamt. Weiter so :cookie:"
                                                                        "\n\nAußerdem hast du einen neuen XP-Boost "
                                                                        "bekommen, schau mal nach!")
 
-                xpService.grantXpBoost(member, AchievementParameter.STREAM)
+                await xpService.grantXpBoost(member, AchievementParameter.STREAM)
             case AchievementParameter.XP:
                 message = (tag + ", du hast bereits %s XP gefarmt. Weiter so :cookie: :video_game:"
                            % '{:,}'.format(value).replace(',', '.'))
@@ -122,16 +122,16 @@ class AchievementService:
                                                                                               "Dafür habt ihr beide "
                                                                                               "einen XP-Boost "
                                                                                               "bekommen!")
-                xpService.grantXpBoost(member_1, AchievementParameter.RELATION_ONLINE)
-                xpService.grantXpBoost(member_2, AchievementParameter.RELATION_ONLINE)
+                await xpService.grantXpBoost(member_1, AchievementParameter.RELATION_ONLINE)
+                await xpService.grantXpBoost(member_2, AchievementParameter.RELATION_ONLINE)
             case AchievementParameter.RELATON_STREAM:
                 message = (tag_1 + " und " + tag_2 + ", ihr habt schon beide " + str(hours) + " Stunden gemeinsam "
                                                                                               "gestreamt! :cookie:\n\n"
                                                                                               "Dafür habt ihr beide "
                                                                                               "einen XP-Boost "
                                                                                               "bekommen!")
-                xpService.grantXpBoost(member_1, AchievementParameter.RELATON_STREAM)
-                xpService.grantXpBoost(member_2, AchievementParameter.RELATON_STREAM)
+                await xpService.grantXpBoost(member_1, AchievementParameter.RELATON_STREAM)
+                await xpService.grantXpBoost(member_2, AchievementParameter.RELATON_STREAM)
             case _:
                 logger.critical("undefined enum entry was reached")
 

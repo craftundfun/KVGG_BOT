@@ -19,7 +19,7 @@ class CookieCounter(Counter):
             return self.dcUserDb['cookie_counter']
         return -1
 
-    def setCounterValue(self, value: int, member: Member = None, client: Client = None):
+    async def setCounterValue(self, value: int, member: Member = None, client: Client = None):
         """
         Increases the counter and if a member & client exists grants him / her a cookie xp boost.
 
@@ -37,7 +37,7 @@ class CookieCounter(Counter):
                 except ConnectionError as error:
                     logger.error("failure to start ExperienceService", exc_info=error)
                 else:
-                    es.grantXpBoost(member, AchievementParameter.COOKIE)
+                    await es.grantXpBoost(member, AchievementParameter.COOKIE)
 
     def getCounterValueByDifferentDiscordUser(self, dcUserDb) -> int:
         return dcUserDb['cookie_counter']

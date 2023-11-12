@@ -735,16 +735,16 @@ class ProcessUserInput:
 
         # special case for cookie-counter due to xp-boost
         if isinstance(counter, CookieCounter) and value >= 1:
-            counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+            await counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
 
             answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
                                                                           "XP-Boost erhalten.")
         else:
-            counter.setCounterValue(counter.getCounterValue() + value)
+            await counter.setCounterValue(counter.getCounterValue() + value)
 
         # dont decrease to counter into negative
         if counter.getCounterValue() < 0:
-            counter.setCounterValue(0)
+            await counter.setCounterValue(0)
 
         query, nones = writeSaveQuery(
             'discord',
@@ -757,21 +757,37 @@ class ProcessUserInput:
 
             return "Es ist ein Fehler aufgetreten."
 
+        name = member.nick if member.nick else member.name
+
         # send funny TTS for Counter-Receiver
         if isinstance(counter, ReneCounter):
-            if user.voice:
-                logger.debug(f"playing TTS for {user.name}, because {member.name} increased the Rene-Counter")
+            if value > 0:
+                tts = f"{dcUserDb['username']}, du bist dumm."
+            else:
+                tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
+        elif isinstance(counter, PaulCounter):
+            tts = f"Danke, {name}."
+        elif isinstance(counter, BjarneCounter):
+            tts = f"Nächstes Mal dann, {name}"
+        elif isinstance(counter, CarlCounter):
+            tts = f"Kleiner Tipp: Brille Fielmann hat auch 0 Euro Brillengestelle, {name}."
+        elif isinstance(counter, CookieCounter):
+            tts = f"{name}, hast du fein gemacht."
+        elif isinstance(counter, FelixCounter):
+            tts = f"Du bist mal wieder zu spät {name}."
+        elif isinstance(counter, OlegCounter):
+            tts = f"Was hast du gesagt? {name}, ich habe rein gar nichts verstanden!"
+        else:
+            tts = None
 
-                if value > 0:
-                    tts = f"{dcUserDb['username']}, du bist dumm."
-                else:
-                    tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
+        if user.voice and tts:
+            logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counter.name}-Counter")
 
-                if await TTSService().generateTTS(tts):
-                    await VoiceClientService(self.client).play(user.voice.channel,
-                                                               "./data/sounds/tts.mp3",
-                                                               None,
-                                                               True, )
+            if await TTSService().generateTTS(tts):
+                await VoiceClientService(self.client).play(user.voice.channel,
+                                                           "./data/sounds/tts.mp3",
+                                                           None,
+                                                           True, )
 
         return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
                                                                getTagStringFromId(str(user.id)),
