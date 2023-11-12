@@ -757,7 +757,7 @@ class ProcessUserInput:
 
             return "Es ist ein Fehler aufgetreten."
 
-        name = member.nick if member.nick else member.name
+        name = user.nick if user.nick else user.name
 
         # send funny TTS for Counter-Receiver
         if isinstance(counter, ReneCounter):
