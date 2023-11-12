@@ -565,7 +565,7 @@ class ExperienceService:
             return "Es ist leider ein Fehler aufgetreten."
 
     @validateKeys
-    def handleXpInventory(self, member: Member, action: str, row: str = None):
+    def handleXpInventory(self, member: Member, action: str, row: str = None) -> str:
         """
         Handles the XP-Inventory
 
@@ -651,15 +651,19 @@ class ExperienceService:
             # inventory use all
             if row == 'all':
                 logger.debug("use all boosts")
+                # list to keep track of which boosts will be used
+                usedBoosts = []
 
                 # empty active boosts => can use all boosts at once
                 if xp['active_xp_boosts'] is None:
                     xp['active_xp_boosts'] = xp['xp_boosts_inventory']
+                    usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
                     xp['xp_boosts_inventory'] = None
                 # xp boosts can fit into active
                 elif (len(json.loads(xp['active_xp_boosts'])) + len(
                         json.loads(xp['xp_boosts_inventory']))) <= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
 
+                    usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
                     inventory = json.loads(xp['xp_boosts_inventory'])
                     activeBoosts = json.loads(xp['active_xp_boosts'])
                     xp['active_xp_boosts'] = json.dumps(activeBoosts + inventory)
@@ -678,6 +682,7 @@ class ExperienceService:
                            and currentPosInInventory < len(xpBoostsInventory)):
                         currentBoost = xpBoostsInventory[currentPosInInventory]
 
+                        usedBoosts.append(currentBoost)
                         activeXpBoosts.append(currentBoost)
                         inventoryAfter.remove(currentBoost)
 
@@ -687,7 +692,12 @@ class ExperienceService:
                     xp['xp_boosts_inventory'] = json.dumps(inventoryAfter)
                     xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
 
-                answer = "Alle deine XP-Boosts wurden eingesetzt!"
+                answer = "Alle (möglichen) XP-Boosts wurden eingesetzt!\n\n"
+
+                for boost in json.loads(usedBoosts):
+                    answer += (f"- {boost['description']}-Boost, der für {boost['remaining']} Minuten "
+                               f"{boost['multiplier']}-Fach XP gibt\n")
+
             # !inventory use 1
             else:
                 logger.debug("using boosts in specific row")
