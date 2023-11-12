@@ -36,8 +36,8 @@ class ExperienceParameter(Enum):
     DESCRIPTION_RELATION_STREAM = 'Stream-Paerchen'
     DESCRIPTION_COOKIE = "Keks"
     DESCRIPTION_DAILY_QUEST = "Daily-Quest"
-    DESCRIPTION_WEEKLY_QUEST = "Daily-Quest"
-    DESCRIPTION_MONTHLY_QUEST = "Daily-Quest"
+    DESCRIPTION_WEEKLY_QUEST = "Weekly-Quest"
+    DESCRIPTION_MONTHLY_QUEST = "Monthly-Quest"
 
     WAIT_X_DAYS_BEFORE_NEW_SPIN = 7
     SPIN_WIN_PERCENTAGE = 25
