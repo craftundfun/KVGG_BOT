@@ -891,10 +891,10 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
 
 
 @tree.command(name="kneipe",
-              description="Verschiebt Paul und Rene in einen eigenen Voice-Channel.",
+              description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def kneipe(ctx: discord.interactions.Interaction):
-    await CommandService(client).runCommand(Commands.KNEIPE, ctx)
+async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
+    await CommandService(client).runCommand(Commands.KNEIPE, ctx, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""
