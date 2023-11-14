@@ -118,12 +118,14 @@ class ProcessUserInput:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
-    async def raiseMessageCounter(self, member: Member, channel):
+    async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
         Increases the message count if the given user if he / she used an interaction
 
         :param member: Member, who called the interaction
         :param channel: Channel, where the interaction was used
+        :param command: Whether the message was a command.
+        If yes, the Quest won't be checked for a message.
         :return:
         """
         logger.debug("increasing message-count for %s" % member.name)
@@ -149,13 +151,14 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
-            # check progress for sending a message
-            try:
-                questService = QuestService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start QuestService", exc_info=error)
-            else:
-                await questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
+            if command:
+                # check progress for sending a message
+                try:
+                    questService = QuestService(self.client)
+                except ConnectionError as error:
+                    logger.error("failure to start QuestService", exc_info=error)
+                else:
+                    await questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
 
             try:
                 xp = ExperienceService(self.client)

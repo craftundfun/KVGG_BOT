@@ -91,7 +91,7 @@ class CommandService:
         :return:
         """
         try:
-            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel)
+            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel, True)
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
