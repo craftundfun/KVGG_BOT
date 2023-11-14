@@ -151,7 +151,7 @@ class ProcessUserInput:
             else:
                 dcUserDb['message_count_all_time'] = 1
 
-            if command:
+            if not command:
                 # check progress for sending a message
                 try:
                     questService = QuestService(self.client)
