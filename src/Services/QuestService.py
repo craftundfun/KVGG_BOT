@@ -91,6 +91,9 @@ class QuestService:
                     quest['current_value'] = 0
                     quest['time_updated'] = None
 
+                    del quest['value_to_reach']
+                    del quest['time_type']
+
                     query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
 
                     if not self.database.runQueryOnDatabase(query, nones):
