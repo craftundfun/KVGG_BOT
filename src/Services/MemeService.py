@@ -1,0 +1,154 @@
+import logging
+from datetime import datetime, timedelta
+
+from discord import Message, Client
+
+from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Helper.SendDM import sendDM
+from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Id.ChannelId import ChannelId
+from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Services.Database import Database
+from src.Services.ExperienceService import ExperienceService
+from src.Services.ProcessUserInput import getTagStringFromId
+
+logger = logging.getLogger("KVGG_BOT")
+
+
+class MemeService:
+    UPVOTE = "🔼"
+    DOWNVOTE = "🔽"
+
+    def __init__(self):
+        self.database = Database()
+
+    async def checkIfMemeAndPrepareReactions(self, message: Message):
+        """
+        If the message is a meme, it will be saved in the database and reactions from the bot will be added.
+
+        :param message: Message that was written
+        """
+        if message.channel.id != ChannelId.CHANNEL_MEMES.value:
+            return
+
+        # only delete non-picture messages from members
+        if message.content != "" and not message.author.bot:
+            try:
+                await message.delete()
+            except Exception as error:
+                logger.error("couldn't delete only-text message from meme channel", exc_info=error)
+
+            try:
+                await sendDM(message.author, "Bitte sende nur Bilder in den Meme-Channel!")
+            except Exception as error:
+                logger.error(f"couldn't send DM to {message.author}", exc_info=error)
+
+            return
+
+        try:
+            await message.add_reaction(self.UPVOTE)
+            await message.add_reaction(self.DOWNVOTE)
+        except Exception as error:
+            logger.error("couldn't add reaction to message", exc_info=error)
+        else:
+            logger.debug("added reactions to meme")
+
+        dcUserDb = getDiscordUser(message.author)
+
+        if not dcUserDb:
+            logger.warning("no dcUserDb, cant save meme to database")
+
+        query = "INSERT INTO meme (message_id, discord_id, created_at) VALUES (%s, %s, %s)"
+
+        if not self.database.runQueryOnDatabase(query, (message.id, dcUserDb['id'], datetime.now(),)):
+            logger.error("couldn't save meme to database")
+        else:
+            logger.debug("saved new meme to database")
+
+    async def changeLikeCounterOfMessage(self, message: Message):
+        """
+        Updates the counter of likes in the corresponding database field.
+
+        :param message: Message that was reacted to
+        """
+        query = "SELECT * FROM meme WHERE message_id = %s"
+
+        if not (meme := self.database.fetchOneResult(query, (message.id,))):
+            logger.warning("couldn't fetch meme from database")
+
+            return
+
+        upvotes = 0
+        downvotes = 0
+
+        for reaction in message.reactions:
+            if reaction.emoji == self.UPVOTE:
+                upvotes = reaction.count
+            elif reaction.emoji == self.DOWNVOTE:
+                downvotes = reaction.count
+            else:
+                logger.warning("unknown reaction found - ignoring")
+
+                continue
+
+        meme['likes'] = upvotes - downvotes
+
+        query, nones = writeSaveQuery('meme', meme['id'], meme)
+
+        if not self.database.runQueryOnDatabase(query, nones):
+            logger.error("couldn't update meme to database")
+        else:
+            logger.debug("updated meme to database")
+
+    async def chooseWinner(self, client: Client, offset: int = 0):
+        """
+        Chooses a winner for the last month, notifies, pins and grants an XP-Boost.
+
+        :param client: Discord
+        :param offset: Offset in the database results, increase if we couldn't get a message previously
+        """
+        query = "SELECT * FROM meme WHERE created_at > %s ORDER BY likes DESC LIMIT 1 OFFSET %s"
+        today = datetime.today()
+        firstOfMonth = today.replace(day=1)
+        firstOfMonthOfLastMonth = firstOfMonth - timedelta(days=firstOfMonth.day)
+        firstOfMonthOfLastMonth = firstOfMonthOfLastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if not (meme := self.database.fetchOneResult(query, (firstOfMonthOfLastMonth, offset,))):
+            logger.error("couldn't fetch any memes from database")
+
+            return
+
+        channel = client.get_channel(ChannelId.CHANNEL_MEMES.value)
+
+        if not channel:
+            logger.error("couldn't fetch channel to get message")
+
+            return
+
+        message = await channel.fetch_message(meme['message_id'])
+
+        if not message:
+            logger.error("couldn't fetch message from channel, trying next one")
+
+            await self.chooseWinner(client, offset + 1)
+
+            return
+
+        await message.reply(
+            f"__**Herzlichen Glückwunsch {getTagStringFromId(str(message.author.id))}, dein Meme war das am besten "
+            f"bewertete des Monats!**__\n\nAls Belohnung hast du einen XP-Boost bekommen!"
+        )
+
+        try:
+            await message.pin(reason="best meme of the month")
+        except Exception as error:
+            logger.error("couldn't pin meme to channel", exc_info=error)
+
+        try:
+            experienceService = ExperienceService(client)
+        except ConnectionError as error:
+            logger.error("failure to start ExperienceService", exc_info=error)
+        else:
+            await experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
+
+        logger.debug("choose meme winner and granted boost")
