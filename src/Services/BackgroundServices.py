@@ -13,6 +13,7 @@ from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Services import DatabaseRefreshService
 from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
+from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
@@ -46,6 +47,9 @@ class BackgroundServices(commands.Cog):
 
         self.refreshQuests.start()
         logger.info("refresh-quest-job started")
+
+        self.chooseWinnerOfMemes.start()
+        logger.info("choose-winner-job started")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -194,3 +198,17 @@ class BackgroundServices(commands.Cog):
         if now.day == 1:
             await questService.resetQuests(QuestDates.MONTHLY)
             logger.debug("reset monthly quests")
+
+    @tasks.loop(time=midnight)
+    async def chooseWinnerOfMemes(self):
+        if datetime.datetime.now().day != 1:
+            logger.debug("not first of the month, dont choose winner for memes")
+
+            return
+
+        try:
+            meme = MemeService()
+        except ConnectionError as error:
+            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
+        else:
+            await meme.chooseWinner(self.client)

@@ -9,7 +9,8 @@ import traceback
 
 import discord
 import nest_asyncio
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, Reaction, \
+    RawReactionActionEvent
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
@@ -25,6 +26,7 @@ from src.Services import BackgroundServices
 from src.Services import ProcessUserInput, QuotesManager
 from src.Services.CommandService import CommandService, Commands
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
+from src.Services.MemeService import MemeService
 from src.Services.QuotesManager import QuotesManager
 from src.Services.SoundboardService import SoundboardService
 from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
@@ -89,6 +91,46 @@ class MyClient(discord.Client):
 
     async def on_member_remove(self, member):
         pass
+
+    async def on_reaction_add(self, reaction: Reaction, member: Member):
+        try:
+            memes = MemeService()
+        except ConnectionError as error:
+            logger.error("failure to start MemeService", exc_info=error)
+        else:
+            await memes.changeLikeCounterOfMessage(reaction.message)
+
+    async def on_reaction_remove(self, reaction: Reaction, member: Member):
+        try:
+            memes = MemeService()
+        except ConnectionError as error:
+            logger.error("failure to start MemeService", exc_info=error)
+        else:
+            await memes.changeLikeCounterOfMessage(reaction.message)
+
+    async def __prepareForMemeService(self, payload: RawReactionActionEvent):
+        channel = client.get_channel(payload.channel_id)
+
+        if not channel:
+            return
+
+        message = await channel.fetch_message(payload.message_id)
+
+        if not message:
+            return
+
+        try:
+            memes = MemeService()
+        except ConnectionError as error:
+            logger.error("failure to start MemeService", exc_info=error)
+        else:
+            await memes.changeLikeCounterOfMessage(message)
+
+    async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
+        await self.__prepareForMemeService(payload)
+
+    async def on_raw_reaction_remove(self, payload: RawReactionActionEvent):
+        await self.__prepareForMemeService(payload)
 
     async def on_ready(self):
         """
@@ -187,8 +229,25 @@ class MyClient(discord.Client):
                 logger.error("failure to start QuotesManager", exc_info=error)
             else:
                 await qm.checkForNewQuote(message)
+
+            try:
+                memes = MemeService()
+            except ConnectionError as error:
+                logger.error("failure to start MemeService", exc_info=error)
+            else:
+                await memes.checkIfMemeAndPrepareReactions(message)
+
+        elif message.content == "":
+            try:
+                memes = MemeService()
+            except ConnectionError as error:
+                logger.error("failure to start MemeService", exc_info=error)
+            else:
+                await memes.checkIfMemeAndPrepareReactions(message)
+
         elif message.attachments and message.content == '' and isinstance(message.channel, DMChannel):
             await SoundboardService(client).manageDirectMessage(message)
+
         else:
             logger.debug("message empty or from a bot")
 

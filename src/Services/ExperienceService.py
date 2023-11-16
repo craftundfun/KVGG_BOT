@@ -321,6 +321,12 @@ class ExperienceService:
                     'remaining': ExperienceParameter.XP_BOOST_MONTHLY_QUEST_DURATION.value,
                     'description': ExperienceParameter.DESCRIPTION_MONTHLY_QUEST.value,
                 }
+            case AchievementParameter.BEST_MEME_OF_THE_MONTH:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_MEME.value,
+                    'remaining': ExperienceParameter.XP_BOOST_MEME_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_MEME.value,
+                }
             case _:
                 logger.critical("undefined enum entry was reached")
 
