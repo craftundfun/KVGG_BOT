@@ -237,7 +237,8 @@ class MyClient(discord.Client):
             else:
                 await memes.checkIfMemeAndPrepareReactions(message)
 
-        elif message.content == "":
+        # empty message but on server
+        elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
             try:
                 memes = MemeService()
             except ConnectionError as error:
@@ -245,7 +246,8 @@ class MyClient(discord.Client):
             else:
                 await memes.checkIfMemeAndPrepareReactions(message)
 
-        elif message.attachments and message.content == '' and isinstance(message.channel, DMChannel):
+        # empty message but as DM
+        elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):
             await SoundboardService(client).manageDirectMessage(message)
 
         else:
