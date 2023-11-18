@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, timedelta
 
+import discord
 from discord import Client, Member
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
@@ -36,8 +37,10 @@ class NotificationService:
             await sendDM(member, content)
 
             return True
+        except discord.Forbidden:
+            logger.warning(f"couldn't send DM to {member.name}: Forbidden")
         except Exception as error:
-            logger.error(f"couldnt send DM to {member.name}", exc_info=error)
+            logger.error(f"couldn't send DM to {member.name}", exc_info=error)
 
             return False
 
