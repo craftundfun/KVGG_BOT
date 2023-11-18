@@ -24,6 +24,23 @@ class NotificationService:
         self.client = client
         self.database = Database()
 
+    async def __sendMessage(self, member: Member, content: str) -> bool:
+        """
+        Sends a DM to the user and handles errors.
+
+        :param member: C.F. sendDM
+        :param content: C.F. sendDM
+        :return: Bool about the success of the operation
+        """
+        try:
+            await sendDM(member, content)
+
+            return True
+        except Exception as error:
+            logger.error(f"couldnt send DM to {member.name}", exc_info=error)
+
+            return False
+
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
         """
         Informs the user about the state of his XP-Inventory.
@@ -42,7 +59,7 @@ class NotificationService:
         else:
             return
 
-        await sendDM(member, message + self.separator)
+        await self.__sendMessage(member, message + self.separator)
 
     async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
         """
@@ -60,7 +77,7 @@ class NotificationService:
         message = message.rstrip()
         message += self.separator
 
-        await sendDM(member, message)
+        await self.__sendMessage(member, message)
 
     async def sendQuestFinishNotification(self, member: Member, questId: int):
         """
@@ -78,11 +95,11 @@ class NotificationService:
 
         time: str = quest['time_type']
 
-        await sendDM(member, f"__**Hey {member.nick if member.nick else member.name}, "
-                             f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
-                             f"{quest['description']}\n\n"
-                             f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
-                             f"{self.separator}")
+        await self.__sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
+                                         f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
+                                         f"{quest['description']}\n\n"
+                                         f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
+                                         f"{self.separator}")
 
     async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """
@@ -108,10 +125,7 @@ class NotificationService:
         if answer == self.separator:
             return
 
-        try:
-            await sendDM(member, answer)
-        except Exception as error:
-            logger.error(f"couldn't send DM to {member.name}", exc_info=error)
+        await self.__sendMessage(member, answer)
 
     async def __sendNewsletter(self, dcUserDb: dict) -> str:
         """
@@ -247,15 +261,11 @@ class NotificationService:
             return False
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 14:
-            try:
-                await sendDM(member, "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
+            await self.__sendMessage(member,
+                                     "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
                                      "und %d Minuten nicht mehr da." %
-                             (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
-                await sendDM(member, self.finallyAwake)
-            except Exception as error:
-                logger.error("couldn't send DM(s) to %s" % member.name, exc_info=error)
-            else:
-                logger.debug("sent dm to %s" % member.name)
+                                     (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
+            await self.__sendMessage(member, self.finallyAwake)
 
             return True
 

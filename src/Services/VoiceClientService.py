@@ -95,8 +95,8 @@ class VoiceClientService:
             if ctx:
                 await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
 
-            # sleep one second longer to avoid hiccups at the start and the following abrupt ending
-            await sleep(duration + 1)
+            # sleep 250ms longer to avoid hiccups at the start and the following abrupt ending
+            await sleep(duration + 0.25)
 
             return True
         except Exception as error:
