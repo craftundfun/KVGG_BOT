@@ -318,11 +318,13 @@ class ProcessUserInput:
 
             return ("Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!"
                     % (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter))
-        else:
+        elif param and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             logger.debug("returning time")
 
             return ("Du hast nicht die benötigten Rechte um Zeit hinzuzufügen!\n\n"
                     + time.getStringForTime(dcUserDb))
+        else:
+            return time.getStringForTime(dcUserDb)
 
     @validateKeys
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
