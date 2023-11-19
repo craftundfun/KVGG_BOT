@@ -73,6 +73,8 @@ class CommandService:
             await ctx.response.defer(thinking=True)
         except discord.errors.NotFound as error:
             logger.error("too late :(", exc_info=error)
+
+            return False
         except HTTPException as e:
             logger.error("received HTTPException", exc_info=e)
 
