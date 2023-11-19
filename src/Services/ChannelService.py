@@ -8,6 +8,7 @@ from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
 from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
+from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -157,7 +158,8 @@ class ChannelService:
         # send DMs after moving all users to prioritize and speed up the moving process
         for user in members:
             try:
-                await sendDM(user, "Du wurdest verschoben, da ihr mind. zu zweit in 'warte auf Mitspieler/innen' wart.")
+                await sendDM(user, "Du wurdest verschoben, da ihr mind. zu zweit in 'warte auf "
+                                   "Mitspieler/innen' wart." + NotificationService.separator)
             except Exception as error:
                 logger.error("couldn't send DM to %s (%d)" % (user.name, user.id), exc_info=error)
 
