@@ -97,27 +97,6 @@ class ProcessUserInput:
         self.database = Database()
         self.client = client
 
-    @validateKeys
-    def changeWelcomeBackNotificationSetting(self, member: Member, setting: bool) -> str:
-        """
-        Changes the notification setting for coming online
-
-        :param member:
-        :param setting:
-        :return:
-        """
-        if not (dcUserDb := getDiscordUser(member)):
-            logger.warning("couldn't fetch DiscordUser")
-
-            return "Es gab ein Problem!"
-
-        dcUserDb['welcome_back_notification'] = 1 if setting else 0
-
-        if self.__saveDiscordUserToDatabase(dcUserDb):
-            logger.debug("saved changes to database")
-
-        return "Deine Einstellung wurde erfolgreich gespeichert!"
-
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
         Increases the message count if the given user if he / she used an interaction
@@ -325,91 +304,6 @@ class ProcessUserInput:
                     + time.getStringForTime(dcUserDb))
         else:
             return time.getStringForTime(dcUserDb)
-
-    @validateKeys
-    async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
-        """
-        Lets the user change their WhatsApp settings
-
-        :param member: Member, who requested a change of his / her settings
-        :param type: Type of messages (gaming or university)
-        :param action: Action of the messages (join or leave)
-        :param switch: Switch (on / off)
-        :return:
-        """
-        logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
-
-        query = "SELECT * " \
-                "FROM whatsapp_setting " \
-                "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-
-        whatsappSettings = self.database.fetchOneResult(query, (member.id,))
-
-        if not whatsappSettings:
-            logger.warning("couldn't fetch corresponding settings!")
-
-            return "Du bist nicht als User bei uns registriert!"
-
-        if type == 'Gaming':
-            # !whatsapp join
-            if action == 'join':
-                # !whatsapp join on
-                if switch == 'on':
-                    whatsappSettings['receive_join_notification'] = 1
-                # !whatsapp join off
-                elif switch == 'off':
-                    whatsappSettings['receive_join_notification'] = 0
-                else:
-                    logger.critical("undefined entry was reached")
-
-                    return "Es gab ein Problem."
-            # !whatsapp leave
-            elif action == 'leave':
-                # !whatsapp leave on
-                if switch == 'on':
-                    whatsappSettings['receive_leave_notification'] = 1
-                # !whatsapp leave off
-                elif switch == 'off':
-                    whatsappSettings['receive_leave_notification'] = 0
-                else:
-                    logger.critical("undefined entry was reached")
-
-                    return "Es gab ein Problem."
-        # !whatsapp uni
-        elif type == 'Uni':
-            if action == 'join':
-                if switch == 'on':
-                    whatsappSettings['receive_uni_join_notification'] = 1
-                elif switch == 'off':
-                    whatsappSettings['receive_uni_join_notification'] = 0
-                else:
-                    logger.critical("undefined entry was reached")
-
-                    return "Es gab ein Problem."
-            elif action == 'leave':
-                if switch == 'on':
-                    whatsappSettings['receive_uni_leave_notification'] = 1
-                elif switch == 'off':
-                    whatsappSettings['receive_uni_leave_notification'] = 0
-                else:
-                    logger.critical("undefined entry was reached")
-
-                    return "Es gab ein Problem."
-
-        query, nones = writeSaveQuery(
-            "whatsapp_setting",
-            whatsappSettings['id'],
-            whatsappSettings
-        )
-
-        if self.database.runQueryOnDatabase(query, nones):
-            logger.debug("saved changes to database")
-
-            return "Deine Einstellung wurde übernommen!"
-        else:
-            logger.critical("couldn't save changes to database")
-
-            return "Es gab ein Problem beim Speichern deiner Einstellung."
 
     @validateKeys
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:

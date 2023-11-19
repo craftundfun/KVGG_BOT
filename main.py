@@ -621,8 +621,10 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
               description="Lässt dich deine Benachrichtigungen einstellen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(kategorie=[
-    Choice(name="Doppel-XP-Wochenende", value="xp"),
-    Choice(name="Willkommen", value="welcome"),
+    Choice(name="Doppel-XP-Wochenende", value="double_xp"),
+    Choice(name="Willkommen", value="welcome_back"),
+    Choice(name="Alle", value="notifications"),
+    Choice(name="Quest", value="quest"),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
@@ -639,21 +641,11 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
     :param action: On or off switch
     :return:
     """
-    logger.debug("received command notification: category = %s, action = %s, by %d" % (kategorie.value, action.value,
-                                                                                       interaction.user.id))
-
-    if kategorie.value == "xp":
-        await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
-                                                interaction,
-                                                member=interaction.user,
-                                                setting=action.value)
-    elif kategorie.value == "welcome":
-        await CommandService(client).runCommand(Commands.NOTIFICATIONS_WELCOME_BACK,
-                                                interaction,
-                                                member=interaction.user,
-                                                setting=True if action.value == "on" else False)
-    else:
-        logger.warning("User reached unreachable code!")
+    await CommandService(client).runCommand(Commands.NOTIFICATION_SETTING,
+                                            interaction,
+                                            member=interaction.user,
+                                            kind=kategorie.value,
+                                            setting=1 if action.value == "on" else 0)
 
 
 """FELIX TIMER"""

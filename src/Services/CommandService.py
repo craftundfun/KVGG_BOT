@@ -2,7 +2,7 @@ import logging
 from enum import Enum
 
 import discord.interactions
-from discord import HTTPException, InteractionResponded
+from discord import HTTPException, InteractionResponded, Client
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Services.ApiServices import ApiServices
@@ -13,6 +13,7 @@ from src.Services.QuestService import QuestService, QuestType
 from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
 from src.Services.SoundboardService import SoundboardService
+from src.Services.UserSettings import UserSettings
 from src.Services.VoiceClientService import VoiceClientService
 from src.Services.WhatsAppHelper import WhatsAppHelper
 
@@ -20,7 +21,7 @@ logger = logging.getLogger("KVGG_BOT")
 
 
 class Commands(Enum):
-    LOGS = 1
+    # LOGS = 1
     JOKE = 2
     MOVE = 3
     QUOTE = 4
@@ -33,7 +34,7 @@ class Commands(Enum):
     XP_INVENTORY = 11
     XP = 12
     XP_LEADERBOARD = 13
-    NOTIFICATIONS_XP = 14
+    # NOTIFICATIONS_XP = 14
     FELIX_TIMER = 15
     DISABLE_COGS = 16
     ENABLE_COGS = 17
@@ -43,7 +44,7 @@ class Commands(Enum):
     WEATHER = 21
     CURRENCY_CONVERTER = 22
     QRCODE = 23
-    NOTIFICATIONS_WELCOME_BACK = 24
+    # NOTIFICATIONS_WELCOME_BACK = 24
     CREATE_REMINDER = 25
     LIST_REMINDERS = 26
     DELETE_REMINDER = 27
@@ -53,11 +54,12 @@ class Commands(Enum):
     LIST_SOUNDS = 31
     DELETE_SOUND = 32
     LIST_QUESTS = 33
+    NOTIFICATION_SETTING = 34
 
 
 class CommandService:
 
-    def __init__(self, client: discord.Client):
+    def __init__(self, client: Client):
         self.client = client
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
@@ -69,6 +71,8 @@ class CommandService:
         """
         try:
             await ctx.response.defer(thinking=True)
+        except discord.errors.NotFound as error:
+            logger.error("too late :(", exc_info=error)
         except HTTPException as e:
             logger.error("received HTTPException", exc_info=e)
 
@@ -167,13 +171,13 @@ class CommandService:
 
                 case Commands.WHATSAPP:
                     try:
-                        pui = ProcessUserInput(self.client)
+                        userSettings = UserSettings()
                     except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
+                        logger.error("failure to start UserSettings", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
                     else:
-                        answer = await pui.manageWhatsAppSettings(**kwargs)
+                        answer = await userSettings.manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
                     try:
@@ -225,25 +229,15 @@ class CommandService:
                     else:
                         answer = es.handleXpRequest(**kwargs)
 
-                case Commands.NOTIFICATIONS_WELCOME_BACK:
+                case Commands.NOTIFICATION_SETTING:
                     try:
-                        pui = ProcessUserInput(self.client)
+                        userSettings = UserSettings()
                     except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
+                        logger.error("failure to start UserSettings", exc_info=error)
 
                         answer = "Es ist ein Fehler aufgetreten."
                     else:
-                        answer = pui.changeWelcomeBackNotificationSetting(**kwargs)
-
-                case Commands.NOTIFICATIONS_XP:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.handleXpNotification(**kwargs)
+                        answer = userSettings.changeNotificationSetting(**kwargs)
 
                 case Commands.FELIX_TIMER:
                     try:

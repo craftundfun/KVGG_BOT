@@ -25,7 +25,7 @@ async def sendDM(member: Member, content: str):
     if not IN_DOCKER:
         logger.debug("not in docker")
         # if user is Bjarne still send DMs
-        if not member.id == 416967436617777163 and not member.id == 214465971576897536:
+        if not member.id == 416967436617777163:  # and not member.id == 214465971576897536:
             return
 
         logger.debug("send exceptional DM to Bjarne, because we are in the IDE")
