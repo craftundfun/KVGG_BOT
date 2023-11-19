@@ -317,28 +317,13 @@ intents.members = True
 # instantiates the client
 client = MyClient(intents=intents)
 
+# create the command service
+commandService = CommandService(client)
+
 # creates the command tree
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
-
-"""SEND LOGS"""
-
-
-@tree.command(name="logs",
-              description="Sendet die von dir gewählte Menge von Logs.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.choices(amount=[Choice(name="1", value=1), Choice(name="5", value=5), Choice(name="10", value=10)])
-async def sendLogs(interaction: discord.interactions.Interaction, amount: Choice[int]):
-    """
-    Calls the send logs function from ProcessUserInput from this interaction
-
-    :param interaction: Interaction object from this call
-    :param amount: Number of logs to be returned
-    :return:
-    """
-    await CommandService(client).runCommand(Commands.LOGS, interaction, member=interaction.user, amount=amount.value)
-
 
 """ANSWER JOKE"""
 
@@ -364,9 +349,9 @@ async def answerJoke(interaction: discord.interactions.Interaction, kategorie: C
     :param kategorie: Optional choice of the category
     :return:
     """
-    await CommandService(client).runCommand(Commands.JOKE,
-                                            interaction,
-                                            category=kategorie.value)
+    await commandService.runCommand(Commands.JOKE,
+                                    interaction,
+                                    category=kategorie.value)
 
 
 """MOVE ALL USERS"""
@@ -383,7 +368,7 @@ async def moveUsers(interaction: discord.Interaction, channel: VoiceChannel):
     :param channel: Destination channel
     :return:
     """
-    await CommandService(client).runCommand(Commands.MOVE, interaction, channel=channel, member=interaction.user)
+    await commandService.runCommand(Commands.MOVE, interaction, channel=channel, member=interaction.user)
 
 
 """ANSWER QUOTE"""
@@ -399,7 +384,7 @@ async def answerQuote(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    await CommandService(client).runCommand(Commands.QUOTE, interaction, member=interaction.user)
+    await commandService.runCommand(Commands.QUOTE, interaction, member=interaction.user)
 
 
 """ANSWER TIME / STREAMTIME / UNITIME"""
@@ -426,12 +411,12 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
     :param zeit_hinzufuegen: Optional parameter for Admins and Mods
     :return:
     """
-    await CommandService(client).runCommand(Commands.TIME,
-                                            interaction,
-                                            timeName=zeit.value,
-                                            user=user,
-                                            member=interaction.user,
-                                            param=zeit_hinzufuegen)
+    await commandService.runCommand(Commands.TIME,
+                                    interaction,
+                                    timeName=zeit.value,
+                                    user=user,
+                                    member=interaction.user,
+                                    param=zeit_hinzufuegen)
 
 
 """NAME COUNTER"""
@@ -465,12 +450,12 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     :param counter_hinzufuegen: Optional parameter for Admins and Mods
     :return:
     """
-    await CommandService(client).runCommand(Commands.COUNTER,
-                                            interaction,
-                                            counterName=counter.value,
-                                            user=user,
-                                            member=interaction.user,
-                                            param=counter_hinzufuegen)
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    counterName=counter.value,
+                                    user=user,
+                                    member=interaction.user,
+                                    param=counter_hinzufuegen)
 
 
 """MANAGE WHATSAPP SETTINGS"""
@@ -505,12 +490,12 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
     :param einstellung: Switch on or off
     :return:
     """
-    await CommandService(client).runCommand(Commands.WHATSAPP,
-                                            interaction,
-                                            member=interaction.user,
-                                            type=typ.value,
-                                            action=aktion.value,
-                                            switch=einstellung.value)
+    await commandService.runCommand(Commands.WHATSAPP,
+                                    interaction,
+                                    member=interaction.user,
+                                    type=typ.value,
+                                    action=aktion.value,
+                                    switch=einstellung.value)
 
 
 """SEND LEADERBOARD"""
@@ -531,9 +516,9 @@ async def sendLeaderboard(interaction: discord.Interaction, typ: Choice[str] = N
     :param interaction: Interaction object of the call
     :return:
     """
-    await CommandService(client).runCommand(Commands.LEADERBOARD, interaction,
-                                            member=interaction.user,
-                                            type=typ.value if typ else None, )
+    await commandService.runCommand(Commands.LEADERBOARD, interaction,
+                                    member=interaction.user,
+                                    type=typ.value if typ else None, )
 
 
 """SEND REGISTRATION"""
@@ -549,7 +534,7 @@ async def sendRegistration(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    await CommandService(client).runCommand(Commands.REGISTRATION, interaction, member=interaction.user)
+    await commandService.runCommand(Commands.REGISTRATION, interaction, member=interaction.user)
 
 
 """XP SPIN"""
@@ -565,7 +550,7 @@ async def spinForXpBoost(interaction: discord.Interaction):
     :param interaction: Interaction object of the call
     :return:
     """
-    await CommandService(client).runCommand(Commands.XP_SPIN, interaction, member=interaction.user)
+    await commandService.runCommand(Commands.XP_SPIN, interaction, member=interaction.user)
 
 
 """XP INVENTORY"""
@@ -589,11 +574,11 @@ async def handleXpInventory(interaction: discord.Interaction, action: Choice[str
     :param nummer: Optional row number to choose a Xp-Boost
     :return:
     """
-    await CommandService(client).runCommand(Commands.XP_INVENTORY,
-                                            interaction,
-                                            member=interaction.user,
-                                            action=action.value,
-                                            row=nummer)
+    await commandService.runCommand(Commands.XP_INVENTORY,
+                                    interaction,
+                                    member=interaction.user,
+                                    action=action.value,
+                                    row=nummer)
 
 
 """HANDLE XP REQUEST"""
@@ -611,7 +596,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     :param user: Entered user to read XP from
     :return:
     """
-    await CommandService(client).runCommand(Commands.XP, interaction, member=interaction.user, user=user)
+    await commandService.runCommand(Commands.XP, interaction, member=interaction.user, user=user)
 
 
 """NOTIFICATIONS"""
@@ -621,8 +606,10 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
               description="Lässt dich deine Benachrichtigungen einstellen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(kategorie=[
-    Choice(name="Doppel-XP-Wochenende", value="xp"),
-    Choice(name="Willkommen", value="welcome"),
+    Choice(name="Doppel-XP-Wochenende", value="double_xp"),
+    Choice(name="Willkommen", value="welcome_back"),
+    Choice(name="Alle", value="notifications"),
+    Choice(name="Quest", value="quest"),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
@@ -639,21 +626,11 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
     :param action: On or off switch
     :return:
     """
-    logger.debug("received command notification: category = %s, action = %s, by %d" % (kategorie.value, action.value,
-                                                                                       interaction.user.id))
-
-    if kategorie.value == "xp":
-        await CommandService(client).runCommand(Commands.NOTIFICATIONS_XP,
-                                                interaction,
-                                                member=interaction.user,
-                                                setting=action.value)
-    elif kategorie.value == "welcome":
-        await CommandService(client).runCommand(Commands.NOTIFICATIONS_WELCOME_BACK,
-                                                interaction,
-                                                member=interaction.user,
-                                                setting=True if action.value == "on" else False)
-    else:
-        logger.warning("User reached unreachable code!")
+    await commandService.runCommand(Commands.NOTIFICATION_SETTING,
+                                    interaction,
+                                    member=interaction.user,
+                                    kind=kategorie.value,
+                                    setting=1 if action.value == "on" else 0)
 
 
 """FELIX TIMER"""
@@ -672,12 +649,12 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
     zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
 )
 async def handleFelixTimer(interaction: discord.Interaction, user: Member, action: Choice[str], zeit: str = None):
-    await CommandService(client).runCommand(Commands.FELIX_TIMER,
-                                            interaction,
-                                            member=interaction.user,
-                                            user=user,
-                                            action=action.value,
-                                            time=zeit)
+    await commandService.runCommand(Commands.FELIX_TIMER,
+                                    interaction,
+                                    member=interaction.user,
+                                    user=user,
+                                    action=action.value,
+                                    time=zeit)
 
 
 """WHATSAPP SUSPEND SETTING"""
@@ -698,12 +675,12 @@ async def handleFelixTimer(interaction: discord.Interaction, user: Member, actio
 @app_commands.describe(start="Wähle die Startzeit, z.B. 09:08")
 @app_commands.describe(end="Wähle die Endzeit, z.B. 09:08")
 async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Choice[str], start: str, end: str):
-    await CommandService(client).runCommand(Commands.WHATSAPP_SUSPEND_SETTINGS,
-                                            interaction,
-                                            member=interaction.user,
-                                            weekday=day,
-                                            start=start,
-                                            end=end)
+    await commandService.runCommand(Commands.WHATSAPP_SUSPEND_SETTINGS,
+                                    interaction,
+                                    member=interaction.user,
+                                    weekday=day,
+                                    start=start,
+                                    end=end)
 
 
 @tree.command(name="reset_message_suspend_setting",
@@ -720,19 +697,19 @@ async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Ch
     Choice(name="Sonntag", value="7"),
 ])
 async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Choice[str]):
-    await CommandService(client).runCommand(Commands.RESET_WHATSAPP_SUSPEND_SETTINGS,
-                                            interaction,
-                                            member=interaction.user,
-                                            weekday=day)
+    await commandService.runCommand(Commands.RESET_WHATSAPP_SUSPEND_SETTINGS,
+                                    interaction,
+                                    member=interaction.user,
+                                    weekday=day)
 
 
 @tree.command(name="list_message_suspend_settings",
               description="Listet dir deine Suspend-Zeiten auf",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def listSuspendSettings(interaction: discord.Interaction):
-    await CommandService(client).runCommand(Commands.LIST_WHATSAPP_SUSPEND_SETTINGS,
-                                            interaction,
-                                            member=interaction.user)
+    await commandService.runCommand(Commands.LIST_WHATSAPP_SUSPEND_SETTINGS,
+                                    interaction,
+                                    member=interaction.user)
 
 
 """WEATHER"""
@@ -743,7 +720,7 @@ async def listSuspendSettings(interaction: discord.Interaction):
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(stadt="Stadt / Ort in Deutschland")
 async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
-    await CommandService(client).runCommand(Commands.WEATHER, interaction, city=stadt)
+    await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
 
 
 """CURRENCY"""
@@ -756,11 +733,11 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 @app_commands.describe(nach="Zielwährung: dreistelliger Währungscode, z.B. 'EUR'")
 @app_commands.describe(betrag="Kommabeträge: 320,59")
 async def convertCurrency(interaction: discord.interactions.Interaction, von: str, nach: str, betrag: float):
-    await CommandService(client).runCommand(Commands.CURRENCY_CONVERTER,
-                                            interaction,
-                                            have=von,
-                                            want=nach,
-                                            amount=betrag)
+    await commandService.runCommand(Commands.CURRENCY_CONVERTER,
+                                    interaction,
+                                    have=von,
+                                    want=nach,
+                                    amount=betrag)
 
 
 """QR-CODE"""
@@ -779,7 +756,7 @@ async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
     """
     logger.debug("received command qrcode: text = %s, by %d" % (text, ctx.user.id))
 
-    await CommandService(client).runCommand(Commands.QRCODE, ctx, text=text)
+    await commandService.runCommand(Commands.QRCODE, ctx, text=text)
 
 
 """REMINDER"""
@@ -822,15 +799,15 @@ async def createReminder(ctx: discord.interactions.Interaction,
     :param art_der_zeit: Time scope
     :return:
     """
-    await CommandService(client).runCommand(Commands.CREATE_REMINDER,
-                                            ctx,
-                                            member=ctx.user,
-                                            content=reminder,
-                                            date=datum,
-                                            time=uhrzeit,
-                                            whatsapp=auch_whatsapp.value if auch_whatsapp else None,
-                                            repeatTime=wiederhole_alle if wiederhole_alle else None,
-                                            repeatType=art_der_zeit.value if art_der_zeit else None, )
+    await commandService.runCommand(Commands.CREATE_REMINDER,
+                                    ctx,
+                                    member=ctx.user,
+                                    content=reminder,
+                                    date=datum,
+                                    time=uhrzeit,
+                                    whatsapp=auch_whatsapp.value if auch_whatsapp else None,
+                                    repeatTime=wiederhole_alle if wiederhole_alle else None,
+                                    repeatType=art_der_zeit.value if art_der_zeit else None, )
 
 
 @tree.command(name="list_reminders",
@@ -843,9 +820,9 @@ async def listReminders(ctx: discord.interactions.Interaction):
     :param ctx:
     :return:
     """
-    await CommandService(client).runCommand(Commands.LIST_REMINDERS,
-                                            ctx,
-                                            member=ctx.user)
+    await commandService.runCommand(Commands.LIST_REMINDERS,
+                                    ctx,
+                                    member=ctx.user)
 
 
 @tree.command(name="delete_reminder",
@@ -859,10 +836,10 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
     :param id:
     :return:
     """
-    await CommandService(client).runCommand(Commands.DELETE_REMINDER,
-                                            ctx,
-                                            member=ctx.user,
-                                            id=id)
+    await commandService.runCommand(Commands.DELETE_REMINDER,
+                                    ctx,
+                                    member=ctx.user,
+                                    id=id)
 
 
 """PLAY SOUND"""
@@ -911,19 +888,19 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
     :param sound: Chosen sound
     :return:
     """
-    await CommandService(client).runCommand(Commands.PLAY_SOUND,
-                                            ctx,
-                                            member=ctx.user,
-                                            sound=sound, )
+    await commandService.runCommand(Commands.PLAY_SOUND,
+                                    ctx,
+                                    member=ctx.user,
+                                    sound=sound, )
 
 
 @tree.command(name="stop",
               description="Stoppt die Ausgabe des Bots wenn er sich in deinem Channel befindet.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def stopSound(ctx: discord.interactions.Interaction):
-    await CommandService(client).runCommand(Commands.STOP_SOUND,
-                                            ctx,
-                                            member=ctx.user, )
+    await commandService.runCommand(Commands.STOP_SOUND,
+                                    ctx,
+                                    member=ctx.user, )
 
 
 @tree.command(name="list_sounds",
@@ -936,7 +913,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
     :param ctx:
     :return:
     """
-    await CommandService(client).runCommand(Commands.LIST_SOUNDS, ctx)
+    await commandService.runCommand(Commands.LIST_SOUNDS, ctx)
 
 
 @tree.command(name="delete_sound",
@@ -945,7 +922,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
 async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
-    await CommandService(client).runCommand(Commands.DELETE_SOUND, interaction=ctx, row=nummer)
+    await commandService.runCommand(Commands.DELETE_SOUND, interaction=ctx, row=nummer)
 
 
 """KNEIPE"""
@@ -955,7 +932,7 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
               description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
-    await CommandService(client).runCommand(Commands.KNEIPE, ctx, member_1=member_1, member_2=member_2)
+    await commandService.runCommand(Commands.KNEIPE, ctx, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""
@@ -965,77 +942,15 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
               description="Liste deine aktuellen Quests auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def listQuests(ctx: discord.interactions.Interaction):
-    await CommandService(client).runCommand(Commands.LIST_QUESTS, ctx, member=ctx.user)
+    await commandService.runCommand(Commands.LIST_QUESTS, ctx, member=ctx.user)
 
-
-# FUCK YOU
-
-"""
-@tree.command(name="egal",
-              description="testing",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def beta(ctx: discord.interactions.Interaction):
-    voiceState = ctx.user.voice
-
-    if not voiceState:
-        print("not online")
-
-        return
-
-    channel = voiceState.channel
-
-    if not channel:
-        print("no channel")
-
-        return
-
-    if channel.category.id != TrackedCategories.SERVERVERWALTUNG.value:
-        print("wrong category")
-
-        return
-
-    try:
-        voiceClient: VoiceClient = await channel.connect()
-
-        if voiceClient.is_playing():
-            voiceClient.stop()
-
-        file = discord.FFmpegPCMAudio(source='./data/egal.mp3')
-        duration = MP3("./data/egal.mp3").info.length
-
-        voiceClient.play(file)
-        await sleep(duration)
-        await voiceClient.disconnect()
-
-    except Exception as error:
-        print(error)
-"""
-
-"""
-    await channel.connect()
-    # await sleep(1)
-    voice_client = ctx.guild.voice_client
-    # await voice_client.connect(reconnect=False, timeout=5)
-    if voice_client.is_playing():
-        voice_client.stop()
-    # audio = MP3(new_file)
-    voice_client.play(discord.FFmpegPCMAudio(source='./f.mp3'))
-    # voice_client.stop()
-    # await sleep(audio.info.length)
-    if voice_client.is_connected():
-        # await voice_client.disconnect()
-        print('disconnected')
-        pass
-
-    out_file = None
-"""
 
 restartTrys = 5
 
 
 def run():
     """
-    Starts the bot initially and restarts him 6 times if he crashes
+    Starts the bot initially and restarts him six times if he crashes
 
     :return:
     """

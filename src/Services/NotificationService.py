@@ -72,6 +72,13 @@ class NotificationService:
         :param time: Type of quest
         :param quests: List of all new quests
         """
+        settings = self.__getNotificationSettings(member)
+
+        if not settings or not settings['quest'] or not settings['notifications']:
+            logger.debug(f"{member.name} is not opted in for quests-notifications")
+
+            return
+
         message = f"__**Du hast folgende neue {time.value.capitalize()}-Quests**__:\n\n"
 
         for quest in quests:
@@ -111,21 +118,36 @@ class NotificationService:
         :param member: Member, who will receive the messages.
         :param dcUserDb: Database user of the member.
         """
-        answer = self.separator
+        answer = ""  # self.separator
 
         # don't send any notifications to university users
         if member.voice.channel.category.id in UniversityCategory.getValues():
             return
 
+        settings = self.__getNotificationSettings(member)
+        canSendWelcomeBackMessage = await self.__xDaysOfflineMessage(member, dcUserDb)
         answer += await self.__sendNewsletter(dcUserDb)
 
-        if not await self.__xDaysOfflineMessage(member, dcUserDb):
-            answer += await self.__welcomeBackMessage(member, dcUserDb)
+        if not settings:
+            if answer:
+                await self.__sendMessage(member, answer)
+            logger.error("cant continue - no notification settings")
 
-        answer += await self.__informAboutDoubleXpWeekend(dcUserDb)
+            return
+        elif not settings['notifications']:
+            if answer:
+                await self.__sendMessage(member, answer)
+            logger.debug("user opted-out from all notifications")
+
+            return
+
+        if not canSendWelcomeBackMessage:
+            answer += await self.__welcomeBackMessage(member, dcUserDb, settings)
+
+        answer += await self.__informAboutDoubleXpWeekend(settings)
 
         # nothing to send
-        if answer == self.separator:
+        if answer == "":  # self.separator:
             return
 
         await self.__sendMessage(member, answer)
@@ -172,7 +194,7 @@ class NotificationService:
 
         return answer + self.separator
 
-    async def __welcomeBackMessage(self, member: Member, dcUserDb: dict) -> str:
+    async def __welcomeBackMessage(self, member: Member, dcUserDb: dict, settings: dict) -> str:
         """
         Sends a welcome back notification for users who opted in
 
@@ -180,9 +202,9 @@ class NotificationService:
         :param dcUserDb: Discord User from our database
         :return:
         """
-        optedIn = dcUserDb['welcome_back_notification']
+        optedIn = settings['welcome_back']
 
-        if not optedIn or optedIn is False:
+        if not optedIn:
             logger.debug("%s is not opted in for welcome_back_notification" % member.name)
 
             return ""
@@ -250,7 +272,7 @@ class NotificationService:
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
 
-    async def __xDaysOfflineMessage(self, member: Member, dcUserDb) -> bool:
+    async def __xDaysOfflineMessage(self, member: Member, dcUserDb: dict) -> bool:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
@@ -269,6 +291,7 @@ class NotificationService:
                                      "und %d Minuten nicht mehr da." %
                                      (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
             await self.__sendMessage(member, self.finallyAwake)
+            await self.__sendMessage(member, self.separator)
 
             return True
 
@@ -276,16 +299,34 @@ class NotificationService:
 
         return False
 
-    async def __informAboutDoubleXpWeekend(self, dcUserDb: dict) -> str:
+    async def __informAboutDoubleXpWeekend(self, settings: dict) -> str:
         """
         Sends a DM to the given user to inform him about the currently active double-xp-weekend
 
-        :param dcUserDb: DiscordUser, who will be informed
+        :param settings: Settings of the designated user
         :return:
         """
-        if not dcUserDb['double_xp_notification'] or not isDoubleWeekend(datetime.now()):
+        optedIn = settings['double_xp']
+
+        if not optedIn or not isDoubleWeekend(datetime.now()):
             return ""
 
         return ("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
                 "auf dem Server mit '/notifications' de- bzw. aktivieren!") + self.separator
+
+    def __getNotificationSettings(self, member: Member) -> dict | None:
+        """
+        Fetches the notification settings of the given Member from our database.
+
+        :param member: Member, whose settings will be fetched
+        :return: None if no settings were found, dict otherwise
+        """
+        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+        if not (settings := self.database.fetchOneResult(query, (member.id,))):
+            logger.error("couldn't fetch results from database")
+
+            return None
+
+        return settings
