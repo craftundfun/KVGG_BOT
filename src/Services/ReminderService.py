@@ -100,6 +100,10 @@ class ReminderService:
 
                     return ("Dein Zeitpunkt inklusive der Wiederholung liegt in der Vergangenheit! "
                             "Bitte wähle einen in der Zukunft!")
+            elif repeatTime and not repeatType:
+                return "Du hast die Zeit mit angeben (wiederhole_alle), aber nicht die Art der Zeit!"
+            elif repeatType and not repeatTime:
+                return "Du hast die Art mit angeben (art_der_zeit), aber nicht die Menge an Zeit!"
             else:
                 return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
 
