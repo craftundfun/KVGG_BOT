@@ -379,7 +379,7 @@ async def moveUsers(interaction: discord.Interaction, channel: VoiceChannel):
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def answerQuote(interaction: discord.Interaction):
     """
-    Calls the answer quote fuction from QuotesManager from this interaction
+    Calls the answer quote function from QuotesManager from this interaction
 
     :param interaction: Interaction object of the call
     :return:

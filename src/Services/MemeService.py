@@ -65,6 +65,11 @@ class MemeService:
         else:
             logger.debug("saved new meme to database")
 
+        try:
+            await sendDM(message.author, "Dein Meme wurde für den monatlichen Contest eingetragen!")
+        except Exception as error:
+            logger.error(f"couldn't send DM to {message.author.name}", exc_info=error)
+
     async def changeLikeCounterOfMessage(self, message: Message):
         """
         Updates the counter of likes in the corresponding database field.
