@@ -47,7 +47,7 @@ class VoiceStateUpdateService:
         dcUserDb = getDiscordUser(member)
 
         if not dcUserDb:
-            logger.debug("couldn't fetch DiscordUser for %s!" % member.name)
+            logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
 
             return
 
@@ -155,7 +155,7 @@ class VoiceStateUpdateService:
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
 
-                dcUserDb['username'] = member.nick if member.nick else member.name
+                dcUserDb['username'] = member.display_name
 
                 self.__saveDiscordUser(dcUserDb)
             # channel changed
