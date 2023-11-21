@@ -1,5 +1,8 @@
+import asyncio
 import datetime
 import logging.handlers
+import threading
+from asyncio import AbstractEventLoop
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -7,6 +10,7 @@ from discord.ext import tasks, commands
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
@@ -22,17 +26,28 @@ from src.Services.UpdateTimeService import UpdateTimeService
 logger = logging.getLogger("KVGG_BOT")
 
 loggerTime = logging.getLogger("TIME")
-fileHandler = logging.handlers.TimedRotatingFileHandler(filename='Logs/times.txt', when='midnight', backupCount=5)
+fileHandlerTime = logging.handlers.TimedRotatingFileHandler(filename='Logs/times.txt', when='midnight', backupCount=5)
 
-fileHandler.setFormatter(CustomFormatterFile())
-loggerTime.addHandler(fileHandler)
+loggerThread = logging.getLogger("THREAD")
+fileHandlerThread = logging.handlers.TimedRotatingFileHandler(filename='Logs/thread.txt', when='midnight',
+                                                              backupCount=5)
+
+fileHandlerTime.setFormatter(CustomFormatterFile())
+fileHandlerThread.setFormatter(CustomFormatterFile())
+
+loggerTime.addHandler(fileHandlerTime)
 loggerTime.setLevel(logging.INFO)
+
+loggerThread.addHandler(fileHandlerThread)
+loggerThread.setLevel(logging.INFO)
 
 tz = datetime.datetime.now().astimezone().tzinfo
 midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 
 
 class BackgroundServices(commands.Cog):
+    thread: threading.Thread | None = None
+
     def __init__(self, client: discord.Client):
         self.client = client
 
@@ -53,56 +68,73 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
-        logger.debug("running minutely-job")
-        loggerTime.info("start")
+        if self.thread is None:
+            loggerThread.info("no thread was previously active")
+        elif self.thread.is_alive():
+            # info for the file - don't spam us with emails, normal logger will take care
+            loggerThread.info("Thread is still alive after one minute!")
+            logger.error("Thread is still alive after one minute!")
 
-        try:
-            logger.debug("running updateTimesAndExperience")
-            loggerTime.info("updateTimeService")
+            # so I will notice immediately
+            await self.client.get_user(DiscordUserId.BJARNE.value).send("there was a problem with the thread")
 
-            uts = UpdateTimeService(self.client)
+        def minutelyJobs(loop: AbstractEventLoop):
+            logger.debug("running minutely-job")
+            loggerTime.info("start")
 
-            await uts.updateTimesAndExperience()
-        except ConnectionError as error:
-            logger.error("failure to start UpdateTimeService", exc_info=error)
-        except Exception as e:
-            logger.error("encountered exception while executing updateTimeService", exc_info=e)
+            try:
+                logger.debug("running updateTimesAndExperience")
+                loggerTime.info("updateTimeService")
 
-        try:
-            logger.debug("running callReminder")
-            loggerTime.info("reminderService")
+                uts = UpdateTimeService(self.client)
 
-            rs = ReminderService(self.client)
+                asyncio.run_coroutine_threadsafe(uts.updateTimesAndExperience(), loop)
+            except ConnectionError as error:
+                logger.error("failure to start UpdateTimeService", exc_info=error)
+            except Exception as e:
+                logger.error("encountered exception while executing updateTimeService", exc_info=e)
 
-            await rs.manageReminders()
-        except ConnectionError as error:
-            logger.error("failure to start ReminderService", exc_info=error)
-        except Exception as e:
-            logger.error("encountered exception while executing reminderService", exc_info=e)
+            try:
+                logger.debug("running callReminder")
+                loggerTime.info("reminderService")
 
-        try:
-            logger.debug("running increaseRelations")
-            loggerTime.info("relationService")
+                rs = ReminderService(self.client)
 
-            rs = RelationService(self.client)
+                asyncio.run_coroutine_threadsafe(rs.manageReminders(), loop)
+            except ConnectionError as error:
+                logger.error("failure to start ReminderService", exc_info=error)
+            except Exception as e:
+                logger.error("encountered exception while executing reminderService", exc_info=e)
 
-            await rs.increaseAllRelation()
-        except ConnectionError as error:
-            logger.error("failure to start RelationService", exc_info=error)
-        except Exception as e:
-            logger.error("encountered exception while executing relationService", exc_info=e)
+            try:
+                logger.debug("running increaseRelations")
+                loggerTime.info("relationService")
 
-        try:
-            logger.debug("running updateFelixCounter")
-            loggerTime.info("updateFelixCounter")
+                rs = RelationService(self.client)
 
-            fc = FelixCounter()
+                asyncio.run_coroutine_threadsafe(rs.increaseAllRelation(), loop)
+            except ConnectionError as error:
+                logger.error("failure to start RelationService", exc_info=error)
+            except Exception as e:
+                logger.error("encountered exception while executing relationService", exc_info=e)
 
-            await fc.updateFelixCounter(self.client)
-        except Exception as e:
-            logger.error("encountered exception while executing updateFelixCounter", exc_info=e)
+            try:
+                logger.debug("running updateFelixCounter")
+                loggerTime.info("updateFelixCounter")
 
-        loggerTime.info("end")
+                fc = FelixCounter()
+
+                asyncio.run_coroutine_threadsafe(fc.updateFelixCounter(self.client), loop)
+            except Exception as e:
+                logger.error("encountered exception while executing updateFelixCounter", exc_info=e)
+
+            loggerTime.info("end")
+            loggerThread.info("minutely thread ended")
+
+        self.thread = threading.Thread(target=minutelyJobs, args=(asyncio.get_event_loop(),))
+        self.thread.start()
+
+        loggerThread.info("minutely thread started")
 
     @tasks.loop(hours=1)
     async def refreshMembersInDatabase(self):

@@ -10,6 +10,7 @@ from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
+from src.Services.LogService import Events, LogService
 from src.Services.NotificationService import NotificationService
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppHelper import WhatsAppHelper
@@ -29,6 +30,7 @@ class VoiceStateUpdateService:
         """
         self.client = client
         self.waHelper = WhatsAppHelper(self.client)
+        self.logService = LogService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -45,7 +47,7 @@ class VoiceStateUpdateService:
         dcUserDb = getDiscordUser(member)
 
         if not dcUserDb:
-            logger.debug("couldn't fetch DiscordUser for %s!" % member.name)
+            logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
 
             return
 
@@ -114,6 +116,11 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error("a problem occurred in checkQuestsForJoinedMember", exc_info=error)
 
+            try:
+                await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.JOINED_VOICE_CHAT)
+            except Exception as error:
+                logger.error("an error occurred while running logService", exc_info=error)
+
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
             logger.debug("member changes status or voice channel")
@@ -148,7 +155,7 @@ class VoiceStateUpdateService:
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
 
-                dcUserDb['username'] = member.nick if member.nick else member.name
+                dcUserDb['username'] = member.display_name
 
                 self.__saveDiscordUser(dcUserDb)
             # channel changed
@@ -161,6 +168,12 @@ class VoiceStateUpdateService:
                 self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
+
+                try:
+                    await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter),
+                                                  Events.SWITCHED_VOICE_CHANNEL)
+                except Exception as error:
+                    logger.error("an error occurred while running logService", exc_info=error)
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
@@ -178,6 +191,11 @@ class VoiceStateUpdateService:
             self.__saveDiscordUser(dcUserDb)
 
             await ChannelService.manageKneipe(voiceStateBefore.channel)
+
+            try:
+                await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.LEFT_VOICE_CHANNEL)
+            except Exception as error:
+                logger.error("an error occurred while running logService", exc_info=error)
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 

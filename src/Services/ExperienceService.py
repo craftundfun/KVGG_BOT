@@ -257,7 +257,7 @@ class ExperienceService:
 
             return
 
-        if not (xp := self.__getExperience(member.id, True)):
+        if not (xp := self.__getExperience(member.id)):
             logger.debug("couldn't fetch xp for %s" % member.name)
 
             return
