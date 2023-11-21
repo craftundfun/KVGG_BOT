@@ -57,7 +57,7 @@ class WhatsAppHelper:
 
     def sendOnlineNotification(self, member: Member, update: VoiceState):
         """
-        Creates an online notification, but only for allowed channels and users who are opted-in
+        Creates an online notification, but only for allowed channels and users who are opted in
 
         :param member: Member that the users will be notified about
         :param update: VoiceStateUpdate
