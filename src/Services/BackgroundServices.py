@@ -10,6 +10,7 @@ from discord.ext import tasks, commands
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
@@ -73,6 +74,9 @@ class BackgroundServices(commands.Cog):
             # info for the file - don't spam us with emails, normal logger will take care
             loggerThread.info("Thread is still alive after one minute!")
             logger.error("Thread is still alive after one minute!")
+
+            # so I will notice immediately
+            await self.client.get_user(DiscordUserId.BJARNE.value).send("there was a problem with the thread")
 
         def minutelyJobs(loop: AbstractEventLoop):
             logger.debug("running minutely-job")
