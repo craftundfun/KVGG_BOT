@@ -3,6 +3,7 @@ from enum import Enum
 
 import discord.interactions
 from discord import HTTPException, InteractionResponded, Client
+from discord.ext import commands
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Services.ApiServices import ApiServices
@@ -62,61 +63,10 @@ class CommandService:
     def __init__(self, client: Client):
         self.client = client
 
-    async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
-        """
-        Sets the interaction to thinking
 
-        :param ctx: Interaction to think about
-        :return: bool, True if success, false if failure
-        """
-        try:
-            await ctx.response.defer(thinking=True)
-        except discord.errors.NotFound as error:
-            logger.error("too late :(", exc_info=error)
 
-            return False
-        except HTTPException as e:
-            logger.error("received HTTPException", exc_info=e)
 
-            return False
-        except InteractionResponded as e:
-            logger.error("interaction was answered before", exc_info=e)
-
-            return False
-
-        logger.debug("set interaction to thinking")
-
-        return True
-
-    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
-        """
-        Sends the specified answer to the interaction
-
-        :param ctx: Interaction to answer
-        :param answer: Answer that will be sent
-        :return:
-        """
-        try:
-            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel, True)
-        except ConnectionError as error:
-            logger.error("failure to start ProcessUserInput", exc_info=error)
-
-        try:
-            for part in splitStringAtMaxLength(answer):
-                await ctx.followup.send(part)
-        except Exception as e:
-            logger.error("couldn't send answer to command", exc_info=e)
-
-        logger.debug("sent webhook-answer")
-
-        try:
-            questService = QuestService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start QuestService", exc_info=error)
-        else:
-            await questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
-
-    async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
+    async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction | commands.Context, **kwargs):
         """
         Wrapper to use commands easily
 
@@ -322,6 +272,8 @@ class CommandService:
                 case Commands.LIST_SOUNDS:
                     soundboardService = SoundboardService(self.client)
                     answer = await soundboardService.listPersonalSounds(ctx=interaction)
+
+
 
                 case Commands.DELETE_SOUND:
                     soundboardService = SoundboardService(self.client)

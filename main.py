@@ -13,6 +13,7 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
+from discord.ext import commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
@@ -320,7 +321,6 @@ client = MyClient(intents=intents)
 # create the command service
 commandService = CommandService(client)
 
-# creates the command tree
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
