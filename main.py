@@ -14,7 +14,6 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
-from discord import Embed
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
@@ -333,11 +332,12 @@ backgroundServices = None
 async def testcommand(ctx: discord.interactions.Interaction):
     response : discord.interactions.InteractionResponse = ctx.response
 
-
+    #service = SoundboardService(client)
+    #print(service.listPersonalSounds(ctx))
 
     data = []
 
-    for i in range(25):
+    for i in range(100):
         data += [PaginationViewDataItem(field_name=f"Test{i}", field_value=f"Untertest{i}")]
 
     view = PaginationView(data=data, ctx=ctx, title="botTest", client=client)

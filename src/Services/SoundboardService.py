@@ -17,8 +17,10 @@ from src.Helper.SendDM import sendDM
 from src.Id import Categories
 from src.Id.GuildId import GuildId
 from src.Services.VoiceClientService import VoiceClientService
+from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
+
 
 
 class SoundboardService:
@@ -60,28 +62,30 @@ class SoundboardService:
             return "Deine Datei wurde erfolgreich gelöscht."
 
     @validateKeys
-    async def listPersonalSounds(self, ctx: discord.interactions.Interaction) -> str:
+    async def listPersonalSounds(self, ctx: discord.interactions.Interaction) -> list[PaginationViewDataItem]:
         path = os.path.abspath(
             os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{ctx.user.id}")
         )
-        answer = "Du hast folgende Sounds hochgeladen:\n\n"
+
+        data = []
 
         try:
             for index, filepath in enumerate(os.listdir(path), start=1):
                 if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3':
                     seconds = MP3(os.path.join(path, filepath)).info.length
-                    answer += f"{index}. {filepath} - {str(seconds)[:4]} Sekunden\n"
+                    data += [PaginationViewDataItem(field_name=f"{index}. {filepath}", field_value= f"{str(seconds)[:4]} Sekunden")]
+
         except FileNotFoundError as error:
             logger.warning("user has no sounds uploaded yet", exc_info=error)
 
-            return ("Du hast keine Dateien hochgeladen. Wenn du welche hochladen möchtest, "
-                    "dann schicke sie mir einfach per DM.")
+            return [PaginationViewDataItem(field_name="Du hast keine Dateien hochgeladen. Wenn du welche hochladen möchtest, "
+                    "dann schicke sie mir einfach per DM.")]
         except Exception as error:
             logger.error("problem while reading files from the system", exc_info=error)
 
-            return "Es ist ein Problem aufgetreten."
+            return [PaginationViewDataItem(field_name="Es ist ein Problem aufgetreten.")]
         else:
-            return answer
+            return data
 
     def searchInPersonalFiles(self, member: discord.Member, search: str) -> bool:
         """

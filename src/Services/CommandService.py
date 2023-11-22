@@ -269,9 +269,6 @@ class CommandService:
                     channelService = ChannelService(self.client)
                     answer = await channelService.createKneipe(interaction.user, **kwargs)
 
-                case Commands.LIST_SOUNDS:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.listPersonalSounds(ctx=interaction)
 
 
 
