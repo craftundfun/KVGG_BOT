@@ -23,8 +23,11 @@ class PaginationView:
         self.member = ctx.user
         self.data = data
         self.ctx = ctx
-        self.view = discord.ui.View(timeout=30.0)
+        self.view = discord.ui.View(timeout=20.0)
         self.client = client
+        self.last_page = int(len(self.data) / self.seperator) + 1
+        self.is_paginated =  len(self.data) > self.seperator
+
 
     async def send(self):
         await self.ctx.response.defer(thinking=True)
@@ -45,7 +48,7 @@ class PaginationView:
                 next_button.disabled = False
                 last_page_button.disabled = False
 
-        if len(self.data) > self.seperator:
+        if self.is_paginated:
             first_page_button = discord.ui.Button(label="|<", style=discord.ButtonStyle.green)
             async def first_page_button_callback(interaction: discord.Interaction):
                 self.current_page = 1
@@ -74,8 +77,8 @@ class PaginationView:
 
             last_page_button = discord.ui.Button(label=">|", style=discord.ButtonStyle.green)
             async def last_page_button_callback(interaction: discord.Interaction):
-                self.current_page = int(len(self.data) / self.seperator) + 1
-                until_item = int(len(self.data) / self.seperator) + 1
+                self.current_page = self.last_page
+                until_item = self.last_page * self.seperator
                 from_item = until_item - self.seperator
                 await update_message(self.data[from_item:], interaction=interaction)
 
@@ -88,7 +91,7 @@ class PaginationView:
 
             async def on_timeout_callback():
                 message = await (self.client.get_guild(GuildId.GUILD_KVGG.value)
-                                 .get_channel(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)
+                                 .get_channel(self.message.channel.id)
                                  .fetch_message(self.message.id))
 
                 self.view.clear_items()
@@ -104,16 +107,18 @@ class PaginationView:
 
             await interaction.response.edit_message(embed=self.create_embed(data), view=self.view)
 
-
         self.message = await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view, wait=True)
-
 
 
     def create_embed(self, data: list[PaginationViewDataItem]):
         embed = discord.Embed(title=self.title, color=discord.Color.dark_blue())
         embed.set_author(name=self.member.name, icon_url=self.member.avatar.url)
         embed.timestamp = datetime.now()
-        embed.set_footer(text=f"KVGG")
+
+        if self.is_paginated:
+            embed.set_footer(text=f"KVGG • Seite {self.current_page} | {self.last_page}")
+        else:
+            embed.set_footer(text=f"KVGG")
 
         for item in data:
             embed.add_field(name=item.field_name, value=item.field_value)
