@@ -17,7 +17,7 @@ class PaginationView:
     current_page : int = 1
     seperator : int = 15
 
-    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], client: discord.Client, seperator=15, title=""):
+    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], client: discord.Client, defer=True, seperator=15, title=""):
         self.seperator = seperator
         self.title = title
         self.member = ctx.user
@@ -27,10 +27,13 @@ class PaginationView:
         self.client = client
         self.last_page = int(len(self.data) / self.seperator) + 1
         self.is_paginated =  len(self.data) > self.seperator
+        self.defer = defer
 
 
     async def send(self):
-        await self.ctx.response.defer(thinking=True)
+
+        if self.defer:
+            await self.ctx.response.defer(thinking=True)
 
         def update_button():
 

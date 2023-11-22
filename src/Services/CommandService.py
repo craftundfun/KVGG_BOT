@@ -16,6 +16,7 @@ from src.Services.SoundboardService import SoundboardService
 from src.Services.UserSettings import UserSettings
 from src.Services.VoiceClientService import VoiceClientService
 from src.Services.WhatsAppHelper import WhatsAppHelper
+from src.View.PaginationView import PaginationView
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -127,6 +128,8 @@ class CommandService:
         """
         if not await self.__setLoading(interaction):
             return
+
+        answer = ""
 
         try:
             match command:
@@ -321,7 +324,16 @@ class CommandService:
 
                 case Commands.LIST_SOUNDS:
                     soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.listPersonalSounds(ctx=interaction)
+
+                    data = await soundboardService.listPersonalSounds(ctx=interaction)
+
+                    await PaginationView(
+                        ctx=interaction,
+                        data=data,
+                        client=self.client,
+                        title="Sounds",
+                        defer=False,
+                    ).send()
 
                 case Commands.DELETE_SOUND:
                     soundboardService = SoundboardService(self.client)

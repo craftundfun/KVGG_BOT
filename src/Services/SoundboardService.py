@@ -78,8 +78,8 @@ class SoundboardService:
         except FileNotFoundError as error:
             logger.warning("user has no sounds uploaded yet", exc_info=error)
 
-            return [PaginationViewDataItem(field_name="Du hast keine Dateien hochgeladen. Wenn du welche hochladen möchtest, "
-                    "dann schicke sie mir einfach per DM.")]
+            return [PaginationViewDataItem(field_name="Du hast keine Dateien hochgeladen. Wenn du welche hochladen" +
+                                                      " möchtest, dann schicke sie mir einfach per DM.")]
         except Exception as error:
             logger.error("problem while reading files from the system", exc_info=error)
 
