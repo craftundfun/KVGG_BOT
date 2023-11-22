@@ -1,0 +1,107 @@
+from datetime import datetime
+
+import discord.ui
+
+class PaginationViewDataItem:
+    field_name: str
+    field_value: str
+
+    def __init__(self, field_name: str, field_value: str):
+        self.field_name = field_name
+        self.field_value = field_value
+
+class PaginationView:
+    current_page : int = 1
+    seperator : int = 15
+
+    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], seperator=15, title=""):
+        self.seperator = seperator
+        self.title = title
+        self.member = ctx.user
+        self.data = data
+        self.ctx = ctx
+        self.view = discord.ui.View()
+        print("member")
+
+
+    async def send(self):
+        await self.ctx.response.defer(thinking=True)
+
+        if len(self.data) > self.seperator:
+            first_page_button = discord.ui.Button(label="|<", style=discord.ButtonStyle.green)
+            async def first_page_button_callback(interaction: discord.Interaction):
+                self.current_page = 1
+                until_item = self.seperator
+                await update_message(self.data[0:until_item])
+
+            first_page_button.callback = first_page_button_callback
+
+            previous_button = discord.ui.Button(label="<", style=discord.ButtonStyle.green)
+            async def previous_button_callback(interaction: discord.Interaction):
+                self.current_page -= 1
+                until_item = self.current_page * self.seperator
+                from_item = until_item - self.seperator
+                await update_message(self.data[from_item:until_item])
+
+            previous_button.callback = previous_button_callback
+
+            next_button = discord.ui.Button(label=">", style=discord.ButtonStyle.green)
+            async def next_button_callback(interaction: discord.Interaction):
+                self.current_page += 1
+                until_item = self.current_page * self.seperator
+                from_item = until_item - self.seperator
+                await update_message(self.data[from_item:until_item])
+
+            next_button.callback = next_button_callback
+
+            last_page_button = discord.ui.Button(label=">|", style=discord.ButtonStyle.green)
+            async def last_page_button_callback(interaction: discord.Interaction):
+                self.current_page += 1
+                until_item = int(len(self.data) / self.seperator) + 1
+                from_item = until_item - self.seperator
+                await update_message(self.data[from_item:])
+
+            last_page_button.callback = last_page_button_callback
+
+            self.view.add_item(first_page_button)
+            self.view.add_item(previous_button)
+            self.view.add_item(next_button)
+            self.view.add_item(last_page_button)
+
+        def update_button():
+
+            if self.current_page == 1:
+                first_page_button.disabled = True
+                previous_button.disabled = True
+            else:
+                first_page_button.disabled = False
+                previous_button.disabled = False
+
+            if self.current_page == len(self.data) // self.seperator + 1:
+                next_button.disabled = True
+                last_page_button.disabled = True
+            else:
+                next_button.disabled = False
+                last_page_button.disabled = False
+
+        async def update_message(data: list[PaginationViewDataItem]):
+            update_button()
+
+            for item in data:
+                print(item.field_name)
+
+            await self.ctx.response.edit_message(embed=self.create_embed(data), view=self)
+
+        await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view)
+
+    def create_embed(self, data: list[PaginationViewDataItem]):
+        embed = discord.Embed(title=self.title, color=discord.Color.dark_blue())
+        embed.set_author(name=self.member.name, icon_url=self.member.avatar.url)
+        embed.timestamp = datetime.now()
+        embed.set_footer(text=f"KVGG")
+
+        for item in data:
+            embed.add_field(name=item.field_name, value=item.field_value)
+
+        return embed
+
