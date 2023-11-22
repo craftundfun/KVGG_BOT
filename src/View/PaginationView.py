@@ -23,7 +23,7 @@ class PaginationView:
         self.member = ctx.user
         self.data = data
         self.ctx = ctx
-        self.view = discord.ui.View(timeout=3.0)
+        self.view = discord.ui.View(timeout=30.0)
         self.client = client
 
     async def send(self):
