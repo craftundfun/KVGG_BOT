@@ -340,7 +340,7 @@ async def testcommand(ctx: discord.interactions.Interaction):
     for i in range(25):
         data += [PaginationViewDataItem(field_name=f"Test{i}", field_value=f"Untertest{i}")]
 
-    view = PaginationView(data=data, ctx=ctx, title="botTest")
+    view = PaginationView(data=data, ctx=ctx, title="botTest", client=client)
     await view.send()
 
 

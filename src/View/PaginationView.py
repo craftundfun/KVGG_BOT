@@ -2,6 +2,10 @@ from datetime import datetime
 
 import discord.ui
 
+from Id.ChannelId import ChannelId
+from Id.GuildId import GuildId
+
+
 class PaginationViewDataItem:
     field_name: str
     field_value: str
@@ -14,13 +18,14 @@ class PaginationView:
     current_page : int = 1
     seperator : int = 15
 
-    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], seperator=15, title=""):
+    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], client: discord.Client, seperator=15, title=""):
         self.seperator = seperator
         self.title = title
         self.member = ctx.user
         self.data = data
         self.ctx = ctx
         self.view = discord.ui.View()
+        self.client = client
         print("member")
 
 
@@ -90,9 +95,20 @@ class PaginationView:
             for item in data:
                 print(item.field_name)
 
-            await self.ctx.response.edit_message(embed=self.create_embed(data), view=self)
+            print(type(self.message))
 
-        await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view)
+            message = await (self.client.get_guild(GuildId.GUILD_KVGG.value)
+                             .get_channel(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)
+                             .fetch_message(self.message))
+
+            print(self.message.id)
+            temp = await message.edit(embed=self.create_embed(data), view=self.view)
+            self.message = temp.id
+
+            print('lol2')
+
+        temp = await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view, wait=True)
+        self.message = temp.id
 
     def create_embed(self, data: list[PaginationViewDataItem]):
         embed = discord.Embed(title=self.title, color=discord.Color.dark_blue())
