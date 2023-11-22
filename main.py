@@ -6,7 +6,6 @@ import os.path
 import sys
 import time
 import traceback
-from datetime import datetime
 
 import discord
 import nest_asyncio
@@ -31,7 +30,6 @@ from src.Services.MemeService import MemeService
 from src.Services.QuotesManager import QuotesManager
 from src.Services.SoundboardService import SoundboardService
 from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
-from src.View.PaginationView import PaginationViewDataItem, PaginationView
 
 # set timezone to our time
 os.environ['TZ'] = 'Europe/Berlin'
@@ -326,22 +324,6 @@ commandService = CommandService(client)
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
-
-
-@tree.command(name="testcommand", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def testcommand(ctx: discord.interactions.Interaction):
-    response : discord.interactions.InteractionResponse = ctx.response
-
-    #service = SoundboardService(client)
-    #print(service.listPersonalSounds(ctx))
-
-    data = []
-
-    for i in range(100):
-        data += [PaginationViewDataItem(field_name=f"Test{i}", field_value=f"Untertest{i}")]
-
-    view = PaginationView(data=data, ctx=ctx, title="botTest", client=client)
-    await view.send()
 
 
 """ANSWER JOKE"""
