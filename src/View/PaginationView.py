@@ -2,9 +2,8 @@ from datetime import datetime
 
 import discord.ui
 
-from Id.ChannelId import ChannelId
-from Id.GuildId import GuildId
-
+from src.Id.ChannelId import ChannelId
+from src.Id.GuildId import GuildId
 
 class PaginationViewDataItem:
     field_name: str
@@ -26,11 +25,25 @@ class PaginationView:
         self.ctx = ctx
         self.view = discord.ui.View()
         self.client = client
-        print("member")
-
 
     async def send(self):
         await self.ctx.response.defer(thinking=True)
+
+        def update_button():
+
+            if self.current_page == 1:
+                first_page_button.disabled = True
+                previous_button.disabled = True
+            else:
+                first_page_button.disabled = False
+                previous_button.disabled = False
+
+            if self.current_page == len(self.data) // self.seperator + 1:
+                next_button.disabled = True
+                last_page_button.disabled = True
+            else:
+                next_button.disabled = False
+                last_page_button.disabled = False
 
         if len(self.data) > self.seperator:
             first_page_button = discord.ui.Button(label="|<", style=discord.ButtonStyle.green)
@@ -73,39 +86,17 @@ class PaginationView:
             self.view.add_item(next_button)
             self.view.add_item(last_page_button)
 
-        def update_button():
-
-            if self.current_page == 1:
-                first_page_button.disabled = True
-                previous_button.disabled = True
-            else:
-                first_page_button.disabled = False
-                previous_button.disabled = False
-
-            if self.current_page == len(self.data) // self.seperator + 1:
-                next_button.disabled = True
-                last_page_button.disabled = True
-            else:
-                next_button.disabled = False
-                last_page_button.disabled = False
+            update_button()
 
         async def update_message(data: list[PaginationViewDataItem]):
             update_button()
-
-            for item in data:
-                print(item.field_name)
-
-            print(type(self.message))
 
             message = await (self.client.get_guild(GuildId.GUILD_KVGG.value)
                              .get_channel(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)
                              .fetch_message(self.message))
 
-            print(self.message.id)
             temp = await message.edit(embed=self.create_embed(data), view=self.view)
             self.message = temp.id
-
-            print('lol2')
 
         temp = await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view, wait=True)
         self.message = temp.id
