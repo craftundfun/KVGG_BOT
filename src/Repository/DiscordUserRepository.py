@@ -75,7 +75,7 @@ def getDiscordUser(member: Member) -> dict | None:
 
     # update quickly changing attributes
     dcUserDb['profile_picture_discord'] = member.display_avatar
-    dcUserDb['username'] = member.nick if member.nick else member.name
+    dcUserDb['username'] = member.display_name
 
     return dcUserDb
 
