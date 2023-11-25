@@ -37,7 +37,7 @@ class CustomFormatter(logging.Formatter):
             sys.stdout.write(record.exc_text + "\n")
 
             send_exception_mail(record.message + f" ({appendix})\n" + record.exc_text)
-        elif record.levelno >= logging.WARNING:
+        elif record.levelno > logging.WARNING:
             send_exception_mail(record.message + f" ({appendix})\nNo Exception-Text available.")
 
         return formatter.format(record)
