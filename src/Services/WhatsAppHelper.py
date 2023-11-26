@@ -163,12 +163,13 @@ class WhatsAppHelper:
                 logger.debug("message for university channels")
                 self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
 
-    def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: str):
+    def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: str, member: Member):
         """
         If a DiscordUser switches channel within a timeinterval the unsent message will be edited
 
         :param dcUserDb: DiscordUser, who changed the channels
         :param channelName: New Channel
+        :param member: Member-Object of the user to get the names correctly
         :return:
         """
         logger.debug("editing message from %s caused by changing channels" % dcUserDb['username'])
@@ -184,7 +185,8 @@ class WhatsAppHelper:
             return
 
         for message in messages:
-            message['message'] = dcUserDb['username'] + " ist nun im Channel " + channelName + "."
+            message['message'] = (f"{member.nick if member.nick else member.name} "
+                                  f"({member.name} ist nun im Channel {channelName}.")
 
             query, nones = writeSaveQuery(
                 'message_queue',
@@ -282,7 +284,8 @@ class WhatsAppHelper:
 
             # if there are no join message send leave
             if joinMessages is None or len(joinMessages) == 0:
-                text = triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + ") hat seinen Channel verlassen."
+                text = triggerDcUserDb['username'] + " (" + usernameFromTriggerUser + (") hat seinen / ihren "
+                                                                                       "Channel verlassen.")
                 isJoinMessage = False
             # if there is a join message, delete them and don't send leave
             else:
