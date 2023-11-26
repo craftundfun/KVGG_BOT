@@ -165,7 +165,7 @@ class VoiceStateUpdateService:
                 dcUserDb['channel_id'] = voiceStateAfter.channel.id
 
                 self.__saveDiscordUser(dcUserDb)
-                self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name)
+                self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name, member)
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
 
