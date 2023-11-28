@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import logging.handlers
 import threading
-from asyncio import AbstractEventLoop, sleep
+from asyncio import AbstractEventLoop
 
 import discord
 from dateutil.relativedelta import relativedelta
@@ -10,6 +10,7 @@ from discord.ext import tasks, commands
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
@@ -46,7 +47,6 @@ midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 
 class BackgroundServices(commands.Cog):
     thread: threading.Thread | None = None
-    lastExecutionTime: datetime.datetime | None = None
 
     def __init__(self, client: discord.Client):
         self.client = client
@@ -75,19 +75,8 @@ class BackgroundServices(commands.Cog):
             loggerThread.info("Thread is still alive after one minute!")
             logger.error("Thread is still alive after one minute!")
 
-        if not self.lastExecutionTime:
-            loggerThread.debug("thread was not executed before => no execution time")
-        elif (time := (datetime.datetime.now() - self.lastExecutionTime)).seconds < 58:
-            logger.error(f"Thread tried to start to fast since last execution! "
-                         f"Time: {time.seconds} seconds since last run. Entering fail-safe mode.")
-            loggerThread.info("Thread tried to start to fast!")
-
-            await sleep(60 - time.seconds - 1)
-
-            logger.error(f"Slept {60 - time.seconds - 1} seconds to avoid failure!")
-            loggerThread.info(f"Slept {60 - time.seconds - 1} seconds to avoid failure!")
-
-        self.lastExecutionTime = datetime.datetime.now()
+            # so I will notice immediately
+            await self.client.get_user(DiscordUserId.BJARNE.value).send("there was a problem with the thread")
 
         def minutelyJobs(loop: AbstractEventLoop):
             logger.debug("running minutely-job")
