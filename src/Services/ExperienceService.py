@@ -532,7 +532,8 @@ class ExperienceService:
 
             return "Es ist ein Fehler aufgetreten!"
 
-        reply = "%s hat bereits %d XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']), xp['xp_amount'])
+        reply = "%s hat bereits %s XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']),
+                                                       '{:,}'.format(xp['xp_amount']).replace(',', '.'))
         reply += self.__getDoubleXpWeekendInformation()
 
         logger.debug("replying xp amount")
