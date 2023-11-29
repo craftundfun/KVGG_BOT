@@ -191,17 +191,14 @@ class BackgroundServices(commands.Cog):
             joinedAt = utcJoinedAt.replace(tzinfo=tz)
             now = datetime.datetime.now().replace(tzinfo=tz)
 
-            logger.debug(f"checking anniversary for: {member.nick if member.nick else member.name}")
+            logger.debug(f"checking anniversary for: {member.display_name}")
             logger.debug(f"comparing dates - joined at: {joinedAt} vs now: {now}")
 
             if not (joinedAt.month == now.month and joinedAt.day == now.day):
                 continue
 
             difference = relativedelta(now, joinedAt)
-            years = difference.years
-
-            if years == 0:
-                continue
+            years = difference.years + 1
 
             await achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
 
