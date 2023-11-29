@@ -12,6 +12,7 @@ from discord import Message, Client, Member, VoiceChannel
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
+from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id import ChannelId
@@ -219,20 +220,16 @@ class ProcessUserInput:
         membersInStartVc = channelStart.members
         loop = asyncio.get_event_loop()
 
-        async def asyncioGenerator():
-            try:
-                await asyncio.gather(*[member.move_to(channel) for member in membersInStartVc])
-            except discord.Forbidden:
-                logger.error("dont have rights move the users!")
-
-                return "Ich habe dazu leider keine Berechtigung!"
-            except discord.HTTPException as e:
-                logger.warning("something went wrong!", exc_info=e)
-
-                return "Irgendetwas ist schief gelaufen!"
-
         try:
-            loop.run_until_complete(asyncioGenerator())
+            loop.run_until_complete(moveMembers(membersInStartVc, channel))
+        except discord.Forbidden:
+            logger.error("dont have rights move the users!")
+
+            return "Ich habe dazu leider keine Berechtigung!"
+        except discord.HTTPException as e:
+            logger.warning("something went wrong!", exc_info=e)
+
+            return "Irgendetwas ist schief gelaufen!"
         except Exception as e:
             logger.error("something went wrong while using asyncio!", exc_info=e)
 
