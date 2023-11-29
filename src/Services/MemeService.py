@@ -10,6 +10,7 @@ from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
+from src.Services.NotificationService import NotificationService
 from src.Services.ProcessUserInput import getTagStringFromId
 
 logger = logging.getLogger("KVGG_BOT")
@@ -39,7 +40,8 @@ class MemeService:
                 logger.error("couldn't delete only-text message from meme channel", exc_info=error)
 
             try:
-                await sendDM(message.author, "Bitte sende nur Bilder in den Meme-Channel!")
+                await sendDM(message.author, "Bitte sende nur Bilder in den Meme-Channel!"
+                             + NotificationService.separator)
             except Exception as error:
                 logger.error(f"couldn't send DM to {message.author}", exc_info=error)
 
@@ -66,7 +68,8 @@ class MemeService:
             logger.debug("saved new meme to database")
 
         try:
-            await sendDM(message.author, "Dein Meme wurde für den monatlichen Contest eingetragen!")
+            await sendDM(message.author, "Dein Meme wurde für den monatlichen Contest eingetragen!"
+                         + NotificationService.separator)
         except Exception as error:
             logger.error(f"couldn't send DM to {message.author.name}", exc_info=error)
 

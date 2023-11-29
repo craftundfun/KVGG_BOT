@@ -16,6 +16,7 @@ from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.SendDM import sendDM
 from src.Id import Categories
 from src.Id.GuildId import GuildId
+from src.Services.NotificationService import NotificationService
 from src.Services.VoiceClientService import VoiceClientService
 from src.View.PaginationView import PaginationViewDataItem
 
@@ -126,7 +127,7 @@ class SoundboardService:
         asyncio.run_coroutine_threadsafe(
             sendDM(
                 self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
-                "Deine Datei wird nun verarbeitet..."
+                "Deine Datei wird nun verarbeitet..." + NotificationService.separator,
             ),
             loop,
         )
@@ -136,7 +137,7 @@ class SoundboardService:
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuche eine andere Datei " +
-                    "oder wende dich an uns."
+                    "oder wende dich an uns." + NotificationService.separator,
                 ),
                 loop,
             )
@@ -158,7 +159,7 @@ class SoundboardService:
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Beim Speichern deiner Datei ist ein Fehler aufgetreten. Versuch eine andere Datei " +
-                    "oder wende dich an unserem Support."
+                    "oder wende dich an unserem Support." + NotificationService.separator,
                 ),
                 loop,
             )
@@ -175,6 +176,7 @@ class SoundboardService:
                     sendDM(
                         self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                         "Bitte lade eine .mp3 Datei hoch die weniger als 20 Sekunden lang ist."
+                        + NotificationService.separator,
                     ),
                     loop,
                 )
@@ -190,7 +192,7 @@ class SoundboardService:
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Bitte lade eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten, melde " +
-                    "dich bei unserem Support."
+                    "dich bei unserem Support." + NotificationService.separator
                 ),
                 loop,
             )
@@ -201,6 +203,7 @@ class SoundboardService:
             sendDM(
                 self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                 f"Deine Datei ({os.path.basename(url_parts.path)}) wurde erfolgreich gespeichert."
+                + NotificationService.separator,
             ),
             loop,
         )
