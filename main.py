@@ -9,7 +9,7 @@ import traceback
 
 import discord
 import nest_asyncio
-from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, Reaction, \
+from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
     RawReactionActionEvent
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
@@ -91,22 +91,6 @@ class MyClient(discord.Client):
 
     async def on_member_remove(self, member):
         pass
-
-    async def on_reaction_add(self, reaction: Reaction, member: Member):
-        try:
-            memes = MemeService()
-        except ConnectionError as error:
-            logger.error("failure to start MemeService", exc_info=error)
-        else:
-            await memes.changeLikeCounterOfMessage(reaction.message)
-
-    async def on_reaction_remove(self, reaction: Reaction, member: Member):
-        try:
-            memes = MemeService()
-        except ConnectionError as error:
-            logger.error("failure to start MemeService", exc_info=error)
-        else:
-            await memes.changeLikeCounterOfMessage(reaction.message)
 
     async def __prepareForMemeService(self, payload: RawReactionActionEvent):
         channel = client.get_channel(payload.channel_id)
