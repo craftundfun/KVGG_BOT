@@ -200,7 +200,6 @@ class BackgroundServices(commands.Cog):
             difference = relativedelta(now, joinedAt)
             years = difference.years + 1
 
-
             await achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
 
     @tasks.loop(time=midnight)
