@@ -1,8 +1,10 @@
+import asyncio
 import logging
 
 import discord.errors
 from discord import Client, Member, VoiceChannel, CategoryChannel
 
+from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
 from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
@@ -88,11 +90,12 @@ class ChannelService:
             return "Dieser Command funktioniert nicht in deiner aktuellen VoiceChannel-Kategorie."
 
         if voiceChannel := await self.__createNewChannel(member_1Voice.channel.category):
+            loop = asyncio.get_event_loop()
+
             try:
-                await member_2.move_to(voiceChannel)
-                await member_1.move_to(voiceChannel)
+                loop.run_until_complete(moveMembers([member_1, member_2], voiceChannel))
             except Exception as error:
-                logger.error("couldn't move Paul and Rene into newly created channel", exc_info=error)
+                logger.error("couldn't move %s (%d) into new channel (%d)" % voiceChannel.id, exc_info=error)
 
                 return "Es ist ein Fehler aufgetreten."
             else:
@@ -147,13 +150,18 @@ class ChannelService:
             return
 
         members = member.voice.channel.members
+        loop = asyncio.get_event_loop()
 
-        for user in members:
-            try:
-                await user.move_to(channel, reason="moved due to 2+ users in waiting for players")
-            except Exception as error:
-                logger.error("couldn't move %s (%d) into new channel (%d)" % (user.name, user.id, channel.id),
-                             exc_info=error)
+        try:
+            loop.run_until_complete(moveMembers(members, channel))
+        except discord.Forbidden:
+            logger.error("dont have rights move the users!")
+
+            return
+        except Exception as error:
+            logger.error("couldn't move %s (%d) into new channel (%d)" % channel.id, exc_info=error)
+
+            return
 
         # send DMs after moving all users to prioritize and speed up the moving process
         for user in members:
