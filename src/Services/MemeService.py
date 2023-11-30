@@ -1,6 +1,7 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
+import dateutil.relativedelta
 from discord import Message, Client
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
@@ -116,12 +117,12 @@ class MemeService:
         :param offset: Offset in the database results, increase if we couldn't get a message previously
         """
         query = "SELECT * FROM meme WHERE created_at > %s ORDER BY likes DESC LIMIT 1 OFFSET %s"
-        today = datetime.today()
-        firstOfMonth = today.replace(day=1)
-        firstOfMonthOfLastMonth = firstOfMonth - timedelta(days=firstOfMonth.day)
-        firstOfMonthOfLastMonth = firstOfMonthOfLastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        if not (meme := self.database.fetchOneResult(query, (firstOfMonthOfLastMonth, offset,))):
+        now = datetime.now()
+        firstOfMonth = now - dateutil.relativedelta.relativedelta(month=1)
+        firstOfMonthCorrectTime = firstOfMonth.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if not (meme := self.database.fetchOneResult(query, (firstOfMonthCorrectTime, offset,))):
             logger.error("couldn't fetch any memes from database")
 
             return
