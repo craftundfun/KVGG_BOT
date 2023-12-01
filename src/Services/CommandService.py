@@ -63,6 +63,8 @@ class CommandService:
     def __init__(self, client: Client):
         self.client = client
 
+        self.apiService = ApiServices()
+
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
         Sets the interaction to thinking
@@ -134,7 +136,7 @@ class CommandService:
         try:
             match command:
                 case Commands.JOKE:
-                    answer = await ApiServices().getJoke(**kwargs)
+                    answer = await self.apiService.getJoke(**kwargs)
 
                 case Commands.MOVE:
                     try:
@@ -264,13 +266,13 @@ class CommandService:
                     answer = WhatsAppHelper(self.client).listSuspendSettings(**kwargs)
 
                 case Commands.WEATHER:
-                    answer = await ApiServices().getWeather(**kwargs)
+                    answer = await self.apiService.getWeather(**kwargs)
 
                 case Commands.CURRENCY_CONVERTER:
-                    answer = await ApiServices().convertCurrency(**kwargs)
+                    answer = await self.apiService.convertCurrency(**kwargs)
 
                 case Commands.QRCODE:
-                    answer = await ApiServices().generateQRCode(**kwargs)
+                    answer = await self.apiService.generateQRCode(**kwargs)
 
                     if isinstance(answer, discord.File):
                         try:
