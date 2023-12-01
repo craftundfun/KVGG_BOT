@@ -23,7 +23,6 @@ from src.View.PaginationView import PaginationViewDataItem
 logger = logging.getLogger("KVGG_BOT")
 
 
-
 class SoundboardService:
     path = './data/sounds/'
     basepath = Path(__file__).parent.parent.parent
@@ -31,7 +30,6 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
-    @validateKeys
     async def deletePersonalSound(self, ctx: discord.interactions.Interaction, row: int) -> str:
         """
         Deletes the file at position row.
@@ -62,7 +60,6 @@ class SoundboardService:
         else:
             return "Deine Datei wurde erfolgreich gelöscht."
 
-    @validateKeys
     async def listPersonalSounds(self, ctx: discord.interactions.Interaction) -> list[PaginationViewDataItem]:
         path = os.path.abspath(
             os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{ctx.user.id}")
@@ -74,7 +71,8 @@ class SoundboardService:
             for index, filepath in enumerate(os.listdir(path), start=1):
                 if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3':
                     seconds = MP3(os.path.join(path, filepath)).info.length
-                    data += [PaginationViewDataItem(field_name=f"{index}. {filepath}", field_value= f"{str(seconds)[:4]} Sekunden")]
+                    data += [PaginationViewDataItem(field_name=f"{index}. {filepath}",
+                                                    field_value=f"{str(seconds)[:4]} Sekunden")]
 
         except FileNotFoundError as error:
             logger.warning("user has no sounds uploaded yet", exc_info=error)
@@ -230,7 +228,6 @@ class SoundboardService:
             threading.Thread(target=self.downloadFileFromURL, args=(message, url, loop)).start()
             logger.debug(f"started thread for downloading '{url}'")
 
-    @validateKeys
     async def playSound(self, member: Member, sound: str, ctx: discord.interactions.Interaction) -> str:
         """
         Starts to play the specified sounds in the channel from the member.

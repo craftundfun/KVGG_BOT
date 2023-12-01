@@ -31,8 +31,17 @@ class VoiceStateUpdateService:
         self.client = client
         self.waHelper = WhatsAppHelper(self.client)
         self.logService = LogService(self.client)
+        self.notificationService = NotificationService(self.client)
+        self.felixCounter = FelixCounter()
+        self.channelService = ChannelService(self.client)
+        self.questService = QuestService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
+        """
+        :raise ConnectionError: If the database connection cant be established
+        """
+        database = Database()
+
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
 
         if not member:
@@ -44,7 +53,7 @@ class VoiceStateUpdateService:
 
             return
 
-        dcUserDb = getDiscordUser(member)
+        dcUserDb = getDiscordUser(member, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
@@ -73,48 +82,36 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
 
             try:
-                notificationService = NotificationService(self.client)
-
-                await notificationService.runNotificationsForMember(member, dcUserDb)
-            except ConnectionError as error:
-                logger.error("failure to start NotificationService", exc_info=error)
+                await self.notificationService.runNotificationsForMember(member, dcUserDb)
             except Exception as error:
-                logger.error("a problem occurred in runNotificationsForMember", exc_info=error)
+                logger.error(f"failure while running notifications for {member}", exc_info=error)
 
             try:
-                felixCounter = FelixCounter()
-
-                await felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
-            except ConnectionError as error:
-                logger.error("failure to start FelixCounter", exc_info=error)
+                await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
             except Exception as error:
-                logger.error("a problem occurred in checkFelixCounterAndSendStopMessage", exc_info=error)
+                logger.error(f"failure while running felix timer for {member}", exc_info=error)
 
             # save user so a whatsapp message can be sent properly
-            self.__saveDiscordUser(dcUserDb)
-            self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+            self._saveDiscordUser(dcUserDb, database)
 
             try:
-                channelService = ChannelService(self.client)
-
-                # move is the last step to avoid channel confusion
-                await channelService.checkChannelForMoving(member)
-            except ConnectionError as error:
-                logger.error("failure to start ChannelService", exc_info=error)
+                self.waHelper.sendOnlineNotification(member, voiceStateAfter)
             except Exception as error:
-                logger.error("a problem occurred in checkChannelForMoving", exc_info=error)
+                logger.error(f"failure while running sendOnlineNotification for {member}", exc_info=error)
+
+            try:
+                # move is the last step to avoid channel confusion
+                await self.channelService.checkChannelForMoving(member)
+            except Exception as error:
+                logger.error(f"failure while running checkChannelForMoving for {member}", exc_info=error)
 
             # create new quests and check the progress of existing ones
             try:
-                questService = QuestService(self.client)
-
-                await questService.checkQuestsForJoinedMember(member)
-                await questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
-                await questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
-            except ConnectionError as error:
-                logger.error("failure to start QuestService", exc_info=error)
+                await self.questService.checkQuestsForJoinedMember(member)
+                await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
+                await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             except Exception as error:
-                logger.error("a problem occurred in checkQuestsForJoinedMember", exc_info=error)
+                logger.error(f"failure while running addProgressToQuest for {member}", exc_info=error)
 
             try:
                 await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.JOINED_VOICE_CHAT)
@@ -157,15 +154,20 @@ class VoiceStateUpdateService:
 
                 dcUserDb['username'] = member.display_name
 
-                self.__saveDiscordUser(dcUserDb)
+                self._saveDiscordUser(dcUserDb, database)
             # channel changed
             else:
                 logger.debug("%s changed channel" % member.name)
 
                 dcUserDb['channel_id'] = voiceStateAfter.channel.id
 
-                self.__saveDiscordUser(dcUserDb)
-                self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name, member)
+                self._saveDiscordUser(dcUserDb, database)
+
+                try:
+                    self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name, member)
+                except Exception as error:
+                    logger.error(f"failure while running switchChannelFromOutstandingMessages for {member}",
+                                 exc_info=error)
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
 
@@ -178,7 +180,11 @@ class VoiceStateUpdateService:
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
             logger.debug("%s left channel" % member.name)
-            self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
+
+            try:
+                self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
+            except Exception as error:
+                logger.error(f"failure while running switchChannelFromOutstandingMessages for {member}", exc_info=error)
 
             dcUserDb['channel_id'] = None
             dcUserDb['joined_at'] = None
@@ -188,7 +194,7 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
             dcUserDb['last_online'] = datetime.now()
 
-            self.__saveDiscordUser(dcUserDb)
+            self._saveDiscordUser(dcUserDb, database)
 
             await ChannelService.manageKneipe(voiceStateBefore.channel)
 
@@ -199,25 +205,20 @@ class VoiceStateUpdateService:
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 
-    def __saveDiscordUser(self, dcUserDb: dict):
+    def _saveDiscordUser(self, dcUserDb: dict, database: Database):
         """
         Saves the given DiscordUser to our database
 
         :param dcUserDb: DiscordUser to save
         :return:
         """
-        try:
-            database = Database()
-        except ConnectionError as error:
-            logger.error("couldn't establish database connection", exc_info=error)
-        else:
-            query, nones = writeSaveQuery(
-                'discord',
-                dcUserDb['id'],
-                dcUserDb
-            )
+        query, nones = writeSaveQuery(
+            'discord',
+            dcUserDb['id'],
+            dcUserDb
+        )
 
-            if not database.runQueryOnDatabase(query, nones):
-                logger.critical("couldn't save DiscordUser to database")
-            else:
-                logger.debug("updated %s" % dcUserDb['username'])
+        if not database.runQueryOnDatabase(query, nones):
+            logger.critical("couldn't save DiscordUser to database")
+        else:
+            logger.debug("updated %s" % dcUserDb['username'])

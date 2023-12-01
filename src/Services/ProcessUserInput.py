@@ -10,7 +10,6 @@ import discord
 from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
@@ -95,8 +94,12 @@ class ProcessUserInput:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
+
+        self.questService = QuestService(self.client)
+        self.experienceService = ExperienceService(self.client)
+        self.relationService = RelationService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -106,11 +109,13 @@ class ProcessUserInput:
         :param channel: Channel, where the interaction was used
         :param command: Whether the message was a command.
         If yes, the Quest won't be checked for a message.
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("increasing message-count for %s" % member.name)
 
-        dcUserDb = getDiscordUser(member)
+        database = Database()
+        dcUserDb = getDiscordUser(member, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -132,29 +137,19 @@ class ProcessUserInput:
                 dcUserDb['message_count_all_time'] = 1
 
             if not command:
-                # check progress for sending a message
-                try:
-                    questService = QuestService(self.client)
-                except ConnectionError as error:
-                    logger.error("failure to start QuestService", exc_info=error)
-                else:
-                    await questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
+                await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
 
-            try:
-                xp = ExperienceService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start ExperienceService", exc_info=error)
-            else:
-                await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+            await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
-        if self.__saveDiscordUserToDatabase(dcUserDb):
+        if self._saveDiscordUserToDatabase(dcUserDb, database):
             logger.debug("saved changes to database")
 
-    def __saveDiscordUserToDatabase(self, data: dict) -> bool:
+    def _saveDiscordUserToDatabase(self, data: dict, database: Database) -> bool:
         """
         Helper to save a DiscordUser from this class into the database
 
         :param data: Data
+        :param database:
         :return:
         """
         query, nones = writeSaveQuery(
@@ -163,7 +158,7 @@ class ProcessUserInput:
             data
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved changed DiscordUser to database")
 
             return True
@@ -172,7 +167,6 @@ class ProcessUserInput:
 
         return False
 
-    @validateKeys
     async def moveUsers(self, channel: VoiceChannel, member: Member) -> string:
         """
         Moves all users from the initiator channel to the given one
@@ -239,7 +233,6 @@ class ProcessUserInput:
 
         return "Alle User wurden erfolgreich verschoben!"
 
-    @validateKeys
     async def accessTimeAndEdit(self, timeName: str, user: Member, member: Member, param: int | None) -> str:
         """
         Answering given Time from given User or adds (subtracts) given amount
@@ -248,8 +241,11 @@ class ProcessUserInput:
         :param timeName: Time-type
         :param member: Requesting Member
         :param param: Optional amount of time added or subtracted
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
         if timeName == "online":
             time = OnlineTime.OnlineTime()
         elif timeName == "stream":
@@ -263,7 +259,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
-        dcUserDb = getDiscordUser(user)
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -288,7 +284,7 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             logger.debug("saved changes to database")
 
@@ -302,58 +298,45 @@ class ProcessUserInput:
         else:
             return time.getStringForTime(dcUserDb)
 
-    @validateKeys
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:
         """
         Returns the leaderboard of our stats in the database
 
         :param type:
-        :param member: Member, who requested the leaderboard
+        :param member: Member who requested the leaderboard
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
+        database = Database()
+
         if type == "xp":
-            try:
-                es = ExperienceService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start ExperienceService", exc_info=error)
+            return self.experienceService.sendXpLeaderboard(member=member)
 
-                answer = "Es ist ein Fehler aufgetreten."
-            else:
-                return es.sendXpLeaderboard(member=member)
+        if type == "relations":
+            logger.debug("leaderboard for relations")
 
-        try:
-            relationService = RelationService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start RelationService", exc_info=error)
+            answer = "----------------------------\n"
+            answer += "__**Leaderboard - Relationen**__\n"
+            answer += "----------------------------\n\n"
 
-            if type == "relations":
-                return "Es gab ein Problem."
-        else:
-            if type == "relations":
-                logger.debug("leaderboard for relations")
+            if online := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
+                answer += "- __Online-Pärchen__:\n"
+                answer += online
+                answer += "\n"
 
-                answer = "----------------------------\n"
-                answer += "__**Leaderboard - Relationen**__\n"
-                answer += "----------------------------\n\n"
+            if stream := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
+                answer += "- __Stream-Pärchen__:\n"
+                answer += stream
+                answer += "\n"
 
-                if online := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                    answer += "- __Online-Pärchen__:\n"
-                    answer += online
-                    answer += "\n"
+            if university := await self.relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
+                answer += "- __Lern-Pärchen__:\n"
+                answer += university
+                answer += "\n"
 
-                if stream := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                    answer += "- __Stream-Pärchen__:\n"
-                    answer += stream
-                    answer += "\n"
-
-                if university := await relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                    answer += "- __Lern-Pärchen__:\n"
-                    answer += university
-                    answer += "\n"
-
-                return answer
+            return answer
 
         # online time
         query = "SELECT username, formated_time " \
@@ -362,16 +345,15 @@ class ProcessUserInput:
                 "ORDER BY time_online DESC " \
                 "LIMIT 3"
 
-        usersOnlineTime = self.database.fetchAllResults(query)
+        usersOnlineTime = database.fetchAllResults(query)
 
         # stream time
         query = "SELECT username, formatted_stream_time " \
                 "FROM discord " \
-                "WHERE time_streamed IS NOT NULL " \
                 "ORDER BY time_streamed DESC " \
                 "LIMIT 3"
 
-        usersStreamTime = self.database.fetchAllResults(query)
+        usersStreamTime = database.fetchAllResults(query)
 
         # message count
         query = "SELECT username, message_count_all_time " \
@@ -380,7 +362,7 @@ class ProcessUserInput:
                 "ORDER BY message_count_all_time DESC " \
                 "LIMIT 3"
 
-        usersMessageCount = self.database.fetchAllResults(query)
+        usersMessageCount = database.fetchAllResults(query)
 
         # Rene counter
         query = "SELECT username, rene_counter " \
@@ -389,7 +371,7 @@ class ProcessUserInput:
                 "ORDER BY rene_counter DESC " \
                 "LIMIT 3"
 
-        usersReneCounter = self.database.fetchAllResults(query)
+        usersReneCounter = database.fetchAllResults(query)
 
         # Felix counter
         query = "SELECT username, felix_counter " \
@@ -398,7 +380,7 @@ class ProcessUserInput:
                 "ORDER BY felix_counter DESC " \
                 "LIMIT 3"
 
-        usersFelixCounter = self.database.fetchAllResults(query)
+        usersFelixCounter = database.fetchAllResults(query)
 
         # Paul counter
         query = "SELECT username, paul_counter " \
@@ -407,7 +389,7 @@ class ProcessUserInput:
                 "ORDER BY paul_counter DESC " \
                 "LIMIT 3"
 
-        usersPaulCounter = self.database.fetchAllResults(query)
+        usersPaulCounter = database.fetchAllResults(query)
 
         # Bjarne counter
         query = "SELECT username, bjarne_counter " \
@@ -416,7 +398,7 @@ class ProcessUserInput:
                 "ORDER BY bjarne_counter DESC " \
                 "LIMIT 3"
 
-        usersBjarneCounter = self.database.fetchAllResults(query)
+        usersBjarneCounter = database.fetchAllResults(query)
 
         # JJ counter
         query = "SELECT username, jj_counter " \
@@ -425,7 +407,7 @@ class ProcessUserInput:
                 "ORDER BY jj_counter DESC " \
                 "LIMIT 3"
 
-        usersJjCounter = self.database.fetchAllResults(query)
+        usersJjCounter = database.fetchAllResults(query)
 
         # Oleg counter
         query = "SELECT username, oleg_counter " \
@@ -434,7 +416,7 @@ class ProcessUserInput:
                 "ORDER BY oleg_counter DESC " \
                 "LIMIT 3"
 
-        usersOlegCounter = self.database.fetchAllResults(query)
+        usersOlegCounter = database.fetchAllResults(query)
 
         # Carl counter
         query = "SELECT username, carl_counter " \
@@ -443,7 +425,7 @@ class ProcessUserInput:
                 "ORDER BY carl_counter DESC " \
                 "LIMIT 3"
 
-        usersCarlCounter = self.database.fetchAllResults(query)
+        usersCarlCounter = database.fetchAllResults(query)
 
         # Cookie counter
         query = "SELECT username, cookie_counter " \
@@ -452,7 +434,7 @@ class ProcessUserInput:
                 "ORDER BY cookie_counter DESC " \
                 "LIMIT 3"
 
-        usersCookieCounter = self.database.fetchAllResults(query)
+        usersCookieCounter = database.fetchAllResults(query)
 
         answer = "--------------\n"
         answer += "__**Leaderboard**__\n"
@@ -464,11 +446,9 @@ class ProcessUserInput:
             for index, user in enumerate(usersOnlineTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
 
-        # check if there was no error creating the service
-        if relationService in locals():
-            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
-                answer += "\n- __Online-Pärchen__:\n"
-                answer += relationAnswer
+        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
+            answer += "\n- __Online-Pärchen__:\n"
+            answer += relationAnswer
 
         if usersStreamTime and len(usersStreamTime) != 0:
             answer += "\n- __Stream-Zeit__:\n"
@@ -476,10 +456,9 @@ class ProcessUserInput:
             for index, user in enumerate(usersStreamTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
-        if relationService in locals():
-            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
-                answer += "\n- __Stream-Pärchen__:\n"
-                answer += relationAnswer
+        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
+            answer += "\n- __Stream-Pärchen__:\n"
+            answer += relationAnswer
 
         if usersMessageCount and len(usersMessageCount) != 0:
             answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
@@ -487,20 +466,20 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter())
-        answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter())
-        answer += self.__leaderboardHelperCounter(usersPaulCounter, PaulCounter())
-        answer += self.__leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
-        answer += self.__leaderboardHelperCounter(usersOlegCounter, OlegCounter())
-        answer += self.__leaderboardHelperCounter(usersJjCounter, JjCounter())
-        answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter())
-        answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter())
+        answer += self._leaderboardHelperCounter(usersReneCounter, ReneCounter())
+        answer += self._leaderboardHelperCounter(usersFelixCounter, FelixCounter())
+        answer += self._leaderboardHelperCounter(usersPaulCounter, PaulCounter())
+        answer += self._leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
+        answer += self._leaderboardHelperCounter(usersOlegCounter, OlegCounter())
+        answer += self._leaderboardHelperCounter(usersJjCounter, JjCounter())
+        answer += self._leaderboardHelperCounter(usersCookieCounter, CookieCounter())
+        answer += self._leaderboardHelperCounter(usersCarlCounter, CarlCounter())
 
         logger.debug("sending leaderboard")
 
         return answer
 
-    def __leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
+    def _leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
         """
         Helper for listing a leaderboard entry for given counter
 
@@ -525,7 +504,6 @@ class ProcessUserInput:
 
         return answer
 
-    @validateKeys
     async def sendRegistrationLink(self, member: Member):
         """
         Sends an individual invitaion link to the member who requested it
@@ -549,7 +527,6 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    @validateKeys
     async def accessNameCounterAndEdit(self, counterName: str,
                                        user: Member,
                                        member: Member,
@@ -561,8 +538,11 @@ class ProcessUserInput:
         :param counterName: Chosen counter-type
         :param member: Member who requested the counter
         :param param: Optional amount of time to add / subtract
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
         match counterName:
             case "Bjarne":
                 counter = BjarneCounter()
@@ -587,7 +567,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
-        dcUserDb = getDiscordUser(user)
+        dcUserDb = getDiscordUser(user, database)
         answerAppendix = ""
 
         if not dcUserDb:
@@ -648,7 +628,7 @@ class ProcessUserInput:
             dcUserDb,
         )
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't save changes to database")
 
             return "Es ist ein Fehler aufgetreten."
@@ -680,17 +660,16 @@ class ProcessUserInput:
             logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counter.name}-Counter")
 
             if await TTSService().generateTTS(tts):
-                await VoiceClientService(self.client).play(user.voice.channel,
-                                                           "./data/sounds/tts.mp3",
-                                                           None,
-                                                           True, )
+                await self.voiceClientService.play(user.voice.channel,
+                                                   "./data/sounds/tts.mp3",
+                                                   None,
+                                                   True, )
 
         return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
                                                                getTagStringFromId(str(user.id)),
                                                                value)
                 + answerAppendix)
 
-    @validateKeys
     async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None) -> str:
         """
         Handles the Feli-Timer for the given user
@@ -699,11 +678,13 @@ class ProcessUserInput:
         :param member: Member, who raised the command
         :param action: Chosen action, start or stop
         :param time: Optional time to start the timer at
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("handling Felix-Timer by %s" % member.name)
 
-        dcUserDb = getDiscordUser(user)
+        database = Database()
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -758,7 +739,7 @@ class ProcessUserInput:
                 return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
             counter.setFelixTimer(date)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
@@ -790,7 +771,7 @@ class ProcessUserInput:
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
             counter.setFelixTimer(None)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde beendet!" % (counter.getNameOfCounter()))

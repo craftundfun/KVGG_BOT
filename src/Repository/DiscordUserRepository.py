@@ -10,21 +10,15 @@ from src.Services.Database import Database
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getDiscordUser(member: Member) -> dict | None:
+def getDiscordUser(member: Member, database: Database) -> dict | None:
     """
     Returns the user from the database.
     If he doesn't exist yet, a new entry is created (only if a member was given)
 
     :param member: Member to retrieve all data from
+    :param database:
     :return: None | Dict[Any, Any] DiscordUser
     """
-    try:
-        database = Database()
-    except ConnectionError as error:
-        logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-        return None
-
     if member is None or isinstance(member, User):
         logger.debug("member was None or not the correct format")
 
@@ -80,21 +74,15 @@ def getDiscordUser(member: Member) -> dict | None:
     return dcUserDb
 
 
-def getDiscordUserById(userId: int) -> dict | None:
+def getDiscordUserById(userId: int, database: Database) -> dict | None:
     """
     Returns a discord user from the database.
     Doesn't create one if missing or else.
 
     :param userId: Int - ID of the user
+    :param database:
     :return: dict | None
     """
-    try:
-        database = Database()
-    except ConnectionError as error:
-        logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-        return None
-
     query = "SELECT * FROM discord WHERE user_id = %s"
     dcUserDb = database.fetchOneResult(query, (userId,))
 

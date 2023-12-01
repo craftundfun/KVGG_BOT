@@ -2,8 +2,8 @@ from datetime import datetime
 
 import discord.ui
 
-from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+
 
 class PaginationViewDataItem:
     field_name: str
@@ -13,11 +13,13 @@ class PaginationViewDataItem:
         self.field_name = field_name
         self.field_value = field_value
 
-class PaginationView:
-    current_page : int = 1
-    seperator : int = 15
 
-    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], client: discord.Client, defer=True, seperator=15, title=""):
+class PaginationView:
+    current_page: int = 1
+    seperator: int = 15
+
+    def __init__(self, ctx: discord.Interaction, data: list[PaginationViewDataItem], client: discord.Client, defer=True,
+                 seperator=15, title=""):
         self.seperator = seperator
         self.title = title
         self.member = ctx.user
@@ -26,9 +28,8 @@ class PaginationView:
         self.view = discord.ui.View(timeout=20.0)
         self.client = client
         self.last_page = int(len(self.data) / self.seperator) + 1
-        self.is_paginated =  len(self.data) > self.seperator
+        self.is_paginated = len(self.data) > self.seperator
         self.defer = defer
-
 
     async def send(self):
         """
@@ -74,6 +75,7 @@ class PaginationView:
             previous_button.callback = previous_button_callback
 
             next_button = discord.ui.Button(label=">", style=discord.ButtonStyle.green)
+
             async def next_button_callback(interaction: discord.Interaction):
                 self.current_page += 1
                 until_item = self.current_page * self.seperator
@@ -128,8 +130,8 @@ class PaginationView:
 
             await interaction.response.edit_message(embed=self.create_embed(data), view=self.view)
 
-        self.message = await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]), view=self.view, wait=True)
-
+        self.message = await self.ctx.followup.send(embed=self.create_embed(self.data[0:self.seperator]),
+                                                    view=self.view, wait=True)
 
     def create_embed(self, data: list[PaginationViewDataItem]) -> discord.Embed:
         """
@@ -152,4 +154,3 @@ class PaginationView:
             embed.add_field(name=item.field_name, value=item.field_value)
 
         return embed
-

@@ -1,3 +1,4 @@
+import inspect
 import logging
 from enum import Enum
 
@@ -63,6 +64,18 @@ class CommandService:
     def __init__(self, client: Client):
         self.client = client
 
+        self.apiService = ApiServices()
+        self.userInputService = ProcessUserInput(self.client)
+        self.quotesManager = QuotesManager(self.client)
+        self.userSettings = UserSettings()
+        self.experienceService = ExperienceService(self.client)
+        self.whatsappHelper = WhatsAppHelper(self.client)
+        self.reminderService = ReminderService(self.client)
+        self.soundboardService = SoundboardService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
+        self.channelService = ChannelService(self.client)
+        self.questService = QuestService(self.client)
+
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
         Sets the interaction to thinking
@@ -98,24 +111,24 @@ class CommandService:
         :return:
         """
         try:
-            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel, True)
+            await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
         try:
-            for part in splitStringAtMaxLength(answer):
-                await ctx.followup.send(part)
+            # special case for QR-Codes
+            if isinstance(answer, discord.File):
+                await ctx.followup.send(file=answer)
+            else:
+                for part in splitStringAtMaxLength(answer):
+                    await ctx.followup.send(part)
+
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
         logger.debug("sent webhook-answer")
 
-        try:
-            questService = QuestService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start QuestService", exc_info=error)
-        else:
-            await questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
+        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -129,234 +142,121 @@ class CommandService:
         if not await self.__setLoading(interaction):
             return
 
-        answer = ""
+        function = None
+
+        match command:
+            case Commands.JOKE:
+                function = self.apiService.getJoke
+
+            case Commands.MOVE:
+                function = self.userInputService.moveUsers
+
+            case Commands.QUOTE:
+                function = self.quotesManager.answerQuote
+
+            case Commands.TIME:
+                function = self.userInputService.accessTimeAndEdit
+
+            case Commands.COUNTER:
+                function = self.userInputService.accessNameCounterAndEdit
+
+            case Commands.WHATSAPP:
+                function = self.userSettings.manageWhatsAppSettings
+
+            case Commands.LEADERBOARD:
+                function = self.userInputService.sendLeaderboard
+
+            case Commands.REGISTRATION:
+                function = self.userInputService.sendRegistrationLink
+
+            case Commands.XP_SPIN:
+                function = self.experienceService.spinForXpBoost
+
+            case Commands.XP_INVENTORY:
+                function = self.experienceService.handleXpInventory
+
+            case Commands.XP:
+                function = self.experienceService.handleXpRequest
+
+            case Commands.NOTIFICATION_SETTING:
+                function = self.userSettings.changeNotificationSetting
+
+            case Commands.FELIX_TIMER:
+                function = self.userInputService.handleFelixTimer
+
+            case Commands.WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.addOrEditSuspendDay
+
+            case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.resetSuspendSetting
+
+            case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.listSuspendSettings
+
+            case Commands.WEATHER:
+                function = self.apiService.getWeather
+
+            case Commands.CURRENCY_CONVERTER:
+                function = self.apiService.convertCurrency
+
+            case Commands.QRCODE:
+                function = self.apiService.generateQRCode
+
+            case Commands.CREATE_REMINDER:
+                function = self.reminderService.createReminder
+
+            case Commands.LIST_REMINDERS:
+                function = self.reminderService.listReminders
+
+            case Commands.DELETE_REMINDER:
+                function = self.reminderService.deleteReminder
+
+            case Commands.PLAY_SOUND:
+                function = self.soundboardService.playSound
+
+            case Commands.STOP_SOUND:
+                function = self.voiceClientService.stop
+
+            case Commands.KNEIPE:
+                function = self.channelService.createKneipe
+
+            case Commands.LIST_SOUNDS:
+                data = await self.soundboardService.listPersonalSounds(**kwargs)
+
+                await PaginationView(
+                    ctx=interaction,
+                    data=data,
+                    client=self.client,
+                    title="Sounds",
+                    defer=False,
+                ).send()
+
+                function = "Pagination-View"
+
+            case Commands.DELETE_SOUND:
+                function = self.soundboardService.deletePersonalSound
+
+            case Commands.LIST_QUESTS:
+                function = self.questService.listQuests
+
+            case _:
+                logger.error("undefined enum entry was reached!")
 
         try:
-            match command:
-                case Commands.JOKE:
-                    answer = await ApiServices().getJoke(**kwargs)
+            if not function:
+                await self.__sendAnswer(interaction, "Es ist etwas schief gelaufen!")
 
-                case Commands.MOVE:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
+                return
+            elif inspect.iscoroutinefunction(function):
+                answer = await function(**kwargs)
+            # special case for Pagination-Views
+            elif function == "Pagination-View":
+                answer = ""
+            else:
+                answer = function(**kwargs)
+        except Exception as error:
+            logger.error(f"An error occurred while running {function}!", exc_info=error)
 
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.moveUsers(**kwargs)
-
-                case Commands.QUOTE:
-                    try:
-                        qm = QuotesManager(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start QuotesManager", exc_info=error)
-                    else:
-                        answer = qm.answerQuote(**kwargs)
-
-                case Commands.TIME:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.accessTimeAndEdit(**kwargs)
-
-                case Commands.COUNTER:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.accessNameCounterAndEdit(**kwargs)
-
-                case Commands.WHATSAPP:
-                    try:
-                        userSettings = UserSettings()
-                    except ConnectionError as error:
-                        logger.error("failure to start UserSettings", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await userSettings.manageWhatsAppSettings(**kwargs)
-
-                case Commands.LEADERBOARD:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.sendLeaderboard(**kwargs)
-
-                case Commands.REGISTRATION:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.sendRegistrationLink(**kwargs)
-
-                case Commands.XP_SPIN:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.spinForXpBoost(**kwargs)
-
-                case Commands.XP_INVENTORY:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.handleXpInventory(**kwargs)
-
-                case Commands.XP:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.handleXpRequest(**kwargs)
-
-                case Commands.NOTIFICATION_SETTING:
-                    try:
-                        userSettings = UserSettings()
-                    except ConnectionError as error:
-                        logger.error("failure to start UserSettings", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = userSettings.changeNotificationSetting(**kwargs)
-
-                case Commands.FELIX_TIMER:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.handleFelixTimer(**kwargs)
-
-                case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).addOrEditSuspendDay(**kwargs)
-
-                case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).resetSuspendSetting(**kwargs)
-
-                case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).listSuspendSettings(**kwargs)
-
-                case Commands.WEATHER:
-                    answer = await ApiServices().getWeather(**kwargs)
-
-                case Commands.CURRENCY_CONVERTER:
-                    answer = await ApiServices().convertCurrency(**kwargs)
-
-                case Commands.QRCODE:
-                    answer = await ApiServices().generateQRCode(**kwargs)
-
-                    if isinstance(answer, discord.File):
-                        try:
-                            await interaction.followup.send(file=answer)
-                        except Exception as e:
-                            logger.error("couldn't send qr-picture", exc_info=e)
-
-                        return
-
-                case Commands.CREATE_REMINDER:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.createReminder(**kwargs)
-
-                case Commands.LIST_REMINDERS:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.listReminders(**kwargs)
-
-                case Commands.DELETE_REMINDER:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.deleteReminder(**kwargs)
-
-                case Commands.PLAY_SOUND:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.playSound(ctx=interaction, **kwargs)
-
-                case Commands.STOP_SOUND:
-                    voiceClientService = VoiceClientService(self.client)
-                    answer = await voiceClientService.stop(**kwargs)
-
-                case Commands.KNEIPE:
-                    channelService = ChannelService(self.client)
-                    answer = await channelService.createKneipe(interaction.user, **kwargs)
-
-                case Commands.LIST_SOUNDS:
-                    soundboardService = SoundboardService(self.client)
-
-                    data = await soundboardService.listPersonalSounds(ctx=interaction)
-
-                    await PaginationView(
-                        ctx=interaction,
-                        data=data,
-                        client=self.client,
-                        title="Sounds",
-                        defer=False,
-                    ).send()
-
-                case Commands.DELETE_SOUND:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
-
-                case Commands.LIST_QUESTS:
-                    try:
-                        questService = QuestService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = questService.listQuests(**kwargs)
-
-                case _:
-                    answer = "Es ist etwas schief gelaufen!"
-
-                    logger.warning("undefined enum-entry was used")
-
-        except ValueError as e:
-            answer = "Es ist etwas schief gelaufen!"
-
-            logger.error("parameters arent matched with function parameters", exc_info=e)
+            answer = "Es gab einen Fehler!"
 
         await self.__sendAnswer(interaction, answer)

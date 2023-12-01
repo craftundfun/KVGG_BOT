@@ -6,11 +6,12 @@ import os.path
 import sys
 import time
 import traceback
+from typing import Any
 
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
-    RawReactionActionEvent
+    RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
@@ -73,6 +74,13 @@ logger.info("\n\n----Initial bot start!----\n\n")
 class MyClient(discord.Client):
     backgroundServices = None
 
+    def __init__(self, *, intents: Intents, **options: Any):
+        super().__init__(intents=intents, **options)
+
+        self.memeService = MemeService(self)
+        self.soundboardService = SoundboardService(self)
+        self.voiceStateUpdateService = VoiceStateUpdateService(self)
+
     async def on_member_join(self, member: Member):
         """
         Automatically adds the roles Uni and Mitglieder to newly joined members of the guild.
@@ -103,12 +111,7 @@ class MyClient(discord.Client):
         if not message:
             return
 
-        try:
-            memes = MemeService()
-        except ConnectionError as error:
-            logger.error("failure to start MemeService", exc_info=error)
-        else:
-            await memes.changeLikeCounterOfMessage(message)
+        await self.memeService.changeLikeCounterOfMessage(message)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
         await self.__prepareForMemeService(payload)
@@ -214,25 +217,15 @@ class MyClient(discord.Client):
             else:
                 await qm.checkForNewQuote(message)
 
-            try:
-                memes = MemeService()
-            except ConnectionError as error:
-                logger.error("failure to start MemeService", exc_info=error)
-            else:
-                await memes.checkIfMemeAndPrepareReactions(message)
+            await self.memeService.checkIfMemeAndPrepareReactions(message)
 
         # empty message but on server
         elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
-            try:
-                memes = MemeService()
-            except ConnectionError as error:
-                logger.error("failure to start MemeService", exc_info=error)
-            else:
-                await memes.checkIfMemeAndPrepareReactions(message)
+            await self.memeService.checkIfMemeAndPrepareReactions(message)
 
         # empty message but as DM
         elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):
-            await SoundboardService(client).manageDirectMessage(message)
+            await self.soundboardService.manageDirectMessage(message)
 
         else:
             logger.debug("message empty or from a bot")
@@ -280,12 +273,7 @@ class MyClient(discord.Client):
         """
         logger.debug("received voice state update")
 
-        try:
-            vsus = VoiceStateUpdateService(self)
-        except ConnectionError as error:
-            logger.error("failure to start VoiceStateUpdateService", exc_info=error)
-        else:
-            await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        await self.voiceStateUpdateService.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
 # reads the token
@@ -308,7 +296,6 @@ commandService = CommandService(client)
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
-
 
 """ANSWER JOKE"""
 
@@ -875,6 +862,7 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
     """
     await commandService.runCommand(Commands.PLAY_SOUND,
                                     ctx,
+                                    ctx=ctx,
                                     member=ctx.user,
                                     sound=sound, )
 
@@ -898,7 +886,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
     :param ctx:
     :return:
     """
-    await commandService.runCommand(Commands.LIST_SOUNDS, ctx)
+    await commandService.runCommand(Commands.LIST_SOUNDS, ctx, ctx=ctx)
 
 
 @tree.command(name="delete_sound",
@@ -907,7 +895,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
 async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
-    await commandService.runCommand(Commands.DELETE_SOUND, interaction=ctx, row=nummer)
+    await commandService.runCommand(Commands.DELETE_SOUND, ctx, ctx=ctx, row=nummer)
 
 
 """KNEIPE"""
@@ -917,7 +905,7 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
               description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
-    await commandService.runCommand(Commands.KNEIPE, ctx, member_1=member_1, member_2=member_2)
+    await commandService.runCommand(Commands.KNEIPE, ctx, member=ctx.user, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""

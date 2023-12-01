@@ -89,7 +89,7 @@ class ChannelService:
 
             return "Dieser Command funktioniert nicht in deiner aktuellen VoiceChannel-Kategorie."
 
-        if voiceChannel := await self.__createNewChannel(member_1Voice.channel.category):
+        if voiceChannel := await self._createNewChannel(member_1Voice.channel.category):
             loop = asyncio.get_event_loop()
 
             try:
@@ -103,9 +103,10 @@ class ChannelService:
         else:
             return "Es ist ein Fehler aufgetreten."
 
-    async def __createNewChannel(self, category: CategoryChannel,
-                                 name: str = "Kneipe",
-                                 userLimit: int = 2) -> VoiceChannel | None:
+    async def _createNewChannel(self,
+                                category: CategoryChannel,
+                                name: str = "Kneipe",
+                                userLimit: int = 2) -> VoiceChannel | None:
         """
         Creates a voice-channel in the given category
 
@@ -144,7 +145,7 @@ class ChannelService:
         if len(member.voice.channel.members) < 2:
             return
 
-        channel: VoiceChannel | None = self.__findFreeChannel()
+        channel: VoiceChannel | None = self._findFreeChannel()
 
         if not channel:
             return
@@ -173,7 +174,7 @@ class ChannelService:
 
         logger.debug("moved users out of 'warte auf Mitspieler/innen' due to more than 2 users")
 
-    def __findFreeChannel(self) -> VoiceChannel | None:
+    def _findFreeChannel(self) -> VoiceChannel | None:
         """
         Finds the next empty VoiceChannel in the Gaming-Category.
 

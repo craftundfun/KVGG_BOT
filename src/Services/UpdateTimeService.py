@@ -28,7 +28,6 @@ class UpdateTimeService:
         :raise ConnectionError:
         """
         self.client: Client = client
-        self.database = Database()
 
         self.whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
         self.universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
@@ -38,7 +37,7 @@ class UpdateTimeService:
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
 
-    def __getChannels(self):
+    def _getChannels(self):
         """
         Yields all channels to track from the guild filtered by number of members and if they are tracked
 
@@ -48,7 +47,7 @@ class UpdateTimeService:
             if channel in self.allowedChannels and len(channel.members) > 0:
                 yield channel
 
-    def __eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
+    def _eligibleForGettingTime(self, dcUserDbAndChannelType: tuple[dict, str], channel: VoiceChannel) -> bool:
         """
         Checks for the given user if he / she can receive online time (and XP)
 
@@ -115,11 +114,14 @@ class UpdateTimeService:
         """
         Updates the time online, stream (if the member is streaming) and writes new formatted values
 
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
         checkAchievementMembers = []
 
-        for channel in self.__getChannels():
+        for channel in self._getChannels():
             # specify a type of channel for easier distinguishing later
             if channel in self.universityChannels:
                 channelType = "uni"
@@ -127,13 +129,13 @@ class UpdateTimeService:
                 channelType = "gaming"
 
             for member in channel.members:
-                if not (dcUserDb := getDiscordUser(member)):
+                if not (dcUserDb := getDiscordUser(member, database)):
                     logger.debug("couldn't fetch %s (%d) from database" % (member.name, member.id,))
 
                     continue
 
                 # user cant get time -> continue with next user
-                if not self.__eligibleForGettingTime((dcUserDb, channelType), channel):
+                if not self._eligibleForGettingTime((dcUserDb, channelType), channel):
                     continue
 
                 # update commonly changing things
@@ -180,15 +182,15 @@ class UpdateTimeService:
 
                 query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
 
-                if not self.database.runQueryOnDatabase(query, nones):
+                if not database.runQueryOnDatabase(query, nones):
                     logger.critical("couldn't save changes to database for %s" % dcUserDb['username'])
 
                     continue
 
         if len(checkAchievementMembers) != 0:
-            await self.__checkForAchievements(checkAchievementMembers)
+            await self._checkForAchievements(checkAchievementMembers)
 
-    async def __checkForAchievements(self, members: list[tuple[dict, Member]]):
+    async def _checkForAchievements(self, members: list[tuple[dict, Member]]):
         """
         Maybe this will fix my achievement problem :(
 

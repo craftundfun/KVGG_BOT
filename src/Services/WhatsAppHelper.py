@@ -10,7 +10,6 @@ from discord import VoiceState, Member, Client, VoiceChannel
 from discord.app_commands import Choice
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
@@ -23,20 +22,17 @@ logger = logging.getLogger("KVGG_BOT")
 
 class WhatsAppHelper:
     """
-    Creates and manages WhatsApp-messages
+    Creates and manages WhatsApp messages
     """
 
     def __init__(self, client: Client):
-        """
-        :raise ConnectionError:
-        """
-        self.database = Database()
         self.client = client
 
-    def __getUsersForMessage(self) -> List[Dict[str, Any]] | None:
+    def _getUsersForMessage(self, database: Database) -> List[Dict[str, Any]] | None:
         """
         Returns all Users with phone number and api key including their whatsapp settings
 
+        :param database:
         :return:
         """
         # not pretty but otherwise complete garbage
@@ -44,7 +40,7 @@ class WhatsAppHelper:
                 "w.receive_uni_join_notification, w.receive_uni_leave_notification, w.suspend_times, u.id, u.firstname " \
                 "FROM whatsapp_setting AS w INNER JOIN user AS u ON u.discord_user_id = w.discord_user_id " \
                 "WHERE u.phone_number IS NOT NULL and u.api_key_whats_app IS NOT NULL"
-        users = self.database.fetchAllResults(query)
+        users = database.fetchAllResults(query)
 
         if not users:
             logger.warning("couldn't fetch users!")
@@ -61,9 +57,12 @@ class WhatsAppHelper:
 
         :param member: Member that the users will be notified about
         :param update: VoiceStateUpdate
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("creating Online-Notification for %s" % member.name)
+
+        database = Database()
 
         if member.bot:
             logger.debug("user was a bot")
@@ -80,23 +79,23 @@ class WhatsAppHelper:
 
             return
 
-        triggerDcUserDb = getDiscordUser(member)
+        triggerDcUserDb = getDiscordUser(member, database)
 
         if not triggerDcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
 
             return
 
-        if not self.__canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE.value):
+        if not self._canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_JOIN_AFTER_LEAVE.value):
             # delete leave message if user is fast enough back online
-            if not self.__canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value):
-                self.__retractMessagesFromMessageQueue(triggerDcUserDb, False)
+            if not self._canSendMessage(triggerDcUserDb, WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value):
+                self._retractMessagesFromMessageQueue(triggerDcUserDb, False, database)
 
             logger.debug("user left and joined to fast => no message queued")
 
             return
 
-        if not (users := self.__getUsersForMessage()):
+        if not (users := self._getUsersForMessage(database)):
             logger.debug("no users to send a message at")
 
             return
@@ -111,10 +110,10 @@ class WhatsAppHelper:
             if channelGaming and user['receive_join_notification']:
                 logger.debug("message for gaming channels")
 
-                self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
+                self._queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name, database)
             elif not channelGaming and user['receive_uni_join_notification']:
                 logger.debug("message for university channels")
-                self.__queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name)
+                self._queueWhatsAppMessage(triggerDcUserDb, update.channel, user, member.name, database)
 
     def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
         """
@@ -123,26 +122,29 @@ class WhatsAppHelper:
         :param dcUserDb: DiscordUser that caused the notification
         :param update: VoiceStateUpdate
         :param member: Member that caused the notification
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("creating Offline-Notification for %s" % member.name)
+
+        database = Database()
 
         if lastOnline := dcUserDb['joined_at']:
             diff: timedelta = datetime.now() - lastOnline
 
             if diff.days <= 0:
                 if diff.seconds <= WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value * 60:
-                    self.__retractMessagesFromMessageQueue(dcUserDb, True)
+                    self._retractMessagesFromMessageQueue(dcUserDb, True, database)
                     logger.debug("retracted messages from database due to fast rejoin")
 
                     return
 
-        if not self.__canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
+        if not self._canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
             logger.debug("cant send messages yet again")
 
             return
 
-        if not (users := self.__getUsersForMessage()):
+        if not (users := self._getUsersForMessage(database)):
             logger.debug("no users for messages")
 
             return
@@ -157,11 +159,11 @@ class WhatsAppHelper:
             if (update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
                     and user['receive_leave_notification']):
                 logger.debug("message for gaming channels")
-                self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
+                self._queueWhatsAppMessage(dcUserDb, None, user, member.name, database)
             elif (update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
                   and user['receive_uni_leave_notification']):
                 logger.debug("message for university channels")
-                self.__queueWhatsAppMessage(dcUserDb, None, user, member.name)
+                self._queueWhatsAppMessage(dcUserDb, None, user, member.name, database)
 
     def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: str, member: Member):
         """
@@ -170,9 +172,12 @@ class WhatsAppHelper:
         :param dcUserDb: DiscordUser, who changed the channels
         :param channelName: New Channel
         :param member: Member-Object of the user to get the names correctly
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("editing message from %s caused by changing channels" % dcUserDb['username'])
+
+        database = Database()
 
         if (messages := getUnsentMessagesFromTriggerUser(dcUserDb, True)) is None:
             logger.debug("no messages to edit")
@@ -194,12 +199,12 @@ class WhatsAppHelper:
                 message,
             )
 
-            if not self.database.runQueryOnDatabase(query, nones):
+            if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save message to database")
 
         logger.debug("saved changes to database")
 
-    def __canSendMessage(self, dcUserDb: dict, intervalTime: int) -> bool:
+    def _canSendMessage(self, dcUserDb: dict, intervalTime: int) -> bool:
         """
         If the given user can send a notification based on his absence, etc.
 
@@ -220,12 +225,13 @@ class WhatsAppHelper:
 
         return True
 
-    def __retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool):
+    def _retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool, database: Database):
         """
         Retract messages from the queue if user left a channel fast enough
 
         :param dcUserDb: DiscordUser that left his channel fast enough
         :param isJoinMessage: Specify looking for join or leave messages
+        :param database:
         :return:
         """
         logger.debug("retracting messages from queue for %s" % dcUserDb['username'])
@@ -240,13 +246,14 @@ class WhatsAppHelper:
         for message in messages:
             query = "DELETE FROM message_queue WHERE id = %s"
 
-            if not self.database.runQueryOnDatabase(query, (message['id'],)):
+            if not database.runQueryOnDatabase(query, (message['id'],)):
                 logger.critical("couldn't save to database")
 
-    def __queueWhatsAppMessage(self, triggerDcUserDb: dict,
-                               channel: VoiceChannel | None,
-                               whatsappSetting: dict,
-                               usernameFromTriggerUser: str):
+    def _queueWhatsAppMessage(self, triggerDcUserDb: dict,
+                              channel: VoiceChannel | None,
+                              whatsappSetting: dict,
+                              usernameFromTriggerUser: str,
+                              database: Database):
         """
         Saves the message into the queue
 
@@ -254,12 +261,13 @@ class WhatsAppHelper:
         :param channel: Channel the user joined into
         :param whatsappSetting: User to send the message to
         :param usernameFromTriggerUser: Who triggered the message
+        :param database:
         :return:
         """
         logger.debug("trying to queue message into database for %s" % whatsappSetting['firstname'])
 
         query = "SELECT channel_id FROM discord WHERE id = %s"
-        dcUserDbRecipient = self.database.fetchOneResult(query, (whatsappSetting['discord_user_id'],))
+        dcUserDbRecipient = database.fetchOneResult(query, (whatsappSetting['discord_user_id'],))
 
         if dcUserDbRecipient is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -271,7 +279,7 @@ class WhatsAppHelper:
 
             return
 
-        if self.__hasReceiverSuspended(whatsappSetting):
+        if self._hasReceiverSuspended(whatsappSetting):
             logger.debug("receiver has suspended messages")
 
             return
@@ -289,7 +297,7 @@ class WhatsAppHelper:
                 isJoinMessage = False
             # if there is a join message, delete them and don't send leave
             else:
-                self.__retractMessagesFromMessageQueue(triggerDcUserDb, True)
+                self._retractMessagesFromMessageQueue(triggerDcUserDb, True, database)
 
                 return
         else:
@@ -301,17 +309,16 @@ class WhatsAppHelper:
                 "message, user_id, created_at, time_to_sent, trigger_user_id, is_join_message" \
                 ") VALUES (%s, %s, %s, %s, %s, %s)"
 
-        self.database.runQueryOnDatabase(query,
-                                         (text,
-                                          whatsappSetting['id'],
-                                          datetime.now(),
-                                          timeToSent,
-                                          triggerDcUserDb['id'],
-                                          isJoinMessage,))
+        database.runQueryOnDatabase(query,
+                                    (text,
+                                     whatsappSetting['id'],
+                                     datetime.now(),
+                                     timeToSent,
+                                     triggerDcUserDb['id'],
+                                     isJoinMessage,))
 
         logger.debug("saved new message to database")
 
-    @validateKeys
     def addOrEditSuspendDay(self, member: Member, weekday: Choice, start: str, end: str):
         """
         Enables a given time interval for the member to not receive messages in
@@ -320,11 +327,14 @@ class WhatsAppHelper:
         :param weekday: Choice of the day to edit
         :param start: Start-time
         :param end: End-time
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
+        whatsappSetting = database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is not registered for whatsapp messages" % member.name)
@@ -391,7 +401,7 @@ class WhatsAppHelper:
             whatsappSetting,
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved new suspend time to database")
         else:
             return "Es gab Probleme beim speichern!"
@@ -399,19 +409,21 @@ class WhatsAppHelper:
         return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
             startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
 
-    @validateKeys
     def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
         """
         Resets the suspend settings to None
 
         :param member: Member, who wishes to have his / her settings revoked
         :param weekday: Weekday to reset
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query = "SELECT * " \
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
+        whatsappSetting = database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is no registered for whatsapp messages" % member.name)
@@ -446,7 +458,7 @@ class WhatsAppHelper:
             whatsappSetting,
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved changes to database")
         else:
             return "Es gab ein Problem."
@@ -456,7 +468,7 @@ class WhatsAppHelper:
         else:
             return "Du hattest keine Suspend-Zeit an diesem Tag festgelegt!"
 
-    def __hasReceiverSuspended(self, whatsappSetting) -> bool:
+    def _hasReceiverSuspended(self, whatsappSetting) -> bool:
         """
         Returns true if the receiver doesn't want messages currently.
 
@@ -484,17 +496,19 @@ class WhatsAppHelper:
                 else:
                     return False
 
-    @validateKeys
     def listSuspendSettings(self, member: Member) -> str:
         """
         Returns all suspend settings from this member
 
         :param member:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSetting = self.database.fetchOneResult(query, (member.id,))
+        whatsappSetting = database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:
             logger.debug("%s is no registered for whatsapp messages" % member.name)
