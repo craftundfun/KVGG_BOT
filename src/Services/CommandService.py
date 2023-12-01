@@ -68,6 +68,7 @@ class CommandService:
         self.qm = QuotesManager(self.client)
         self.userSettings = UserSettings()
         self.experienceService = ExperienceService(self.client)
+        self.whatsappHelper = WhatsAppHelper(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -181,13 +182,13 @@ class CommandService:
                     answer = await self.pui.handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).addOrEditSuspendDay(**kwargs)
+                    answer = self.whatsappHelper.addOrEditSuspendDay(**kwargs)
 
                 case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).resetSuspendSetting(**kwargs)
+                    answer = self.whatsappHelper.resetSuspendSetting(**kwargs)
 
                 case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = WhatsAppHelper(self.client).listSuspendSettings(**kwargs)
+                    answer = self.whatsappHelper.listSuspendSettings(**kwargs)
 
                 case Commands.WEATHER:
                     answer = await self.apiService.getWeather(**kwargs)
