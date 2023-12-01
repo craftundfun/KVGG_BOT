@@ -136,4 +136,5 @@ class Database:
         return connection
 
     def __del__(self):
-        self.connection.close()
+        if self.connection:
+            self.connection.close()

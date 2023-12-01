@@ -63,9 +63,9 @@ class CommandService:
     def __init__(self, client: Client):
         self.client = client
 
-        self.apiService = ApiServices()
-        self.pui = ProcessUserInput(self.client)
-        self.qm = QuotesManager(self.client)
+        self.apiService = ApiServices()  #
+        self.userInputService = ProcessUserInput(self.client)
+        self.quotesManager = QuotesManager(self.client)
         self.userSettings = UserSettings()
         self.experienceService = ExperienceService(self.client)
         self.whatsappHelper = WhatsAppHelper(self.client)
@@ -110,7 +110,7 @@ class CommandService:
         :return:
         """
         try:
-            await self.pui.raiseMessageCounter(ctx.user, ctx.channel, True)
+            await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
@@ -146,25 +146,25 @@ class CommandService:
                     answer = await self.apiService.getJoke(**kwargs)
 
                 case Commands.MOVE:
-                    answer = await self.pui.moveUsers(**kwargs)
+                    answer = await self.userInputService.moveUsers(**kwargs)
 
                 case Commands.QUOTE:
-                    answer = self.qm.answerQuote(**kwargs)
+                    answer = self.quotesManager.answerQuote(**kwargs)
 
                 case Commands.TIME:
-                    answer = await self.pui.accessTimeAndEdit(**kwargs)
+                    answer = await self.userInputService.accessTimeAndEdit(**kwargs)
 
                 case Commands.COUNTER:
-                    answer = await self.pui.accessNameCounterAndEdit(**kwargs)
+                    answer = await self.userInputService.accessNameCounterAndEdit(**kwargs)
 
                 case Commands.WHATSAPP:
                     answer = await self.userSettings.manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
-                    answer = await self.pui.sendLeaderboard(**kwargs)
+                    answer = await self.userInputService.sendLeaderboard(**kwargs)
 
                 case Commands.REGISTRATION:
-                    answer = await self.pui.sendRegistrationLink(**kwargs)
+                    answer = await self.userInputService.sendRegistrationLink(**kwargs)
 
                 case Commands.XP_SPIN:
                     answer = self.experienceService.spinForXpBoost(**kwargs)
@@ -179,7 +179,7 @@ class CommandService:
                     answer = self.userSettings.changeNotificationSetting(**kwargs)
 
                 case Commands.FELIX_TIMER:
-                    answer = await self.pui.handleFelixTimer(**kwargs)
+                    answer = await self.userInputService.handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
                     answer = self.whatsappHelper.addOrEditSuspendDay(**kwargs)

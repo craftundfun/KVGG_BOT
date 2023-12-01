@@ -95,8 +95,12 @@ class ProcessUserInput:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
+
+        self.questService = QuestService(self.client)
+        self.experienceService = ExperienceService(self.client)
+        self.relationService = RelationService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -132,20 +136,9 @@ class ProcessUserInput:
                 dcUserDb['message_count_all_time'] = 1
 
             if not command:
-                # check progress for sending a message
-                try:
-                    questService = QuestService(self.client)
-                except ConnectionError as error:
-                    logger.error("failure to start QuestService", exc_info=error)
-                else:
-                    await questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
+                await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
 
-            try:
-                xp = ExperienceService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start ExperienceService", exc_info=error)
-            else:
-                await xp.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+            await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
         if self.__saveDiscordUserToDatabase(dcUserDb):
             logger.debug("saved changes to database")
@@ -155,15 +148,18 @@ class ProcessUserInput:
         Helper to save a DiscordUser from this class into the database
 
         :param data: Data
+        :raises ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query, nones = writeSaveQuery(
             "discord",
             data['id'],
             data
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved changed DiscordUser to database")
 
             return True
@@ -308,52 +304,40 @@ class ProcessUserInput:
         Returns the leaderboard of our stats in the database
 
         :param type:
-        :param member: Member, who requested the leaderboard
+        :param member: Member who requested the leaderboard
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
+        database = Database()
+
         if type == "xp":
-            try:
-                es = ExperienceService(self.client)
-            except ConnectionError as error:
-                logger.error("failure to start ExperienceService", exc_info=error)
+            return self.experienceService.sendXpLeaderboard(member=member)
 
-                answer = "Es ist ein Fehler aufgetreten."
-            else:
-                return es.sendXpLeaderboard(member=member)
+        if type == "relations":
+            logger.debug("leaderboard for relations")
 
-        try:
-            relationService = RelationService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start RelationService", exc_info=error)
+            answer = "----------------------------\n"
+            answer += "__**Leaderboard - Relationen**__\n"
+            answer += "----------------------------\n\n"
 
-            if type == "relations":
-                return "Es gab ein Problem."
-        else:
-            if type == "relations":
-                logger.debug("leaderboard for relations")
+            if online := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
+                answer += "- __Online-Pärchen__:\n"
+                answer += online
+                answer += "\n"
 
-                answer = "----------------------------\n"
-                answer += "__**Leaderboard - Relationen**__\n"
-                answer += "----------------------------\n\n"
+            if stream := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
+                answer += "- __Stream-Pärchen__:\n"
+                answer += stream
+                answer += "\n"
 
-                if online := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                    answer += "- __Online-Pärchen__:\n"
-                    answer += online
-                    answer += "\n"
+            if university := await self.relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
+                answer += "- __Lern-Pärchen__:\n"
+                answer += university
+                answer += "\n"
 
-                if stream := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                    answer += "- __Stream-Pärchen__:\n"
-                    answer += stream
-                    answer += "\n"
-
-                if university := await relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                    answer += "- __Lern-Pärchen__:\n"
-                    answer += university
-                    answer += "\n"
-
-                return answer
+            return answer
 
         # online time
         query = "SELECT username, formated_time " \
@@ -362,7 +346,7 @@ class ProcessUserInput:
                 "ORDER BY time_online DESC " \
                 "LIMIT 3"
 
-        usersOnlineTime = self.database.fetchAllResults(query)
+        usersOnlineTime = database.fetchAllResults(query)
 
         # stream time
         query = "SELECT username, formatted_stream_time " \
@@ -371,7 +355,7 @@ class ProcessUserInput:
                 "ORDER BY time_streamed DESC " \
                 "LIMIT 3"
 
-        usersStreamTime = self.database.fetchAllResults(query)
+        usersStreamTime = database.fetchAllResults(query)
 
         # message count
         query = "SELECT username, message_count_all_time " \
@@ -380,7 +364,7 @@ class ProcessUserInput:
                 "ORDER BY message_count_all_time DESC " \
                 "LIMIT 3"
 
-        usersMessageCount = self.database.fetchAllResults(query)
+        usersMessageCount = database.fetchAllResults(query)
 
         # Rene counter
         query = "SELECT username, rene_counter " \
@@ -389,7 +373,7 @@ class ProcessUserInput:
                 "ORDER BY rene_counter DESC " \
                 "LIMIT 3"
 
-        usersReneCounter = self.database.fetchAllResults(query)
+        usersReneCounter = database.fetchAllResults(query)
 
         # Felix counter
         query = "SELECT username, felix_counter " \
@@ -398,7 +382,7 @@ class ProcessUserInput:
                 "ORDER BY felix_counter DESC " \
                 "LIMIT 3"
 
-        usersFelixCounter = self.database.fetchAllResults(query)
+        usersFelixCounter = database.fetchAllResults(query)
 
         # Paul counter
         query = "SELECT username, paul_counter " \
@@ -407,7 +391,7 @@ class ProcessUserInput:
                 "ORDER BY paul_counter DESC " \
                 "LIMIT 3"
 
-        usersPaulCounter = self.database.fetchAllResults(query)
+        usersPaulCounter = database.fetchAllResults(query)
 
         # Bjarne counter
         query = "SELECT username, bjarne_counter " \
@@ -416,7 +400,7 @@ class ProcessUserInput:
                 "ORDER BY bjarne_counter DESC " \
                 "LIMIT 3"
 
-        usersBjarneCounter = self.database.fetchAllResults(query)
+        usersBjarneCounter = database.fetchAllResults(query)
 
         # JJ counter
         query = "SELECT username, jj_counter " \
@@ -425,7 +409,7 @@ class ProcessUserInput:
                 "ORDER BY jj_counter DESC " \
                 "LIMIT 3"
 
-        usersJjCounter = self.database.fetchAllResults(query)
+        usersJjCounter = database.fetchAllResults(query)
 
         # Oleg counter
         query = "SELECT username, oleg_counter " \
@@ -434,7 +418,7 @@ class ProcessUserInput:
                 "ORDER BY oleg_counter DESC " \
                 "LIMIT 3"
 
-        usersOlegCounter = self.database.fetchAllResults(query)
+        usersOlegCounter = database.fetchAllResults(query)
 
         # Carl counter
         query = "SELECT username, carl_counter " \
@@ -443,7 +427,7 @@ class ProcessUserInput:
                 "ORDER BY carl_counter DESC " \
                 "LIMIT 3"
 
-        usersCarlCounter = self.database.fetchAllResults(query)
+        usersCarlCounter = database.fetchAllResults(query)
 
         # Cookie counter
         query = "SELECT username, cookie_counter " \
@@ -452,7 +436,7 @@ class ProcessUserInput:
                 "ORDER BY cookie_counter DESC " \
                 "LIMIT 3"
 
-        usersCookieCounter = self.database.fetchAllResults(query)
+        usersCookieCounter = database.fetchAllResults(query)
 
         answer = "--------------\n"
         answer += "__**Leaderboard**__\n"
@@ -464,11 +448,9 @@ class ProcessUserInput:
             for index, user in enumerate(usersOnlineTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
 
-        # check if there was no error creating the service
-        if relationService in locals():
-            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
-                answer += "\n- __Online-Pärchen__:\n"
-                answer += relationAnswer
+        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
+            answer += "\n- __Online-Pärchen__:\n"
+            answer += relationAnswer
 
         if usersStreamTime and len(usersStreamTime) != 0:
             answer += "\n- __Stream-Zeit__:\n"
@@ -476,10 +458,9 @@ class ProcessUserInput:
             for index, user in enumerate(usersStreamTime):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
-        if relationService in locals():
-            if relationAnswer := await relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
-                answer += "\n- __Stream-Pärchen__:\n"
-                answer += relationAnswer
+        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
+            answer += "\n- __Stream-Pärchen__:\n"
+            answer += relationAnswer
 
         if usersMessageCount and len(usersMessageCount) != 0:
             answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
@@ -561,8 +542,11 @@ class ProcessUserInput:
         :param counterName: Chosen counter-type
         :param member: Member who requested the counter
         :param param: Optional amount of time to add / subtract
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
         match counterName:
             case "Bjarne":
                 counter = BjarneCounter()
@@ -648,7 +632,7 @@ class ProcessUserInput:
             dcUserDb,
         )
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't save changes to database")
 
             return "Es ist ein Fehler aufgetreten."
@@ -680,10 +664,10 @@ class ProcessUserInput:
             logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counter.name}-Counter")
 
             if await TTSService().generateTTS(tts):
-                await VoiceClientService(self.client).play(user.voice.channel,
-                                                           "./data/sounds/tts.mp3",
-                                                           None,
-                                                           True, )
+                await self.voiceClientService.play(user.voice.channel,
+                                                   "./data/sounds/tts.mp3",
+                                                   None,
+                                                   True, )
 
         return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
                                                                getTagStringFromId(str(user.id)),
