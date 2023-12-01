@@ -64,6 +64,7 @@ class CommandService:
         self.client = client
 
         self.apiService = ApiServices()
+        self.pui = ProcessUserInput(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -100,7 +101,7 @@ class CommandService:
         :return:
         """
         try:
-            await ProcessUserInput(self.client).raiseMessageCounter(ctx.user, ctx.channel, True)
+            await self.pui.raiseMessageCounter(ctx.user, ctx.channel, True)
         except ConnectionError as error:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
@@ -128,6 +129,8 @@ class CommandService:
         :param kwargs: Parameters of the called function
         :return:
         """
+        # https://chat.openai.com/share/35c755a0-677d-4d33-aa82-91caee4546ac
+
         if not await self.__setLoading(interaction):
             return
 
@@ -139,14 +142,7 @@ class CommandService:
                     answer = await self.apiService.getJoke(**kwargs)
 
                 case Commands.MOVE:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.moveUsers(**kwargs)
+                    answer = await self.pui.moveUsers(**kwargs)
 
                 case Commands.QUOTE:
                     try:
@@ -157,24 +153,10 @@ class CommandService:
                         answer = qm.answerQuote(**kwargs)
 
                 case Commands.TIME:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.accessTimeAndEdit(**kwargs)
+                    answer = await self.pui.accessTimeAndEdit(**kwargs)
 
                 case Commands.COUNTER:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.accessNameCounterAndEdit(**kwargs)
+                    answer = await self.pui.accessNameCounterAndEdit(**kwargs)
 
                 case Commands.WHATSAPP:
                     try:
@@ -187,24 +169,10 @@ class CommandService:
                         answer = await userSettings.manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.sendLeaderboard(**kwargs)
+                    answer = await self.pui.sendLeaderboard(**kwargs)
 
                 case Commands.REGISTRATION:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.sendRegistrationLink(**kwargs)
+                    answer = await self.pui.sendRegistrationLink(**kwargs)
 
                 case Commands.XP_SPIN:
                     try:
@@ -247,14 +215,7 @@ class CommandService:
                         answer = userSettings.changeNotificationSetting(**kwargs)
 
                 case Commands.FELIX_TIMER:
-                    try:
-                        pui = ProcessUserInput(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ProcessUserInput", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await pui.handleFelixTimer(**kwargs)
+                    answer = await self.pui.handleFelixTimer(**kwargs)
 
                 case Commands.WHATSAPP_SUSPEND_SETTINGS:
                     answer = WhatsAppHelper(self.client).addOrEditSuspendDay(**kwargs)
