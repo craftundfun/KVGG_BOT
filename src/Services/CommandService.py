@@ -68,7 +68,7 @@ class CommandService:
         self.quotesManager = QuotesManager(self.client)  #
         self.userSettings = UserSettings()  #
         self.experienceService = ExperienceService(self.client)  #
-        self.whatsappHelper = WhatsAppHelper(self.client)
+        self.whatsappHelper = WhatsAppHelper(self.client)  #
         self.reminderService = ReminderService(self.client)
         self.soundboardService = SoundboardService(self.client)
         self.voiceClientService = VoiceClientService(self.client)

@@ -25,7 +25,6 @@ class ReminderService:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
 
     @validateKeys
@@ -47,8 +46,11 @@ class ReminderService:
         :param content: Content of the reminder
         :param date: Date of the Remider
         :param time: Time of the Reminder
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         if not checkDateAgainstRegex(date):
             logger.debug("the given date had a incorrect format")
 
@@ -115,7 +117,7 @@ class ReminderService:
 
         minutesLeft = __getMinutesLeft()
 
-        if not (dcUserDb := getDiscordUser(member)):
+        if not (dcUserDb := getDiscordUser(member, database)):
             logger.debug("cant proceed, no DiscordUser")
 
             return "Es gab ein Problem!"
@@ -124,7 +126,7 @@ class ReminderService:
             query = "SELECT * " \
                     "FROM whatsapp_setting " \
                     "WHERE discord_user_id = %s"
-            data = self.database.fetchOneResult(query, (dcUserDb['id'],))
+            data = database.fetchOneResult(query, (dcUserDb['id'],))
 
             if not data:
                 logger.debug("User cannot receive whatsapp notifications")
@@ -145,12 +147,12 @@ class ReminderService:
                 "(discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes) " \
                 "VALUES (%s, %s, %s, %s, %s, %s)"
 
-        if self.database.runQueryOnDatabase(query, (dcUserDb['id'],
-                                                    content,
-                                                    date,
-                                                    None,
-                                                    whatsapp,
-                                                    minutesLeft,)):
+        if database.runQueryOnDatabase(query, (dcUserDb['id'],
+                                               content,
+                                               date,
+                                               None,
+                                               whatsapp,
+                                               minutesLeft,)):
             logger.debug("saved new reminder to database")
         else:
             return "Es gab ein Problem beim speicher des Reminders."
@@ -164,13 +166,16 @@ class ReminderService:
         Lists all active reminders from the user
 
         :param member: Member, who asked for his / her remainders
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query = "SELECT * " \
                 "FROM reminder " \
                 "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
                 "and time_to_sent IS NOT NULL"
-        reminders = self.database.fetchAllResults(query, (int(member.id),))
+        reminders = database.fetchAllResults(query, (int(member.id),))
 
         if not reminders:
             logger.debug("reminders for %s were empty" % member.name)
@@ -213,12 +218,15 @@ class ReminderService:
         """
         Reduces all outstanding reminders times and initiates the sending process
 
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         query = "SELECT r.*, d.user_id " \
                 "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
                 "WHERE time_to_sent is NOT NULL"
-        reminders = self.database.fetchAllResults(query)
+        reminders = database.fetchAllResults(query)
 
         if not reminders:
             logger.debug("no reminders were found")
@@ -229,7 +237,7 @@ class ReminderService:
 
         for reminder in reminders:
             if reminder['time_to_sent'] < datetime.now():
-                reminder = await self.__sendReminder(reminder)
+                reminder = await self._sendReminder(reminder)
 
             tempReminders.append(reminder)
 
@@ -241,7 +249,7 @@ class ReminderService:
 
             query, nones = writeSaveQuery("reminder", reminder['id'], reminder)
 
-            if not self.database.runQueryOnDatabase(query, nones):
+            if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save reminder into database, id: %s" % str(reminder['id']))
 
     @validateKeys
@@ -252,8 +260,11 @@ class ReminderService:
 
         :param member:
         :param id:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         try:
             id = int(id)
         except ValueError:
@@ -265,7 +276,7 @@ class ReminderService:
                 "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
                 "WHERE d.user_id = %s AND r.time_to_sent IS NOT NULL"
 
-        reminders = self.database.fetchAllResults(query, (member.id,))
+        reminders = database.fetchAllResults(query, (member.id,))
 
         if not reminders:
             logger.debug("no entries to delete")
@@ -279,18 +290,23 @@ class ReminderService:
 
         query = "DELETE FROM reminder WHERE id = %s"
 
-        self.database.runQueryOnDatabase(query, (id,))
+        if not database.runQueryOnDatabase(query, (id,)):
+            logger.critical(f"couldnt save changes to database: {query}, id: {id}")
+        else:
+            logger.debug("deleted entry from database")
 
-        logger.debug("deleted entry from database")
         return "Dein Reminder wurde erfolgreich gelöscht."
 
-    async def __sendReminder(self, reminder: dict) -> dict:
+    async def _sendReminder(self, reminder: dict) -> dict:
         """
         Sends the remainder per DM (and WhatsApp) to the user
 
         :param reminder: Remainder entry from the database
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         member: Member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(reminder["user_id"]))
 
         if not member:
@@ -307,11 +323,11 @@ class ReminderService:
                     "(SELECT id FROM discord WHERE user_id = %s LIMIT 1), " \
                     "FALSE)"
 
-            if not self.database.runQueryOnDatabase(query,
-                                                    ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
-                                                     member.id,
-                                                     datetime.now(),
-                                                     member.id,)):
+            if not database.runQueryOnDatabase(query,
+                                               ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
+                                                member.id,
+                                                datetime.now(),
+                                                member.id,)):
                 logger.critical("couldn't save message into database")
             else:
                 logger.debug("saved whatsapp into message queue")
