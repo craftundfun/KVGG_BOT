@@ -3,7 +3,7 @@ import logging
 from datetime import datetime
 from enum import Enum
 
-from discord import ChannelType, Member, VoiceState, Client, VoiceChannel
+from discord import ChannelType, Member, Client, VoiceChannel
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
@@ -35,20 +35,20 @@ class RelationService:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
 
-    def __createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum) -> bool:
+    def _createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, database: Database) -> bool:
         """
         Creates a new relation between the two given members
 
         :param member_1:
         :param member_2:
         :param type:
+        :param database:
         :return:
         """
-        member1 = getDiscordUser(member_1)
-        member2 = getDiscordUser(member_2)
+        member1 = getDiscordUser(member_1, database)
+        member2 = getDiscordUser(member_2, database)
 
         if not member1 or not member2:
             logger.debug("couldn't create relation")
@@ -63,8 +63,7 @@ class RelationService:
                 "(discord_user_id_1, discord_user_id_2, type, created_at) " \
                 "VALUES (%s, %s, %s, %s)"
 
-        self.database.runQueryOnDatabase(query,
-                                         (member1['id'], member2['id'], type.value, datetime.now(),))
+        database.runQueryOnDatabase(query, (member1['id'], member2['id'], type.value, datetime.now(),))
 
         return True
 
@@ -75,8 +74,11 @@ class RelationService:
         :param member_2:
         :param member_1:
         :param type:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         if member_1.id == member_2.id:
             logger.debug("same member for relation")
 
@@ -87,8 +89,8 @@ class RelationService:
 
             return None
 
-        dcUserDb_1: dict | None = getDiscordUser(member_1)
-        dcUserDb_2: dict | None = getDiscordUser(member_2)
+        dcUserDb_1: dict | None = getDiscordUser(member_1, database)
+        dcUserDb_2: dict | None = getDiscordUser(member_2, database)
 
         if not dcUserDb_1 or not dcUserDb_2:
             logger.warning("couldn't create relation, %s has no entity"
@@ -102,21 +104,21 @@ class RelationService:
                 "((discord_user_id_1 = %s AND discord_user_id_2 = %s) " \
                 "OR (discord_user_id_1 = %s AND discord_user_id_2 = %s))"
 
-        relation = self.database.fetchOneResult(query,
-                                                (type.value,
-                                                 dcUserDb_1['id'],
-                                                 dcUserDb_2['id'],
-                                                 dcUserDb_2['id'],
-                                                 dcUserDb_1['id'],))
+        relation = database.fetchOneResult(query,
+                                           (type.value,
+                                            dcUserDb_1['id'],
+                                            dcUserDb_2['id'],
+                                            dcUserDb_2['id'],
+                                            dcUserDb_1['id'],))
 
         if not relation:
-            if self.__createRelation(member_1, member_2, type):
-                relation = self.database.fetchOneResult(query,
-                                                        (type.value,
-                                                         dcUserDb_1['id'],
-                                                         dcUserDb_2['id'],
-                                                         dcUserDb_2['id'],
-                                                         dcUserDb_1['id'],))
+            if self._createRelation(member_1, member_2, type, database):
+                relation = database.fetchOneResult(query,
+                                                   (type.value,
+                                                    dcUserDb_1['id'],
+                                                    dcUserDb_2['id'],
+                                                    dcUserDb_2['id'],
+                                                    dcUserDb_1['id'],))
 
                 if not relation:
                     logger.warning("couldn't fetch relation for %s and %s" % (member_1.name, member_2.name))
@@ -133,8 +135,11 @@ class RelationService:
         :param member_1:
         :param type: Type of the relation
         :param value: Value to be increased
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
             relation['value'] = relation['value'] + value
 
@@ -159,82 +164,12 @@ class RelationService:
 
             query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
 
-            if self.database.runQueryOnDatabase(query, nones):
+            if database.runQueryOnDatabase(query, nones):
                 logger.debug("saved increased relation to database")
             else:
                 logger.critical("couldn't save relation into database")
         else:
             logger.debug("couldn't fetch relation")
-
-    @DeprecationWarning
-    async def manageLeavingMember(self, member: Member, voiceStateBefore: VoiceState):
-        """
-        Sets the last parameters if one member leaves
-
-        :param member:
-        :param voiceStateBefore:
-        :return:
-        """
-        logger.debug("managing leaving member for relation")
-        await lock.acquire()
-        logger.debug("lock acquired")
-
-        try:
-            otherMembersInChannel = voiceStateBefore.channel.members
-            whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
-            universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
-            allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
-
-            if len(otherMembersInChannel) <= 0:
-                logger.debug("last member in channel, relations were handled by their partners")
-
-                return
-
-            if voiceStateBefore.channel not in allTrackedChannels:
-                logger.debug("relation outside of allowed region")
-
-                return
-
-            if voiceStateBefore.channel in whatsappChannels:
-                type = RelationTypeEnum.ONLINE
-            else:
-                type = RelationTypeEnum.UNIVERSITY
-
-            for otherMember in otherMembersInChannel:
-                relation = await self.getRelationBetweenUsers(member, otherMember, type)
-
-                if not relation:
-                    logger.warning("couldn't fetch relation")
-
-                    continue
-
-                relation['last_time'] = datetime.now()
-                relation['frequency'] = relation['frequency'] + 1
-                query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
-
-                self.database.runQueryOnDatabase(query, nones)
-            logger.debug("edited all relations for leave")
-
-            if voiceStateBefore.self_video or voiceStateBefore.self_stream:
-                for otherMember in otherMembersInChannel:
-                    if otherMember.voice.self_stream or otherMember.voice.self_video:
-                        relation = await self.getRelationBetweenUsers(member, otherMember, RelationTypeEnum.STREAM)
-
-                        if not relation:
-                            logger.warning("couldn't fetch relation")
-
-                            continue
-
-                        relation['last_time'] = datetime.now()
-                        relation['frequency'] = relation['frequency'] + 1
-                        query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
-
-                        self.database.runQueryOnDatabase(query, nones)
-
-                logger.debug("edited all relations for leave")
-        finally:
-            logger.debug("lock will be released")
-            lock.release()
 
     async def increaseAllRelation(self):
         """
@@ -285,15 +220,18 @@ class RelationService:
 
         :param limit:
         :param type: RelationTypeEnum to choose which relation to look at
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
+
         answer = ""
         query = "SELECT * " \
                 "FROM discord_user_relation " \
                 "WHERE type = %s AND value > 0 " \
                 "ORDER BY value DESC " \
                 "LIMIT %s"
-        relations = self.database.fetchAllResults(query, (type.value, limit,))
+        relations = database.fetchAllResults(query, (type.value, limit,))
 
         if relations:
             logger.debug("fetched top three relations from database")
@@ -301,7 +239,7 @@ class RelationService:
             query = "SELECT username FROM discord WHERE id = %s"
 
             for index, relation in enumerate(relations, 1):
-                dcUserDb_1 = self.database.fetchOneResult(query, (relation['discord_user_id_1'],))
+                dcUserDb_1 = database.fetchOneResult(query, (relation['discord_user_id_1'],))
 
                 if not dcUserDb_1:
                     answer += "\t%d: Es gab hier einen Fehler!\n" % index
@@ -310,7 +248,7 @@ class RelationService:
 
                     continue
 
-                dcUserDb_2 = self.database.fetchOneResult(query, (relation['discord_user_id_2'],))
+                dcUserDb_2 = database.fetchOneResult(query, (relation['discord_user_id_2'],))
 
                 if not dcUserDb_2:
                     answer += "\t%d: Es gab hier einen Fehler!\n" % index
