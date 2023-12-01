@@ -6,11 +6,12 @@ import os.path
 import sys
 import time
 import traceback
+from typing import Any
 
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
-    RawReactionActionEvent
+    RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
 
@@ -73,6 +74,11 @@ logger.info("\n\n----Initial bot start!----\n\n")
 class MyClient(discord.Client):
     backgroundServices = None
 
+    def __init__(self, *, intents: Intents, **options: Any):
+        super().__init__(intents=intents, **options)
+
+        self.memeService = MemeService(self)
+
     async def on_member_join(self, member: Member):
         """
         Automatically adds the roles Uni and Mitglieder to newly joined members of the guild.
@@ -103,12 +109,7 @@ class MyClient(discord.Client):
         if not message:
             return
 
-        try:
-            memes = MemeService()
-        except ConnectionError as error:
-            logger.error("failure to start MemeService", exc_info=error)
-        else:
-            await memes.changeLikeCounterOfMessage(message)
+        await self.memeService.changeLikeCounterOfMessage(message)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
         await self.__prepareForMemeService(payload)
@@ -214,21 +215,11 @@ class MyClient(discord.Client):
             else:
                 await qm.checkForNewQuote(message)
 
-            try:
-                memes = MemeService()
-            except ConnectionError as error:
-                logger.error("failure to start MemeService", exc_info=error)
-            else:
-                await memes.checkIfMemeAndPrepareReactions(message)
+            await self.memeService.checkIfMemeAndPrepareReactions(message)
 
         # empty message but on server
         elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
-            try:
-                memes = MemeService()
-            except ConnectionError as error:
-                logger.error("failure to start MemeService", exc_info=error)
-            else:
-                await memes.checkIfMemeAndPrepareReactions(message)
+            await self.memeService.checkIfMemeAndPrepareReactions(message)
 
         # empty message but as DM
         elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):

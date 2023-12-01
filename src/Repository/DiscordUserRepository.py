@@ -74,7 +74,7 @@ def getDiscordUser(member: Member, database: Database) -> dict | None:
     return dcUserDb
 
 
-def getDiscordUserById(userId: int, database: Database()) -> dict | None:
+def getDiscordUserById(userId: int, database: Database) -> dict | None:
     """
     Returns a discord user from the database.
     Doesn't create one if missing or else.

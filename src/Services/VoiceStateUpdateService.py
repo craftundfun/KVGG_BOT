@@ -44,7 +44,7 @@ class VoiceStateUpdateService:
 
             return
 
-        dcUserDb = getDiscordUser(member)
+        dcUserDb = getDiscordUser(member,)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser for %s!" % member.name)

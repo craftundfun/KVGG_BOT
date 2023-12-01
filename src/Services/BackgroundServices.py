@@ -236,8 +236,8 @@ class BackgroundServices(commands.Cog):
             return
 
         try:
-            meme = MemeService()
+            meme = MemeService(self.client)
         except ConnectionError as error:
             logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
         else:
-            await meme.chooseWinner(self.client)
+            await meme.chooseWinner()

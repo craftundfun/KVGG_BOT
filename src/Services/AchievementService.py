@@ -29,6 +29,8 @@ class AchievementService:
         from src.Services.ProcessUserInput import getTagStringFromId
         from src.Services.ExperienceService import ExperienceService
 
+        xpService = ExperienceService(self.client)
+
         if type(kind.value) != str:
             logger.critical("false argument type")
 
@@ -40,13 +42,6 @@ class AchievementService:
 
         tag = getTagStringFromId(str(member.id))
         hours = int(value / 60)
-
-        try:
-            xpService = ExperienceService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start ExperienceService", exc_info=error)
-
-            return
 
         match kind:
             case AchievementParameter.ONLINE:
@@ -75,7 +70,7 @@ class AchievementService:
 
                 return
 
-        await self.__sendAchievementMessage(message)
+        await self._sendAchievementMessage(message)
 
     async def sendAchievementAndGrantBoostForRelation(self,
                                                       member_1: Member,
@@ -95,19 +90,14 @@ class AchievementService:
         from src.Services.ProcessUserInput import getTagStringFromId
         from src.Services.ExperienceService import ExperienceService
 
+        xpService = ExperienceService(self.client)
+
         if type(kind.value) != str:
             logger.critical("false argument type")
 
             return
         elif not self.channel:
             logger.critical("cant reach channel")
-
-            return
-
-        try:
-            xpService = ExperienceService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start ExperienceService", exc_info=error)
 
             return
 
@@ -137,9 +127,9 @@ class AchievementService:
 
                 return
 
-        await self.__sendAchievementMessage(message)
+        await self._sendAchievementMessage(message)
 
-    async def __sendAchievementMessage(self, message: str):
+    async def _sendAchievementMessage(self, message: str):
         """
         Sends the achievement message into the correct channel (bot-test-environment for debug purposes outside of
         docker container)

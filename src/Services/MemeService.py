@@ -21,20 +21,24 @@ class MemeService:
     UPVOTE = "🔼"
     DOWNVOTE = "🔽"
 
-    def __init__(self):
-        self.database = Database()
+    def __init__(self, client: Client):
+        self.client = client
+        self.experienceService = ExperienceService(self.client)
 
     async def checkIfMemeAndPrepareReactions(self, message: Message):
         """
         If the message is a meme, it will be saved in the database and reactions from the bot will be added.
 
         :param message: Message that was written
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         if message.channel.id != ChannelId.CHANNEL_MEMES.value:
             return
 
         # only delete non-picture messages from members
-        if message.content != "" and not message.author.bot:
+        if message.content != "" and not message.attachments and not message.author.bot:
             try:
                 await message.delete()
             except Exception as error:
@@ -56,14 +60,14 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
-        dcUserDb = getDiscordUser(message.author)
+        dcUserDb = getDiscordUser(message.author, database)
 
         if not dcUserDb:
             logger.warning("no dcUserDb, cant save meme to database")
 
         query = "INSERT INTO meme (message_id, discord_id, created_at) VALUES (%s, %s, %s)"
 
-        if not self.database.runQueryOnDatabase(query, (message.id, dcUserDb['id'], datetime.now(),)):
+        if not database.runQueryOnDatabase(query, (message.id, dcUserDb['id'], datetime.now(),)):
             logger.error("couldn't save meme to database")
         else:
             logger.debug("saved new meme to database")
@@ -79,10 +83,13 @@ class MemeService:
         Updates the counter of likes in the corresponding database field.
 
         :param message: Message that was reacted to
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = "SELECT * FROM meme WHERE message_id = %s"
 
-        if not (meme := self.database.fetchOneResult(query, (message.id,))):
+        if not (meme := database.fetchOneResult(query, (message.id,))):
             logger.warning("couldn't fetch meme from database")
 
             return
@@ -104,30 +111,32 @@ class MemeService:
 
         query, nones = writeSaveQuery('meme', meme['id'], meme)
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.error("couldn't update meme to database")
         else:
             logger.debug("updated meme to database")
 
-    async def chooseWinner(self, client: Client, offset: int = 0):
+    async def chooseWinner(self, offset: int = 0):
         """
         Chooses a winner for the last month, notifies, pins and grants an XP-Boost.
 
-        :param client: Discord
         :param offset: Offset in the database results, increase if we couldn't get a message previously
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = "SELECT * FROM meme WHERE created_at > %s ORDER BY likes DESC LIMIT 1 OFFSET %s"
 
         now = datetime.now()
         firstOfMonth = now - dateutil.relativedelta.relativedelta(month=1)
         firstOfMonthCorrectTime = firstOfMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
-        if not (meme := self.database.fetchOneResult(query, (firstOfMonthCorrectTime, offset,))):
+        if not (meme := database.fetchOneResult(query, (firstOfMonthCorrectTime, offset,))):
             logger.error("couldn't fetch any memes from database")
 
             return
 
-        channel = client.get_channel(ChannelId.CHANNEL_MEMES.value)
+        channel = self.client.get_channel(ChannelId.CHANNEL_MEMES.value)
 
         if not channel:
             logger.error("couldn't fetch channel to get message")
@@ -139,7 +148,7 @@ class MemeService:
         if not message:
             logger.error("couldn't fetch message from channel, trying next one")
 
-            await self.chooseWinner(client, offset + 1)
+            await self.chooseWinner(offset + 1)
 
             return
 
@@ -153,11 +162,6 @@ class MemeService:
         except Exception as error:
             logger.error("couldn't pin meme to channel", exc_info=error)
 
-        try:
-            experienceService = ExperienceService(client)
-        except ConnectionError as error:
-            logger.error("failure to start ExperienceService", exc_info=error)
-        else:
-            await experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
+        await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
 
         logger.debug("choose meme winner and granted boost")

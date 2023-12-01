@@ -73,7 +73,7 @@ class CommandService:
         self.soundboardService = SoundboardService(self.client)  #
         self.voiceClientService = VoiceClientService(self.client)  #
         self.channelService = ChannelService(self.client)  #
-        self.questService = QuestService(self.client)
+        self.questService = QuestService(self.client)  #
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
