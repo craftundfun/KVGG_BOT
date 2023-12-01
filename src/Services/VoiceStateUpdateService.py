@@ -31,6 +31,7 @@ class VoiceStateUpdateService:
         self.client = client
         self.waHelper = WhatsAppHelper(self.client)
         self.logService = LogService(self.client)
+        self.notificationService = NotificationService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -44,7 +45,7 @@ class VoiceStateUpdateService:
 
             return
 
-        dcUserDb = getDiscordUser(member,)
+        dcUserDb = getDiscordUser(member, )
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
@@ -73,13 +74,9 @@ class VoiceStateUpdateService:
             dcUserDb['started_webcam_at'] = None
 
             try:
-                notificationService = NotificationService(self.client)
-
-                await notificationService.runNotificationsForMember(member, dcUserDb)
-            except ConnectionError as error:
-                logger.error("failure to start NotificationService", exc_info=error)
+                await self.notificationService.runNotificationsForMember(member, dcUserDb)
             except Exception as error:
-                logger.error("a problem occurred in runNotificationsForMember", exc_info=error)
+                logger.error(f"failure while running notifications for {member}", exc_info=error)
 
             try:
                 felixCounter = FelixCounter()

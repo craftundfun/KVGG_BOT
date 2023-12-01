@@ -20,10 +20,8 @@ class NotificationService:
     def __init__(self, client: Client):
         """
         :param client:
-        :raise ConnectionError:
         """
         self.client = client
-        self.database = Database()
 
     async def __sendMessage(self, member: Member, content: str) -> bool:
         """
@@ -71,8 +69,11 @@ class NotificationService:
         :param member: Member, who will be notified
         :param time: Type of quest
         :param quests: List of all new quests
+        :raise ConnectionError: If the database connection cant be established
         """
-        settings = self.__getNotificationSettings(member)
+        database = Database()
+
+        settings = self._getNotificationSettings(member, database)
 
         if not settings or not settings['quest'] or not settings['notifications']:
             logger.debug(f"{member.name} is not opted in for quests-notifications")
@@ -95,10 +96,13 @@ class NotificationService:
 
         :param member: Member, who will be notified
         :param questId: Primary-Key of the completed quest
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = "SELECT description, time_type FROM quest WHERE id = %s"
 
-        if not (quest := self.database.fetchOneResult(query, (questId,))):
+        if not (quest := database.fetchOneResult(query, (questId,))):
             logger.error("couldn't fetch data from database")
 
             return
@@ -117,16 +121,19 @@ class NotificationService:
 
         :param member: Member, who will receive the messages.
         :param dcUserDb: Database user of the member.
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         answer = ""  # self.separator
 
         # don't send any notifications to university users
         if member.voice.channel.category.id in UniversityCategory.getValues():
             return
 
-        settings = self.__getNotificationSettings(member)
-        canSendWelcomeBackMessage = await self.__xDaysOfflineMessage(member, dcUserDb)
-        answer += await self.__sendNewsletter(dcUserDb)
+        settings = self._getNotificationSettings(member, database)
+        canSendWelcomeBackMessage = await self._xDaysOfflineMessage(member, dcUserDb)
+        answer += await self._sendNewsletter(dcUserDb, database)
 
         if not settings:
             if answer:
@@ -142,9 +149,9 @@ class NotificationService:
             return
 
         if not canSendWelcomeBackMessage:
-            answer += await self.__welcomeBackMessage(member, dcUserDb, settings)
+            answer += await self._welcomeBackMessage(member, dcUserDb, settings)
 
-        answer += await self.__informAboutDoubleXpWeekend(settings)
+        answer += await self._informAboutDoubleXpWeekend(settings)
 
         # nothing to send
         if answer == "":  # self.separator:
@@ -152,7 +159,7 @@ class NotificationService:
 
         await self.__sendMessage(member, answer)
 
-    async def __sendNewsletter(self, dcUserDb: dict) -> str:
+    async def _sendNewsletter(self, dcUserDb: dict, database: Database) -> str:
         """
         Sends the current newsletter(s) to the newly joined member.
 
@@ -169,7 +176,7 @@ class NotificationService:
                  "WHERE discord_id = %s) "
                  "AND n.created_at > %s")
 
-        newsletters = self.database.fetchAllResults(query, (dcUserDb['id'], dcUserDb['created_at'],))
+        newsletters = database.fetchAllResults(query, (dcUserDb['id'], dcUserDb['created_at'],))
 
         if not newsletters:
             return ""
@@ -181,7 +188,7 @@ class NotificationService:
                      "VALUES (%s, %s, %s)")
 
             # if the query couldn't be run don't send newsletter to member to avoid future spam
-            if not self.database.runQueryOnDatabase(query, (newsletter['id'], dcUserDb['id'], datetime.now(),)):
+            if not database.runQueryOnDatabase(query, (newsletter['id'], dcUserDb['id'], datetime.now(),)):
                 return ""
 
             answer += (newsletter['message']
@@ -194,7 +201,7 @@ class NotificationService:
 
         return answer + self.separator
 
-    async def __welcomeBackMessage(self, member: Member, dcUserDb: dict, settings: dict) -> str:
+    async def _welcomeBackMessage(self, member: Member, dcUserDb: dict, settings: dict) -> str:
         """
         Sends a welcome back notification for users who opted in
 
@@ -272,7 +279,7 @@ class NotificationService:
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
 
-    async def __xDaysOfflineMessage(self, member: Member, dcUserDb: dict) -> bool:
+    async def _xDaysOfflineMessage(self, member: Member, dcUserDb: dict) -> bool:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
@@ -299,7 +306,7 @@ class NotificationService:
 
         return False
 
-    async def __informAboutDoubleXpWeekend(self, settings: dict) -> str:
+    async def _informAboutDoubleXpWeekend(self, settings: dict) -> str:
         """
         Sends a DM to the given user to inform him about the currently active double-xp-weekend
 
@@ -315,7 +322,7 @@ class NotificationService:
                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
                 "auf dem Server mit '/notifications' de- bzw. aktivieren!") + self.separator
 
-    def __getNotificationSettings(self, member: Member) -> dict | None:
+    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
         """
         Fetches the notification settings of the given Member from our database.
 
@@ -324,7 +331,7 @@ class NotificationService:
         """
         query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        if not (settings := self.database.fetchOneResult(query, (member.id,))):
+        if not (settings := database.fetchOneResult(query, (member.id,))):
             logger.error("couldn't fetch results from database")
 
             return None
