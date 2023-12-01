@@ -32,7 +32,6 @@ class QuestService:
     def __init__(self, client: Client):
         self.client = client
 
-        self.database = Database()
         self.notificationService = NotificationService(self.client)
         self.experienceService = ExperienceService(self.client)
 
@@ -43,7 +42,10 @@ class QuestService:
         :param member: Member, whose quests will be checked
         :param questType: Type of quest
         :param value: Optional value to overwrite the standard increase of one
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = ("SELECT qdm.*, q.value_to_reach, q.time_type "
                  "FROM quest_discord_mapping qdm INNER JOIN quest q ON quest_id = q.id "
                  "WHERE quest_id IN "
@@ -51,7 +53,7 @@ class QuestService:
                  "AND discord_id = "
                  "(SELECT id FROM discord WHERE user_id = %s)")
 
-        if not (quests := self.database.fetchAllResults(query, (questType.value, member.id,))):
+        if not (quests := database.fetchAllResults(query, (questType.value, member.id,))):
             logger.debug(f"no quests found to type {questType.value} and {member.name}")
 
             return
@@ -93,7 +95,7 @@ class QuestService:
 
                     query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
 
-                    if not self.database.runQueryOnDatabase(query, nones):
+                    if not database.runQueryOnDatabase(query, nones):
                         logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
 
                     continue
@@ -101,7 +103,7 @@ class QuestService:
             quest['current_value'] += value
             quest['time_updated'] = datetime.now()
 
-            await self.__checkForFinishedQuest(member, quest)
+            await self._checkForFinishedQuest(member, quest)
 
             # remove value_to_reach key due it's online for comparison and doesn't belong into quest_discord_mapping
             del quest['value_to_reach']
@@ -109,12 +111,12 @@ class QuestService:
 
             query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
 
-            if not self.database.runQueryOnDatabase(query, nones):
+            if not database.runQueryOnDatabase(query, nones):
                 logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
             else:
                 logger.debug(f"saved {quest} to database for {member.name}")
 
-    async def __checkForFinishedQuest(self, member: Member, quest: dict):
+    async def _checkForFinishedQuest(self, member: Member, quest: dict):
         """
         If a quest was finished a xp-boost will be given to the user.
 
@@ -138,48 +140,52 @@ class QuestService:
         Resets all the quest from the given time and creates new ones for members who are currently online.
 
         :param time: Time to reset the quests and create new ones
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = "DELETE FROM quest_discord_mapping " \
                 "WHERE quest_id IN " \
                 "(SELECT id FROM quest WHERE time_type = %s)"
 
-        if not self.database.runQueryOnDatabase(query, (time.value,)):
+        if not database.runQueryOnDatabase(query, (time.value,)):
             logger.error("failure to run query on database")
 
             return
         else:
             logger.debug(f"resettet {time.value}-quests")
 
-        await self.__createQuestsForCurrentOnlineUsers(time)
+        await self._createQuestsForCurrentOnlineUsers(time, database)
 
-    async def __informMemberAboutNewQuests(self, member: Member, time: QuestDates):
+    async def _informMemberAboutNewQuests(self, member: Member, time: QuestDates, database: Database):
         """
         Fetches all current quests from the given time and informs user about them.
 
         :param member: Member to message
         :param time: Type of quests
+        :param database:
         """
         query = ("SELECT * FROM quest "
                  "WHERE id IN "
                  "(SELECT quest_id FROM quest_discord_mapping WHERE discord_id = "
                  "(SELECT id FROM discord WHERE user_id = %s)) AND time_type = %s")
 
-        if not (quests := self.database.fetchAllResults(query, (member.id, time.value,))):
+        if not (quests := database.fetchAllResults(query, (member.id, time.value,))):
             logger.error(f"couldn't fetch quests to message {member.nick if member.nick else member.name}")
 
             return
 
         await self.notificationService.informAboutNewQuests(member, time, quests)
 
-    async def __createQuestsForCurrentOnlineUsers(self, time: QuestDates):
+    async def _createQuestsForCurrentOnlineUsers(self, time: QuestDates, database: Database):
         """
         Creates new quests for all online users, so they have new ones right at zero 'o clock.
 
         :param time: Type of quests
         """
-        for channel in self.__getChannels():
+        for channel in self._getChannels():
             for member in channel.members:
-                await self.__createQuestForMember(member, time)
+                await self._createQuestForMember(member, time, database)
 
                 # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
                 await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
@@ -193,11 +199,13 @@ class QuestService:
         them to them.
 
         :param member: Member, who joined the VoiceChat
+        :raise ConnectionError: If the database connection cant be established
         """
-        dcUserDb = getDiscordUser(member)
+        database = Database()
+        dcUserDb = getDiscordUser(member, database)
 
         if not dcUserDb:
-            logger.warning(f"couldn't fetch DiscordUser for {member.nick if member.nick else member.name}")
+            logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")
 
             return
 
@@ -206,7 +214,7 @@ class QuestService:
 
         query = "SELECT id FROM quest_discord_mapping WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        if not (currentQuests := self.database.fetchAllResults(query, (member.id,))):
+        if not (currentQuests := database.fetchAllResults(query, (member.id,))):
             length = 0
         else:
             length = len(currentQuests)
@@ -215,9 +223,9 @@ class QuestService:
         if not last_online or now.year > last_online.year or length == 0:
             logger.debug("no quests yet or quests too old, generate new ones for every time")
 
-            await self.__createQuestForMember(member, QuestDates.DAILY)
-            await self.__createQuestForMember(member, QuestDates.WEEKLY)
-            await self.__createQuestForMember(member, QuestDates.MONTHLY)
+            await self._createQuestForMember(member, QuestDates.DAILY, database)
+            await self._createQuestForMember(member, QuestDates.WEEKLY, database)
+            await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
             return
 
@@ -225,29 +233,30 @@ class QuestService:
         if now.month > last_online.month:
             logger.debug("create new monthly quests")
 
-            await self.__createQuestForMember(member, QuestDates.MONTHLY)
+            await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
         # user will get new weekly's -> don't care to reset, already done through the background service
         if now.isocalendar()[1] > last_online.isocalendar()[1]:
             logger.debug("create new weekly quests")
 
-            await self.__createQuestForMember(member, QuestDates.WEEKLY)
+            await self._createQuestForMember(member, QuestDates.WEEKLY, database)
 
         if now.day > last_online.day or now.month > last_online.month or now.year > last_online.year:
             logger.debug("create new daily quests")
 
-            await self.__createQuestForMember(member, QuestDates.DAILY)
+            await self._createQuestForMember(member, QuestDates.DAILY, database)
 
-    async def __createQuestForMember(self, member: Member, time: QuestDates):
+    async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database):
         """
         Creates new quests for the given member and time.
 
         :param member: Member, who will get new quests.
         :param time: Type of quests
+        :param database:
         """
         query = "SELECT * FROM quest WHERE time_type = %s"
 
-        if not (quests := self.database.fetchAllResults(query, (time.value,))):
+        if not (quests := database.fetchAllResults(query, (time.value,))):
             logger.error(f"couldn't fetch any quests from the database and the given time: {time.value}")
 
             return
@@ -266,10 +275,10 @@ class QuestService:
             if randomNumber in usedIndices:
                 continue
 
-            if not self.database.runQueryOnDatabase(query,
-                                                    (quests[randomNumber]['id'],
-                                                     member.id,
-                                                     datetime.now())):
+            if not database.runQueryOnDatabase(query,
+                                               (quests[randomNumber]['id'],
+                                                member.id,
+                                                datetime.now())):
                 logger.error("couldn't save quest_discord_mapping to database")
 
                 break
@@ -284,9 +293,9 @@ class QuestService:
 
         logger.debug("added all quests")
 
-        await self.__informMemberAboutNewQuests(member, time)
+        await self._informMemberAboutNewQuests(member, time, database)
 
-    def __getChannels(self):
+    def _getChannels(self):
         """
         Yields all channels to track from the guild filtered by number of members and if they are tracked
 
@@ -302,14 +311,17 @@ class QuestService:
         Lists all the quests from a user.
 
         :param member: Member, who requested his quests
+        :raise ConnectionError: If the database connection cant be established
         """
+        database = Database()
+
         query = ("SELECT q.*, qdm.current_value "
                  "FROM quest q INNER JOIN quest_discord_mapping qdm ON q.id = qdm.quest_id "
                  "WHERE q.id IN "
                  "(SELECT quest_id FROM quest_discord_mapping) "
                  "AND qdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")
 
-        if not (quests := self.database.fetchAllResults(query, (member.id,))):
+        if not (quests := database.fetchAllResults(query, (member.id,))):
             logger.warning(f"couldn't fetch results for following query: {query}")
 
             return "Es gab ein Problem beim Abfragen der Quests oder du hast keine Quests!"
