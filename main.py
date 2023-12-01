@@ -79,6 +79,7 @@ class MyClient(discord.Client):
 
         self.memeService = MemeService(self)
         self.soundboardService = SoundboardService(self)
+        self.voiceStateUpdateService = VoiceStateUpdateService(self)
 
     async def on_member_join(self, member: Member):
         """
@@ -272,12 +273,7 @@ class MyClient(discord.Client):
         """
         logger.debug("received voice state update")
 
-        try:
-            vsus = VoiceStateUpdateService(self)
-        except ConnectionError as error:
-            logger.error("failure to start VoiceStateUpdateService", exc_info=error)
-        else:
-            await vsus.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+        await self.voiceStateUpdateService.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
 
 
 # reads the token
