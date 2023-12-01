@@ -35,7 +35,6 @@ class QuotesManager:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
 
     @validateKeys
@@ -43,13 +42,16 @@ class QuotesManager:
         """
         Returns a random quote from our database
 
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("%s requested a quote" % member.name)
 
+        database = Database()
+
         query = "SELECT quote FROM quotes"
 
-        quotes = self.database.fetchAllResults(query)
+        quotes = database.fetchAllResults(query)
 
         if not quotes:
             logger.critical("no qoutes were found in the database")
@@ -65,8 +67,10 @@ class QuotesManager:
         Checks if a new quote was entered in the Quotes-Channel
 
         :param message:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
+        database = Database()
         channel = getQuotesChannel(self.client)
 
         if channel is not None and (channel.id == message.channel.id):
@@ -74,7 +78,7 @@ class QuotesManager:
 
             query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
 
-            if self.database.runQueryOnDatabase(query, (message.content, message.id,)):
+            if database.runQueryOnDatabase(query, (message.content, message.id,)):
                 await sendDM(message.author, "Dein Zitat wurde in unserer Datenbank gespeichert!")
 
                 logger.debug("sent dm to %s" % message.author.name)
@@ -84,16 +88,18 @@ class QuotesManager:
         Updates an existing quote if it was edited
 
         :param message:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         channel = getQuotesChannel(self.client)
+        database = Database()
 
         if channel is not None and channel.id == message.channel_id:
             logger.debug("new quote detected")
 
             query = "SELECT * FROM quotes WHERE message_external_id = %s"
 
-            quote = self.database.fetchOneResult(query, (message.message_id,))
+            quote = database.fetchOneResult(query, (message.message_id,))
 
             if not quote:
                 logger.critical("quote update couldn't be fetched -> no database results")
@@ -107,7 +113,7 @@ class QuotesManager:
                 quote,
             )
 
-            self.database.runQueryOnDatabase(query, nones)
+            database.runQueryOnDatabase(query, nones)
 
             logger.debug("saved new quote to database")
 
@@ -122,20 +128,22 @@ class QuotesManager:
 
                         logger.debug("sent dm to %s" % author.name)
                     except Exception as error:
-                        logger.error("couldt send DM to %s" % author.name, exc_info=error)
+                        logger.error("couldn't send DM to %s" % author.name, exc_info=error)
 
     async def deleteQuote(self, message: RawMessageDeleteEvent):
         """
-        If a quote is deleted it also gets deleted from our database
+        If a quote is deleted, it also gets deleted from our database
 
         :param message:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         channel = getQuotesChannel(self.client)
+        database = Database()
 
         if channel is not None and channel.id == message.channel_id:
             logger.debug("delete quote from database")
 
             query = "DELETE FROM quotes WHERE message_external_id = %s"
 
-            self.database.runQueryOnDatabase(query, (message.message_id,))
+            database.runQueryOnDatabase(query, (message.message_id,))
