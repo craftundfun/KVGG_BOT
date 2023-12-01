@@ -39,6 +39,11 @@ class LogService:
 
         match event:
             case Events.JOINED_VOICE_CHAT:
+                if not voiceStateAfter.channel:
+                    logger.warning("join channel was None")
+
+                    return
+
                 title = f"{member.display_name} ist dem Sprachkanal `{voiceStateAfter.channel.name}` beigetreten."
                 color = discord.Color.green()
             case Events.SWITCHED_VOICE_CHANNEL:
@@ -61,6 +66,7 @@ class LogService:
         embed.set_footer(text=f"KVGG")
         embed.timestamp = datetime.now()
 
+        # channel can be None due to the start order of the bot
         if self.channel:
             try:
                 await self.channel.send(embed=embed)
@@ -69,6 +75,16 @@ class LogService:
 
                 return
         else:
-            logger.error("Protokolle-channel is None")
+            self.channel = self.client.get_channel(ChannelId.CHANNEL_PROTOKOLLE.value)
+
+            if not self.channel:
+                logger.error("Protokolle-channel is None")
+
+            try:
+                await self.channel.send(embed=embed)
+            except Exception as error:
+                logger.error("couldn't send embed into channel", exc_info=error)
+
+                return
 
             return
