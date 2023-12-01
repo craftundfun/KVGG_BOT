@@ -71,6 +71,8 @@ class CommandService:
         self.whatsappHelper = WhatsAppHelper(self.client)
         self.reminderService = ReminderService(self.client)
         self.soundboardService = SoundboardService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
+        self.channelService = ChannelService(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -223,12 +225,10 @@ class CommandService:
                     answer = await self.soundboardService.playSound(ctx=interaction, **kwargs)
 
                 case Commands.STOP_SOUND:
-                    voiceClientService = VoiceClientService(self.client)
-                    answer = await voiceClientService.stop(**kwargs)
+                    answer = await self.voiceClientService.stop(**kwargs)
 
                 case Commands.KNEIPE:
-                    channelService = ChannelService(self.client)
-                    answer = await channelService.createKneipe(interaction.user, **kwargs)
+                    answer = await self.channelService.createKneipe(interaction.user, **kwargs)
 
                 case Commands.LIST_SOUNDS:
                     data = await self.soundboardService.listPersonalSounds(ctx=interaction)
