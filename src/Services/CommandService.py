@@ -62,12 +62,12 @@ class CommandService:
 
     def __init__(self, client: Client):
         self.client = client
-
+        # TODO remove #
         self.apiService = ApiServices()  #
         self.userInputService = ProcessUserInput(self.client)  #
         self.quotesManager = QuotesManager(self.client)  #
-        self.userSettings = UserSettings()
-        self.experienceService = ExperienceService(self.client)
+        self.userSettings = UserSettings()  #
+        self.experienceService = ExperienceService(self.client)  #
         self.whatsappHelper = WhatsAppHelper(self.client)
         self.reminderService = ReminderService(self.client)
         self.soundboardService = SoundboardService(self.client)

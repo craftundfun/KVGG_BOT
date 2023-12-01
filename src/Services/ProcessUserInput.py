@@ -110,11 +110,13 @@ class ProcessUserInput:
         :param channel: Channel, where the interaction was used
         :param command: Whether the message was a command.
         If yes, the Quest won't be checked for a message.
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("increasing message-count for %s" % member.name)
 
-        dcUserDb = getDiscordUser(member)
+        database = Database()
+        dcUserDb = getDiscordUser(member, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -140,19 +142,17 @@ class ProcessUserInput:
 
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
-        if self._saveDiscordUserToDatabase(dcUserDb):
+        if self._saveDiscordUserToDatabase(dcUserDb, database):
             logger.debug("saved changes to database")
 
-    def _saveDiscordUserToDatabase(self, data: dict) -> bool:
+    def _saveDiscordUserToDatabase(self, data: dict, database: Database) -> bool:
         """
         Helper to save a DiscordUser from this class into the database
 
         :param data: Data
-        :raises ConnectionError: If the database connection can't be established
+        :param database:
         :return:
         """
-        database = Database()
-
         query, nones = writeSaveQuery(
             "discord",
             data['id'],
@@ -244,8 +244,11 @@ class ProcessUserInput:
         :param timeName: Time-type
         :param member: Requesting Member
         :param param: Optional amount of time added or subtracted
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
         if timeName == "online":
             time = OnlineTime.OnlineTime()
         elif timeName == "stream":
@@ -259,7 +262,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
-        dcUserDb = getDiscordUser(user)
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -284,7 +287,7 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self._saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             logger.debug("saved changes to database")
 
@@ -351,7 +354,6 @@ class ProcessUserInput:
         # stream time
         query = "SELECT username, formatted_stream_time " \
                 "FROM discord " \
-                "WHERE time_streamed IS NOT NULL " \
                 "ORDER BY time_streamed DESC " \
                 "LIMIT 3"
 
@@ -571,7 +573,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
-        dcUserDb = getDiscordUser(user)
+        dcUserDb = getDiscordUser(user, database)
         answerAppendix = ""
 
         if not dcUserDb:
@@ -683,11 +685,13 @@ class ProcessUserInput:
         :param member: Member, who raised the command
         :param action: Chosen action, start or stop
         :param time: Optional time to start the timer at
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("handling Felix-Timer by %s" % member.name)
 
-        dcUserDb = getDiscordUser(user)
+        database = Database()
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
@@ -742,7 +746,7 @@ class ProcessUserInput:
                 return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
             counter.setFelixTimer(date)
-            self._saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
@@ -774,7 +778,7 @@ class ProcessUserInput:
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
             counter.setFelixTimer(None)
-            self._saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb, database)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde beendet!" % (counter.getNameOfCounter()))

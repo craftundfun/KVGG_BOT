@@ -40,9 +40,8 @@ class ExperienceService:
         """
         self.client = client
         self.achievementService = AchievementService(self.client)
-        self.database = Database()
 
-    def __getDoubleXpWeekendInformation(self) -> string:
+    def _getDoubleXpWeekendInformation(self) -> string:
         """
         Returns a string with information about this or the upcoming double-xp-weekend
 
@@ -51,12 +50,12 @@ class ExperienceService:
         if isDoubleWeekend(datetime.now()):
             return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
         else:
-            diff: timedelta = self.__getDiffUntilNextDoubleXpWeekend()
+            diff: timedelta = self._getDiffUntilNextDoubleXpWeekend()
 
             return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
                 (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
 
-    def __getDiffUntilNextDoubleXpWeekend(self) -> timedelta:
+    def _getDiffUntilNextDoubleXpWeekend(self) -> timedelta:
         """
         Gets the time until the next double-xp-weekend
 
@@ -76,7 +75,7 @@ class ExperienceService:
 
             return nextNextSaturday - now
 
-    def __getExperience(self, userId: int, lock: bool = False) -> dict | None:
+    def _getExperience(self, userId: int, database: Database) -> dict | None:
         """
         Returns the Experience from the given user. If no entry exists, it will create one
 
@@ -90,20 +89,17 @@ class ExperienceService:
                 "INNER JOIN discord d ON e.discord_user_id = d.id " \
                 "WHERE d.user_id = %s"
 
-        if lock:
-            query += " FOR UPDATE"
-
-        xp = self.database.fetchOneResult(query, (userId,))
+        xp = database.fetchOneResult(query, (userId,))
 
         if not xp:
             logger.debug("found no experience for %s" % str(userId))
 
-            if not self.__createExperience(userId):
+            if not self._createExperience(userId, database):
                 logger.warning("couldn't fetch experience!")
 
                 return None
 
-            xp = self.database.fetchOneResult(query, (userId,))
+            xp = database.fetchOneResult(query, (userId,))
 
         if xp:
             logger.debug("fetched experience")
@@ -112,7 +108,7 @@ class ExperienceService:
 
         return xp
 
-    def __createExperience(self, userId: int) -> bool:
+    def _createExperience(self, userId: int, database: Database) -> bool:
         """
         Creates an Experience for the given user
 
@@ -121,9 +117,9 @@ class ExperienceService:
         """
         logger.debug("creating experience for %s" % str(userId))
 
-        xpAmount = self.__calculateXpFromPreviousData(userId)
-        xpBoosts = self.__calculateXpBoostsFromPreviousData(userId)
-        dcUserDb = getDiscordUserById(userId)
+        xpAmount = self._calculateXpFromPreviousData(userId, database)
+        xpBoosts = self._calculateXpBoostsFromPreviousData(userId, database)
+        dcUserDb = getDiscordUserById(userId, database)
 
         if dcUserDb is None:
             logger.warning("couldn't create Experience!")
@@ -133,9 +129,9 @@ class ExperienceService:
         query = "INSERT INTO experience (xp_amount, discord_user_id, xp_boosts_inventory) " \
                 "VALUES (%s, %s, %s)"
 
-        return self.database.runQueryOnDatabase(query, (xpAmount, dcUserDb['id'], xpBoosts,))
+        return database.runQueryOnDatabase(query, (xpAmount, dcUserDb['id'], xpBoosts,))
 
-    def __calculateXpBoostsFromPreviousData(self, dcUserDbId: int) -> str | None:
+    def _calculateXpBoostsFromPreviousData(self, dcUserDbId: int, database: Database) -> str | None:
         """
         Calculates the XP-Boosts earned until now
 
@@ -146,7 +142,7 @@ class ExperienceService:
 
         query = "SELECT time_online, time_streamed FROM discord WHERE user_id = %s"
 
-        times = self.database.fetchOneResult(query, (dcUserDbId,))
+        times = database.fetchOneResult(query, (dcUserDbId,))
 
         if not times:
             return None
@@ -213,7 +209,7 @@ class ExperienceService:
 
         return json.dumps(boosts)
 
-    def __calculateXpFromPreviousData(self, userId: int) -> int:
+    def _calculateXpFromPreviousData(self, userId: int, database: Database) -> int:
         """
         Calculates the XP earned until now
 
@@ -226,7 +222,7 @@ class ExperienceService:
         query = "SELECT time_online, time_streamed, message_count_all_time " \
                 "FROM discord " \
                 "WHERE user_id = %s"
-        data = self.database.fetchOneResult(query, (userId,))
+        data = database.fetchOneResult(query, (userId,))
 
         if not data:
             logger.warning("couldn't calculate previously earned xp!")
@@ -250,14 +246,21 @@ class ExperienceService:
 
         :param member: Member who earned the boost
         :param kind: Kind of boost
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        database = Database()
+
+        # import and instantiate here due to avoiding circular import
+        from src.Services.NotificationService import NotificationService
+        notificationService = NotificationService(self.client)
+
         if not isinstance(kind.value, str):
             logger.critical("false argument given")
 
             return
 
-        if not (xp := self.__getExperience(member.id)):
+        if not (xp := self._getExperience(member.id, database)):
             logger.debug("couldn't fetch xp for %s" % member.name)
 
             return
@@ -338,19 +341,10 @@ class ExperienceService:
             if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
                 logger.debug("cant grant boost, too many inactive xp boosts")
 
-                try:
-                    from src.Services.NotificationService import NotificationService
-
-                    await NotificationService(self.client).informAboutXpBoostInventoryLength(member, len(inventory))
-                except ConnectionError as error:
-                    logger.error("failure to start NotificationService", exc_info=error)
-
-                return
+                await notificationService.informAboutXpBoostInventoryLength(member, len(inventory))
         else:
             inventory = []
 
-        # TODO remove after investigation
-        invBefore = copy.deepcopy(inventory)
         inventory.append(boost)
 
         xp['xp_boosts_inventory'] = json.dumps(inventory)
@@ -360,29 +354,14 @@ class ExperienceService:
             xp,
         )
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.error("couldn't save new xp boost to database for %s" % member.name)
         else:
-            try:
-                from src.Services.NotificationService import NotificationService
-
-                await NotificationService(self.client).informAboutXpBoostInventoryLength(member, len(inventory))
-            except ConnectionError as error:
-                logger.error("failure to start NotificationService", exc_info=error)
-
-            logger.debug("------------------------------------------------------")
-            logger.debug("boost:")
-            logger.debug(str(boost) + "\n")
-            logger.debug("inventory für: %s" % member.name)
-            logger.debug("vorher:")
-            logger.debug(str(invBefore))
-            logger.debug("nachher:")
-            logger.debug(str(inventory))
-            logger.debug("SQL-statement: %s" % query)
+            await notificationService.informAboutXpBoostInventoryLength(member, len(inventory))
 
             logger.debug("saved granted boost to database for %s" % member.name)
 
-            if xp := self.__getExperience(member.id):
+            if xp := self._getExperience(member.id, database):
                 logger.debug("inventory: " + xp['xp_boosts_inventory'])
             else:
                 logger.debug("couldn't fetch inventory again")
@@ -393,16 +372,19 @@ class ExperienceService:
         Xp-Boost-Spin for member
 
         :param member: Member, who started the spin
+        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug("%s requested XP-SPIN." % member.name)
 
-        if (dcUserDb := getDiscordUser(member)) is None:
+        database = Database()
+
+        if (dcUserDb := getDiscordUser(member, database)) is None:
             logger.warning("couldn't fetch DiscordUser!")
 
             return "Es ist etwas schief gelaufen!"
 
-        xp = self.__getExperience(dcUserDb['user_id'])
+        xp = self._getExperience(dcUserDb['user_id'], database)
 
         if xp is None:
             logger.warning("couldn't spin because of missing experience!")
@@ -455,6 +437,7 @@ class ExperienceService:
             }
 
             inventory.append(boost)
+
             xp['xp_boosts_inventory'] = json.dumps(inventory)
             xp['last_spin_for_boost'] = datetime.now()
             query, nones = writeSaveQuery(
@@ -463,7 +446,7 @@ class ExperienceService:
                 xp,
             )
 
-            if self.database.runQueryOnDatabase(query, nones):
+            if database.runQueryOnDatabase(query, nones):
                 logger.debug("saved new xp boost to database")
 
                 return "Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du %d-Fach XP! Setze ihn über " \
@@ -486,7 +469,7 @@ class ExperienceService:
                 xp,
             )
 
-            if self.database.runQueryOnDatabase(query, nones):
+            if database.runQueryOnDatabase(query, nones):
                 logger.debug("saved date to database")
             else:
                 logger.critical("couldn't save changes to database")
@@ -498,11 +481,12 @@ class ExperienceService:
         Returns the xp for the given discord user
 
         :param dcUserDb:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("requested xp from %s" % dcUserDb['username'])
 
-        return self.__getExperience(dcUserDb['user_id'])
+        return self._getExperience(dcUserDb['user_id'], Database())
 
     @validateKeys
     def handleXpRequest(self, member: Member, user: Member) -> string:
@@ -511,6 +495,7 @@ class ExperienceService:
 
         :param user: Tag of the requested user
         :param member: Member, who called the command
+        :raise ConnectionError: If the database connection can't be established
         :return: string - answer
         """
         # lazy import to avoid circular import
@@ -518,14 +503,15 @@ class ExperienceService:
 
         logger.debug("%s requested XP" % member.name)
 
-        dcUserDb = getDiscordUser(user)
+        database = Database()
+        dcUserDb = getDiscordUser(user, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
 
             return "Es ist ein Fehler aufgetreten!"
 
-        xp = self.__getExperience(dcUserDb['user_id'])
+        xp = self._getExperience(dcUserDb['user_id'], database)
 
         if xp is None:
             logger.warning("couldn't fetch Experience!")
@@ -534,7 +520,7 @@ class ExperienceService:
 
         reply = "%s hat bereits %s XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']),
                                                        '{:,}'.format(xp['xp_amount']).replace(',', '.'))
-        reply += self.__getDoubleXpWeekendInformation()
+        reply += self._getDoubleXpWeekendInformation()
 
         logger.debug("replying xp amount")
 
@@ -547,12 +533,15 @@ class ExperienceService:
 
         :param member:
         :param setting:
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("%s requested a change of his / her double-xp-weekend notification" % member.name)
 
+        database = Database()
+
         if setting == 'on':
-            dcUserDb = getDiscordUser(member)
+            dcUserDb = getDiscordUser(member, database)
 
             if dcUserDb is None:
                 logger.warning("couldn't fetch DiscordUser!")
@@ -561,7 +550,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 1
         else:
-            dcUserDb = getDiscordUser(member)
+            dcUserDb = getDiscordUser(member, database)
 
             if dcUserDb is None:
                 logger.warning("Couldn't fetch DiscordUser!")
@@ -576,7 +565,7 @@ class ExperienceService:
             dcUserDb
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved setting to database")
 
             return "Deine Einstellungen wurden gespeichert!"
@@ -593,18 +582,20 @@ class ExperienceService:
         :param member: Member, who the inventory belongs to
         :param action: Action the user wants to perform with his inventory
         :param row: Optional row to choose boost from
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("%s requested Xp-Inventory" % member.name)
 
-        dcUserDb: dict | None = getDiscordUser(member)
+        database = Database()
+        dcUserDb: dict | None = getDiscordUser(member, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser")
 
             return "Es ist ein Fehler aufgetreten!"
 
-        xp = self.__getExperience(dcUserDb['user_id'])
+        xp = self._getExperience(dcUserDb['user_id'], database)
 
         if xp is None:
             logger.warning("couldn't fetch Experience")
@@ -662,8 +653,8 @@ class ExperienceService:
                 return "Du hast keine XP-Boosts in deinem Inventar!"
 
             # too many xp boosts are active, cant activate another one
-            if xp['active_xp_boosts'] is not None and len(
-                    json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+            if (xp['active_xp_boosts'] is not None
+                    and len(json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value):
                 logger.debug("too many boosts active")
 
                 return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere " \
@@ -681,8 +672,9 @@ class ExperienceService:
                     usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
                     xp['xp_boosts_inventory'] = None
                 # xp boosts can fit into active
-                elif (len(json.loads(xp['active_xp_boosts'])) + len(
-                        json.loads(xp['xp_boosts_inventory']))) <= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                elif ((len(json.loads(xp['active_xp_boosts']))
+                       + len(json.loads(xp['xp_boosts_inventory'])))
+                      <= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value):
 
                     usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
                     inventory = json.loads(xp['xp_boosts_inventory'])
@@ -729,8 +721,8 @@ class ExperienceService:
 
                     return "Du hast keine XP-Boosts in deinem Inventar!"
                 # active inventory full
-                elif xp['active_xp_boosts'] is not None and len(
-                        json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                elif (xp['active_xp_boosts'] is not None
+                      and len(json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value):
                     logger.debug("too many active boosts")
 
                     return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere es erneut!"
@@ -777,7 +769,7 @@ class ExperienceService:
             xp,
         )
 
-        if self.database.runQueryOnDatabase(query, nones):
+        if database.runQueryOnDatabase(query, nones):
             logger.debug("saved changes to database")
         else:
             logger.critical("couldn't save changes to database")
@@ -790,11 +782,14 @@ class ExperienceService:
 
         :param member: Optional Member if DiscordUser is not used
         :param experienceParameter: Amount of xp
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("%s gets XP" % member.name)
 
-        xp = self.__getExperience(member.id)
+        database = Database()
+
+        xp = self._getExperience(member.id, database)
 
         if xp is None:
             logger.warning("couldn't fetch Experience")
@@ -829,7 +824,7 @@ class ExperienceService:
             xp
         )
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't save changes to database")
 
         # 99 mod 10 > 101 mod 10 -> achievement for 100
@@ -851,9 +846,12 @@ class ExperienceService:
         Answers the Xp-Leaderboard
 
         :param member: Member, who called the command
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("%s requested XP-Leaderboard" % member.name)
+
+        database = Database()
 
         query = "SELECT d.username, e.xp_amount " \
                 "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
@@ -861,7 +859,7 @@ class ExperienceService:
                 "ORDER BY e.xp_amount DESC " \
                 "LIMIT 10"
 
-        users = self.database.fetchAllResults(query)
+        users = database.fetchAllResults(query)
 
         if not users:
             logger.critical("couldn't fetch data from database - or the results were None")
@@ -876,11 +874,19 @@ class ExperienceService:
         return reply
 
     def reduceXpBoostsTime(self, member: Member):
+        """
+        Reduces the active boosts time from the given member.
+
+        :param member:
+        :raise ConnectionError: If the database connection can't be established
+        """
+        database = Database()
+
         query = "SELECT * " \
                 "FROM experience " \
                 "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
                 "(SELECT id FROM discord WHERE user_id = %s)"
-        xp = self.database.fetchOneResult(query, (member.id,))
+        xp = database.fetchOneResult(query, (member.id,))
 
         if not xp:
             return
@@ -907,5 +913,5 @@ class ExperienceService:
         xp['active_xp_boosts'] = boosts
         query, nones = writeSaveQuery('experience', xp['id'], xp)
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.critical("couldn't reduce xp boost time for %s" % member.name)
