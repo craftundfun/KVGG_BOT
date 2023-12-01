@@ -69,6 +69,7 @@ class CommandService:
         self.userSettings = UserSettings()
         self.experienceService = ExperienceService(self.client)
         self.whatsappHelper = WhatsAppHelper(self.client)
+        self.reminderService = ReminderService(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -199,6 +200,7 @@ class CommandService:
                 case Commands.QRCODE:
                     answer = await self.apiService.generateQRCode(**kwargs)
 
+                    # TODO: dont skip command increase and so on
                     if isinstance(answer, discord.File):
                         try:
                             await interaction.followup.send(file=answer)
@@ -208,34 +210,13 @@ class CommandService:
                         return
 
                 case Commands.CREATE_REMINDER:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.createReminder(**kwargs)
+                    answer = self.reminderService.createReminder(**kwargs)
 
                 case Commands.LIST_REMINDERS:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.listReminders(**kwargs)
+                    answer = self.reminderService.listReminders(**kwargs)
 
                 case Commands.DELETE_REMINDER:
-                    try:
-                        rs = ReminderService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = rs.deleteReminder(**kwargs)
+                    answer = self.reminderService.deleteReminder(**kwargs)
 
                 case Commands.PLAY_SOUND:
                     soundboardService = SoundboardService(self.client)
