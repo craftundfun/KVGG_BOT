@@ -67,6 +67,7 @@ class CommandService:
         self.pui = ProcessUserInput(self.client)
         self.qm = QuotesManager(self.client)
         self.userSettings = UserSettings()
+        self.experienceService = ExperienceService(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -165,34 +166,13 @@ class CommandService:
                     answer = await self.pui.sendRegistrationLink(**kwargs)
 
                 case Commands.XP_SPIN:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.spinForXpBoost(**kwargs)
+                    answer = self.experienceService.spinForXpBoost(**kwargs)
 
                 case Commands.XP_INVENTORY:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.handleXpInventory(**kwargs)
+                    answer = self.experienceService.handleXpInventory(**kwargs)
 
                 case Commands.XP:
-                    try:
-                        es = ExperienceService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ExperienceService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = es.handleXpRequest(**kwargs)
+                    answer = self.experienceService.handleXpRequest(**kwargs)
 
                 case Commands.NOTIFICATION_SETTING:
                     answer = self.userSettings.changeNotificationSetting(**kwargs)
