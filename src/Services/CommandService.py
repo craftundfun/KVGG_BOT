@@ -64,8 +64,8 @@ class CommandService:
         self.client = client
 
         self.apiService = ApiServices()  #
-        self.userInputService = ProcessUserInput(self.client)
-        self.quotesManager = QuotesManager(self.client)
+        self.userInputService = ProcessUserInput(self.client)  #
+        self.quotesManager = QuotesManager(self.client)  #
         self.userSettings = UserSettings()
         self.experienceService = ExperienceService(self.client)
         self.whatsappHelper = WhatsAppHelper(self.client)

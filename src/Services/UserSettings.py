@@ -12,22 +12,30 @@ logger = logging.getLogger("KVGG_BOT")
 class UserSettings:
 
     def __init__(self):
-        self.database = Database()
+        pass
 
-    def _saveToDatabase(self, param: dict, tableName: str) -> bool:
+    def _saveToDatabase(self, param: dict, tableName: str, database: Database) -> bool:
+        """
+        Saves the changes to the database.
+        """
         query, nones = writeSaveQuery(tableName, param['id'], param)
 
-        if not self.database.runQueryOnDatabase(query, nones):
+        if not database.runQueryOnDatabase(query, nones):
             logger.error(f"couldn't save changes to database")
 
             return False
 
         return True
 
-    def _getNotificationSettings(self, member: Member) -> dict | None:
+    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
+        """
+        Returns the notification settings from the given Member.
+
+        :param member: Member to fetch the settings of
+        """
         query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        if not (settings := self.database.fetchOneResult(query, (member.id,))):
+        if not (settings := database.fetchOneResult(query, (member.id,))):
             logger.error(f"couldn't fetch settings for {member.name} from database")
 
             return None
@@ -42,9 +50,12 @@ class UserSettings:
         :param member: Member, who wants to change the settings
         :param kind: Type of setting
         :param setting: New value
+        :raise ConnectionError: if the database connection cant be established
         :return: Answer
         """
-        settings = self._getNotificationSettings(member)
+        database = Database()
+
+        settings = self._getNotificationSettings(member, database)
 
         if not settings:
             logger.warning("couldn't fetch settings")
@@ -61,7 +72,7 @@ class UserSettings:
 
             return "Es gab ein Problem! Es wurde nichts geändert."
 
-        if not self._saveToDatabase(settings, "notification_setting"):
+        if not self._saveToDatabase(settings, "notification_setting", database):
             logger.critical("couldn't save changes to database")
 
             return "Es gab ein Problem! Es wurde nichts geändert."
@@ -79,15 +90,18 @@ class UserSettings:
         :param type: Type of messages (gaming or university)
         :param action: Action of the messages (join or leave)
         :param switch: Switch (on / off)
+        :raise ConnectionError: if the database connection can't be established
         :return:
         """
         logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
+
+        database = Database()
 
         query = "SELECT * " \
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
-        whatsappSettings = self.database.fetchOneResult(query, (member.id,))
+        whatsappSettings = database.fetchOneResult(query, (member.id,))
 
         if not whatsappSettings:
             logger.warning("couldn't fetch corresponding settings!")
@@ -140,7 +154,7 @@ class UserSettings:
 
                     return "Es gab ein Problem."
 
-        if self._saveToDatabase(whatsappSettings, "whatsapp_setting"):
+        if self._saveToDatabase(whatsappSettings, "whatsapp_setting", database):
             logger.debug("saved changes to database")
 
             return "Deine Einstellung wurde übernommen!"
