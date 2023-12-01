@@ -66,6 +66,7 @@ class CommandService:
         self.apiService = ApiServices()
         self.pui = ProcessUserInput(self.client)
         self.qm = QuotesManager(self.client)
+        self.userSettings = UserSettings()
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -155,14 +156,7 @@ class CommandService:
                     answer = await self.pui.accessNameCounterAndEdit(**kwargs)
 
                 case Commands.WHATSAPP:
-                    try:
-                        userSettings = UserSettings()
-                    except ConnectionError as error:
-                        logger.error("failure to start UserSettings", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = await userSettings.manageWhatsAppSettings(**kwargs)
+                    answer = await self.userSettings.manageWhatsAppSettings(**kwargs)
 
                 case Commands.LEADERBOARD:
                     answer = await self.pui.sendLeaderboard(**kwargs)
@@ -201,14 +195,7 @@ class CommandService:
                         answer = es.handleXpRequest(**kwargs)
 
                 case Commands.NOTIFICATION_SETTING:
-                    try:
-                        userSettings = UserSettings()
-                    except ConnectionError as error:
-                        logger.error("failure to start UserSettings", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = userSettings.changeNotificationSetting(**kwargs)
+                    answer = self.userSettings.changeNotificationSetting(**kwargs)
 
                 case Commands.FELIX_TIMER:
                     answer = await self.pui.handleFelixTimer(**kwargs)
