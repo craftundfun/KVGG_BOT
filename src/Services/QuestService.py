@@ -3,14 +3,12 @@ import random
 from datetime import datetime
 from enum import Enum
 
-from discord import Client, Member, VoiceChannel
+from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
-from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Id.Categories import TrackedCategories
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
@@ -32,10 +30,9 @@ class QuestType(Enum):
 class QuestService:
 
     def __init__(self, client: Client):
-        self.database = Database()
         self.client = client
-        self.allowedChannelsForNewQuestMessage: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client,
-                                                                                                      TrackedCategories)
+
+        self.database = Database()
         self.notificationService = NotificationService(self.client)
         self.experienceService = ExperienceService(self.client)
 

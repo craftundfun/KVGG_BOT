@@ -73,6 +73,7 @@ class CommandService:
         self.soundboardService = SoundboardService(self.client)
         self.voiceClientService = VoiceClientService(self.client)
         self.channelService = ChannelService(self.client)
+        self.questService = QuestService(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -121,12 +122,7 @@ class CommandService:
 
         logger.debug("sent webhook-answer")
 
-        try:
-            questService = QuestService(self.client)
-        except ConnectionError as error:
-            logger.error("failure to start QuestService", exc_info=error)
-        else:
-            await questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
+        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -245,14 +241,7 @@ class CommandService:
                     answer = await self.soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
 
                 case Commands.LIST_QUESTS:
-                    try:
-                        questService = QuestService(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start ReminderService", exc_info=error)
-
-                        answer = "Es ist ein Fehler aufgetreten."
-                    else:
-                        answer = questService.listQuests(**kwargs)
+                    answer = self.questService.listQuests(**kwargs)
 
                 case _:
                     answer = "Es ist etwas schief gelaufen!"
