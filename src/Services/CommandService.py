@@ -70,6 +70,7 @@ class CommandService:
         self.experienceService = ExperienceService(self.client)
         self.whatsappHelper = WhatsAppHelper(self.client)
         self.reminderService = ReminderService(self.client)
+        self.soundboardService = SoundboardService(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -219,8 +220,7 @@ class CommandService:
                     answer = self.reminderService.deleteReminder(**kwargs)
 
                 case Commands.PLAY_SOUND:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.playSound(ctx=interaction, **kwargs)
+                    answer = await self.soundboardService.playSound(ctx=interaction, **kwargs)
 
                 case Commands.STOP_SOUND:
                     voiceClientService = VoiceClientService(self.client)
@@ -231,9 +231,7 @@ class CommandService:
                     answer = await channelService.createKneipe(interaction.user, **kwargs)
 
                 case Commands.LIST_SOUNDS:
-                    soundboardService = SoundboardService(self.client)
-
-                    data = await soundboardService.listPersonalSounds(ctx=interaction)
+                    data = await self.soundboardService.listPersonalSounds(ctx=interaction)
 
                     await PaginationView(
                         ctx=interaction,
@@ -244,8 +242,7 @@ class CommandService:
                     ).send()
 
                 case Commands.DELETE_SOUND:
-                    soundboardService = SoundboardService(self.client)
-                    answer = await soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
+                    answer = await self.soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
 
                 case Commands.LIST_QUESTS:
                     try:

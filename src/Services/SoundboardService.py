@@ -23,7 +23,6 @@ from src.View.PaginationView import PaginationViewDataItem
 logger = logging.getLogger("KVGG_BOT")
 
 
-
 class SoundboardService:
     path = './data/sounds/'
     basepath = Path(__file__).parent.parent.parent
@@ -74,7 +73,8 @@ class SoundboardService:
             for index, filepath in enumerate(os.listdir(path), start=1):
                 if os.path.isfile(os.path.join(path, filepath)) and filepath[-4:] == '.mp3':
                     seconds = MP3(os.path.join(path, filepath)).info.length
-                    data += [PaginationViewDataItem(field_name=f"{index}. {filepath}", field_value= f"{str(seconds)[:4]} Sekunden")]
+                    data += [PaginationViewDataItem(field_name=f"{index}. {filepath}",
+                                                    field_value=f"{str(seconds)[:4]} Sekunden")]
 
         except FileNotFoundError as error:
             logger.warning("user has no sounds uploaded yet", exc_info=error)
