@@ -71,7 +71,7 @@ class CommandService:
         self.whatsappHelper = WhatsAppHelper(self.client)  #
         self.reminderService = ReminderService(self.client)  #
         self.soundboardService = SoundboardService(self.client)  #
-        self.voiceClientService = VoiceClientService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)  #
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
 
