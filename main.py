@@ -78,6 +78,7 @@ class MyClient(discord.Client):
         super().__init__(intents=intents, **options)
 
         self.memeService = MemeService(self)
+        self.soundboardService = SoundboardService(self)
 
     async def on_member_join(self, member: Member):
         """
@@ -223,7 +224,7 @@ class MyClient(discord.Client):
 
         # empty message but as DM
         elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):
-            await SoundboardService(client).manageDirectMessage(message)
+            await self.soundboardService.manageDirectMessage(message)
 
         else:
             logger.debug("message empty or from a bot")
