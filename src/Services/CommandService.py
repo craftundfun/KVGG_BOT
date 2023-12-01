@@ -65,6 +65,7 @@ class CommandService:
 
         self.apiService = ApiServices()
         self.pui = ProcessUserInput(self.client)
+        self.qm = QuotesManager(self.client)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -145,12 +146,7 @@ class CommandService:
                     answer = await self.pui.moveUsers(**kwargs)
 
                 case Commands.QUOTE:
-                    try:
-                        qm = QuotesManager(self.client)
-                    except ConnectionError as error:
-                        logger.error("failure to start QuotesManager", exc_info=error)
-                    else:
-                        answer = qm.answerQuote(**kwargs)
+                    answer = self.qm.answerQuote(**kwargs)
 
                 case Commands.TIME:
                     answer = await self.pui.accessTimeAndEdit(**kwargs)
