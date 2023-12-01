@@ -7,7 +7,6 @@ from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
@@ -305,7 +304,6 @@ class QuestService:
             if len(channel.members) > 0:
                 yield channel
 
-    @validateKeys
     def listQuests(self, member: Member) -> str:
         """
         Lists all the quests from a user.

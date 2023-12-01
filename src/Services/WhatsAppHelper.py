@@ -10,7 +10,6 @@ from discord import VoiceState, Member, Client, VoiceChannel
 from discord.app_commands import Choice
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
@@ -320,7 +319,6 @@ class WhatsAppHelper:
 
         logger.debug("saved new message to database")
 
-    @validateKeys
     def addOrEditSuspendDay(self, member: Member, weekday: Choice, start: str, end: str):
         """
         Enables a given time interval for the member to not receive messages in
@@ -411,7 +409,6 @@ class WhatsAppHelper:
         return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
             startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
 
-    @validateKeys
     def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
         """
         Resets the suspend settings to None
@@ -499,7 +496,6 @@ class WhatsAppHelper:
                 else:
                     return False
 
-    @validateKeys
     def listSuspendSettings(self, member: Member) -> str:
         """
         Returns all suspend settings from this member

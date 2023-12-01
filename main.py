@@ -297,7 +297,6 @@ tree = app_commands.CommandTree(client)
 
 backgroundServices = None
 
-
 """ANSWER JOKE"""
 
 
@@ -863,6 +862,7 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
     """
     await commandService.runCommand(Commands.PLAY_SOUND,
                                     ctx,
+                                    ctx=ctx,
                                     member=ctx.user,
                                     sound=sound, )
 
@@ -886,7 +886,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
     :param ctx:
     :return:
     """
-    await commandService.runCommand(Commands.LIST_SOUNDS, ctx)
+    await commandService.runCommand(Commands.LIST_SOUNDS, ctx, ctx=ctx)
 
 
 @tree.command(name="delete_sound",
@@ -895,7 +895,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
 async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
-    await commandService.runCommand(Commands.DELETE_SOUND, interaction=ctx, row=nummer)
+    await commandService.runCommand(Commands.DELETE_SOUND, ctx, ctx=ctx, row=nummer)
 
 
 """KNEIPE"""
@@ -905,7 +905,7 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
               description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
-    await commandService.runCommand(Commands.KNEIPE, ctx, member_1=member_1, member_2=member_2)
+    await commandService.runCommand(Commands.KNEIPE, ctx, member=ctx.user, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""

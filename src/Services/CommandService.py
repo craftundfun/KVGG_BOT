@@ -1,3 +1,4 @@
+import inspect
 import logging
 from enum import Enum
 
@@ -62,7 +63,7 @@ class CommandService:
 
     def __init__(self, client: Client):
         self.client = client
-        # TODO remove #
+
         self.apiService = ApiServices()
         self.userInputService = ProcessUserInput(self.client)
         self.quotesManager = QuotesManager(self.client)
@@ -115,8 +116,13 @@ class CommandService:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
         try:
-            for part in splitStringAtMaxLength(answer):
-                await ctx.followup.send(part)
+            # special case for QR-Codes
+            if isinstance(answer, discord.File):
+                await ctx.followup.send(file=answer)
+            else:
+                for part in splitStringAtMaxLength(answer):
+                    await ctx.followup.send(part)
+
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
@@ -133,124 +139,124 @@ class CommandService:
         :param kwargs: Parameters of the called function
         :return:
         """
-        # https://chat.openai.com/share/35c755a0-677d-4d33-aa82-91caee4546ac
-
         if not await self.__setLoading(interaction):
             return
 
-        answer = ""
+        function = None
+
+        match command:
+            case Commands.JOKE:
+                function = self.apiService.getJoke
+
+            case Commands.MOVE:
+                function = self.userInputService.moveUsers
+
+            case Commands.QUOTE:
+                function = self.quotesManager.answerQuote
+
+            case Commands.TIME:
+                function = self.userInputService.accessTimeAndEdit
+
+            case Commands.COUNTER:
+                function = self.userInputService.accessNameCounterAndEdit
+
+            case Commands.WHATSAPP:
+                function = self.userSettings.manageWhatsAppSettings
+
+            case Commands.LEADERBOARD:
+                function = self.userInputService.sendLeaderboard
+
+            case Commands.REGISTRATION:
+                function = self.userInputService.sendRegistrationLink
+
+            case Commands.XP_SPIN:
+                function = self.experienceService.spinForXpBoost
+
+            case Commands.XP_INVENTORY:
+                function = self.experienceService.handleXpInventory
+
+            case Commands.XP:
+                function = self.experienceService.handleXpRequest
+
+            case Commands.NOTIFICATION_SETTING:
+                function = self.userSettings.changeNotificationSetting
+
+            case Commands.FELIX_TIMER:
+                function = self.userInputService.handleFelixTimer
+
+            case Commands.WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.addOrEditSuspendDay
+
+            case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.resetSuspendSetting
+
+            case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
+                function = self.whatsappHelper.listSuspendSettings
+
+            case Commands.WEATHER:
+                function = self.apiService.getWeather
+
+            case Commands.CURRENCY_CONVERTER:
+                function = self.apiService.convertCurrency
+
+            case Commands.QRCODE:
+                function = self.apiService.generateQRCode
+
+            case Commands.CREATE_REMINDER:
+                function = self.reminderService.createReminder
+
+            case Commands.LIST_REMINDERS:
+                function = self.reminderService.listReminders
+
+            case Commands.DELETE_REMINDER:
+                function = self.reminderService.deleteReminder
+
+            case Commands.PLAY_SOUND:
+                function = self.soundboardService.playSound
+
+            case Commands.STOP_SOUND:
+                function = self.voiceClientService.stop
+
+            case Commands.KNEIPE:
+                function = self.channelService.createKneipe
+
+            case Commands.LIST_SOUNDS:
+                data = await self.soundboardService.listPersonalSounds(**kwargs)
+
+                await PaginationView(
+                    ctx=interaction,
+                    data=data,
+                    client=self.client,
+                    title="Sounds",
+                    defer=False,
+                ).send()
+
+                function = "Pagination-View"
+
+            case Commands.DELETE_SOUND:
+                function = self.soundboardService.deletePersonalSound
+
+            case Commands.LIST_QUESTS:
+                function = self.questService.listQuests
+
+            case _:
+                logger.error("undefined enum entry was reached!")
 
         try:
-            match command:
-                case Commands.JOKE:
-                    answer = await self.apiService.getJoke(**kwargs)
+            if not function:
+                await self.__sendAnswer(interaction, "Es ist etwas schief gelaufen!")
 
-                case Commands.MOVE:
-                    answer = await self.userInputService.moveUsers(**kwargs)
+                return
+            elif inspect.iscoroutinefunction(function):
+                answer = await function(**kwargs)
+            # special case for Pagination-Views
+            elif function == "Pagination-View":
+                answer = ""
+            else:
+                answer = function(**kwargs)
+        except Exception as error:
+            logger.error(f"An error occurred while running {function}!", exc_info=error)
 
-                case Commands.QUOTE:
-                    answer = self.quotesManager.answerQuote(**kwargs)
-
-                case Commands.TIME:
-                    answer = await self.userInputService.accessTimeAndEdit(**kwargs)
-
-                case Commands.COUNTER:
-                    answer = await self.userInputService.accessNameCounterAndEdit(**kwargs)
-
-                case Commands.WHATSAPP:
-                    answer = await self.userSettings.manageWhatsAppSettings(**kwargs)
-
-                case Commands.LEADERBOARD:
-                    answer = await self.userInputService.sendLeaderboard(**kwargs)
-
-                case Commands.REGISTRATION:
-                    answer = await self.userInputService.sendRegistrationLink(**kwargs)
-
-                case Commands.XP_SPIN:
-                    answer = self.experienceService.spinForXpBoost(**kwargs)
-
-                case Commands.XP_INVENTORY:
-                    answer = self.experienceService.handleXpInventory(**kwargs)
-
-                case Commands.XP:
-                    answer = self.experienceService.handleXpRequest(**kwargs)
-
-                case Commands.NOTIFICATION_SETTING:
-                    answer = self.userSettings.changeNotificationSetting(**kwargs)
-
-                case Commands.FELIX_TIMER:
-                    answer = await self.userInputService.handleFelixTimer(**kwargs)
-
-                case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                    answer = self.whatsappHelper.addOrEditSuspendDay(**kwargs)
-
-                case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = self.whatsappHelper.resetSuspendSetting(**kwargs)
-
-                case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                    answer = self.whatsappHelper.listSuspendSettings(**kwargs)
-
-                case Commands.WEATHER:
-                    answer = await self.apiService.getWeather(**kwargs)
-
-                case Commands.CURRENCY_CONVERTER:
-                    answer = await self.apiService.convertCurrency(**kwargs)
-
-                case Commands.QRCODE:
-                    answer = await self.apiService.generateQRCode(**kwargs)
-
-                    # TODO: dont skip command increase and so on
-                    if isinstance(answer, discord.File):
-                        try:
-                            await interaction.followup.send(file=answer)
-                        except Exception as e:
-                            logger.error("couldn't send qr-picture", exc_info=e)
-
-                        return
-
-                case Commands.CREATE_REMINDER:
-                    answer = self.reminderService.createReminder(**kwargs)
-
-                case Commands.LIST_REMINDERS:
-                    answer = self.reminderService.listReminders(**kwargs)
-
-                case Commands.DELETE_REMINDER:
-                    answer = self.reminderService.deleteReminder(**kwargs)
-
-                case Commands.PLAY_SOUND:
-                    answer = await self.soundboardService.playSound(ctx=interaction, **kwargs)
-
-                case Commands.STOP_SOUND:
-                    answer = await self.voiceClientService.stop(**kwargs)
-
-                case Commands.KNEIPE:
-                    answer = await self.channelService.createKneipe(interaction.user, **kwargs)
-
-                case Commands.LIST_SOUNDS:
-                    data = await self.soundboardService.listPersonalSounds(ctx=interaction)
-
-                    await PaginationView(
-                        ctx=interaction,
-                        data=data,
-                        client=self.client,
-                        title="Sounds",
-                        defer=False,
-                    ).send()
-
-                case Commands.DELETE_SOUND:
-                    answer = await self.soundboardService.deletePersonalSound(ctx=interaction, **kwargs)
-
-                case Commands.LIST_QUESTS:
-                    answer = self.questService.listQuests(**kwargs)
-
-                case _:
-                    answer = "Es ist etwas schief gelaufen!"
-
-                    logger.warning("undefined enum-entry was used")
-
-        except ValueError as e:
-            answer = "Es ist etwas schief gelaufen!"
-
-            logger.error("parameters arent matched with function parameters", exc_info=e)
+            answer = "Es gab einen Fehler!"
 
         await self.__sendAnswer(interaction, answer)

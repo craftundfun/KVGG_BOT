@@ -5,7 +5,6 @@ import random
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
@@ -37,7 +36,6 @@ class QuotesManager:
         """
         self.client = client
 
-    @validateKeys
     def answerQuote(self, member: Member) -> str | None:
         """
         Returns a random quote from our database

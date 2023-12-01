@@ -2,7 +2,6 @@ import logging
 
 from discord import Member
 
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Services.Database import Database
 
@@ -42,7 +41,6 @@ class UserSettings:
 
         return settings
 
-    @validateKeys
     def changeNotificationSetting(self, member: Member, kind: str, setting: bool) -> str:
         """
         Changes the notification setting for coming online
@@ -81,7 +79,6 @@ class UserSettings:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
-    @validateKeys
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
         """
         Lets the user change their WhatsApp settings

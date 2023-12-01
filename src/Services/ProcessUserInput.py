@@ -10,7 +10,6 @@ import discord
 from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
@@ -168,7 +167,6 @@ class ProcessUserInput:
 
         return False
 
-    @validateKeys
     async def moveUsers(self, channel: VoiceChannel, member: Member) -> string:
         """
         Moves all users from the initiator channel to the given one
@@ -235,7 +233,6 @@ class ProcessUserInput:
 
         return "Alle User wurden erfolgreich verschoben!"
 
-    @validateKeys
     async def accessTimeAndEdit(self, timeName: str, user: Member, member: Member, param: int | None) -> str:
         """
         Answering given Time from given User or adds (subtracts) given amount
@@ -301,7 +298,6 @@ class ProcessUserInput:
         else:
             return time.getStringForTime(dcUserDb)
 
-    @validateKeys
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:
         """
         Returns the leaderboard of our stats in the database
@@ -508,7 +504,6 @@ class ProcessUserInput:
 
         return answer
 
-    @validateKeys
     async def sendRegistrationLink(self, member: Member):
         """
         Sends an individual invitaion link to the member who requested it
@@ -532,7 +527,6 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    @validateKeys
     async def accessNameCounterAndEdit(self, counterName: str,
                                        user: Member,
                                        member: Member,
@@ -676,7 +670,6 @@ class ProcessUserInput:
                                                                value)
                 + answerAppendix)
 
-    @validateKeys
     async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None) -> str:
         """
         Handles the Feli-Timer for the given user

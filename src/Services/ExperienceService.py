@@ -366,7 +366,6 @@ class ExperienceService:
             else:
                 logger.debug("couldn't fetch inventory again")
 
-    @validateKeys
     def spinForXpBoost(self, member: Member) -> string:
         """
         Xp-Boost-Spin for member
@@ -488,7 +487,6 @@ class ExperienceService:
 
         return self._getExperience(dcUserDb['user_id'], Database())
 
-    @validateKeys
     def handleXpRequest(self, member: Member, user: Member) -> string:
         """
         Handles the XP-Request of the given tag
@@ -574,7 +572,6 @@ class ExperienceService:
 
             return "Es ist leider ein Fehler aufgetreten."
 
-    @validateKeys
     def handleXpInventory(self, member: Member, action: str, row: str = None) -> str:
         """
         Handles the XP-Inventory

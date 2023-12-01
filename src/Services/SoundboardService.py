@@ -30,7 +30,6 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
-    @validateKeys
     async def deletePersonalSound(self, ctx: discord.interactions.Interaction, row: int) -> str:
         """
         Deletes the file at position row.
@@ -61,7 +60,6 @@ class SoundboardService:
         else:
             return "Deine Datei wurde erfolgreich gelöscht."
 
-    @validateKeys
     async def listPersonalSounds(self, ctx: discord.interactions.Interaction) -> list[PaginationViewDataItem]:
         path = os.path.abspath(
             os.path.join(self.basepath, "..", "..", "..", f"{self.basepath}/data/sounds/{ctx.user.id}")
@@ -230,7 +228,6 @@ class SoundboardService:
             threading.Thread(target=self.downloadFileFromURL, args=(message, url, loop)).start()
             logger.debug(f"started thread for downloading '{url}'")
 
-    @validateKeys
     async def playSound(self, member: Member, sound: str, ctx: discord.interactions.Interaction) -> str:
         """
         Starts to play the specified sounds in the channel from the member.

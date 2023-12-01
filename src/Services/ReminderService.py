@@ -7,7 +7,6 @@ import discord
 from discord import Member
 
 from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.SendDM import sendDM
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
@@ -27,7 +26,6 @@ class ReminderService:
         """
         self.client = client
 
-    @validateKeys
     def createReminder(self,
                        member: Member,
                        content: str,
@@ -160,7 +158,6 @@ class ReminderService:
         return "Deine Erinnerung wurde erfolgreich gespeichert! " + \
             (answerAppendix if 'answerAppendix' in locals() else "")
 
-    @validateKeys
     def listReminders(self, member: Member) -> str:
         """
         Lists all active reminders from the user
@@ -252,7 +249,6 @@ class ReminderService:
             if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save reminder into database, id: %s" % str(reminder['id']))
 
-    @validateKeys
     def deleteReminder(self, member: Member, id: int) -> str:
         """
         Deletes the wanted reminder from the database, but only if the user has outstanding ones and the id belongs to

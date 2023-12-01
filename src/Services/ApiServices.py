@@ -6,7 +6,6 @@ import discord
 import httpx
 import requests
 
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.ReadParameters import getParameter, Parameters
 
 logger = logging.getLogger("KVGG_BOT")
@@ -18,7 +17,6 @@ class ApiServices:
     def __init__(self):
         self.apiKey = getParameter(Parameters.API_KEY)
 
-    @validateKeys
     async def getJoke(self, category: str) -> str:
         payload = {
             'language': 'de',
@@ -40,7 +38,6 @@ class ApiServices:
 
         return data[0]['text']
 
-    @validateKeys
     async def getWeather(self, city: str) -> str:
         """
         Returns the current weather of the given city
@@ -91,7 +88,6 @@ class ApiServices:
             city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
             dataWeather['cloud_pct'], dataAir['overall_aqi'])
 
-    @validateKeys
     async def convertCurrency(self, have: str, want: str, amount: float) -> str:
         """
         Converts the given currency into the other
@@ -134,7 +130,6 @@ class ApiServices:
         return "%s %s sind %s %s." % (
             data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
 
-    @validateKeys
     async def generateQRCode(self, text: str) -> discord.File | str:
         """
         Generates a QRCode from the given text
