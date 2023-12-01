@@ -140,10 +140,10 @@ class ProcessUserInput:
 
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 
-        if self.__saveDiscordUserToDatabase(dcUserDb):
+        if self._saveDiscordUserToDatabase(dcUserDb):
             logger.debug("saved changes to database")
 
-    def __saveDiscordUserToDatabase(self, data: dict) -> bool:
+    def _saveDiscordUserToDatabase(self, data: dict) -> bool:
         """
         Helper to save a DiscordUser from this class into the database
 
@@ -284,7 +284,7 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb)
 
             logger.debug("saved changes to database")
 
@@ -468,20 +468,20 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        answer += self.__leaderboardHelperCounter(usersReneCounter, ReneCounter())
-        answer += self.__leaderboardHelperCounter(usersFelixCounter, FelixCounter())
-        answer += self.__leaderboardHelperCounter(usersPaulCounter, PaulCounter())
-        answer += self.__leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
-        answer += self.__leaderboardHelperCounter(usersOlegCounter, OlegCounter())
-        answer += self.__leaderboardHelperCounter(usersJjCounter, JjCounter())
-        answer += self.__leaderboardHelperCounter(usersCookieCounter, CookieCounter())
-        answer += self.__leaderboardHelperCounter(usersCarlCounter, CarlCounter())
+        answer += self._leaderboardHelperCounter(usersReneCounter, ReneCounter())
+        answer += self._leaderboardHelperCounter(usersFelixCounter, FelixCounter())
+        answer += self._leaderboardHelperCounter(usersPaulCounter, PaulCounter())
+        answer += self._leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
+        answer += self._leaderboardHelperCounter(usersOlegCounter, OlegCounter())
+        answer += self._leaderboardHelperCounter(usersJjCounter, JjCounter())
+        answer += self._leaderboardHelperCounter(usersCookieCounter, CookieCounter())
+        answer += self._leaderboardHelperCounter(usersCarlCounter, CarlCounter())
 
         logger.debug("sending leaderboard")
 
         return answer
 
-    def __leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
+    def _leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
         """
         Helper for listing a leaderboard entry for given counter
 
@@ -742,7 +742,7 @@ class ProcessUserInput:
                 return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
             counter.setFelixTimer(date)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
@@ -774,7 +774,7 @@ class ProcessUserInput:
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
             counter.setFelixTimer(None)
-            self.__saveDiscordUserToDatabase(dcUserDb)
+            self._saveDiscordUserToDatabase(dcUserDb)
 
             try:
                 await sendDM(user, "Dein %s-Timer wurde beendet!" % (counter.getNameOfCounter()))
