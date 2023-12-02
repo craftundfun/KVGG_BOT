@@ -23,7 +23,7 @@ class NotificationService:
         """
         self.client = client
 
-    async def __sendMessage(self, member: Member, content: str) -> bool:
+    async def _sendMessage(self, member: Member, content: str) -> bool:
         """
         Sends a DM to the user and handles errors.
 
@@ -60,7 +60,7 @@ class NotificationService:
         else:
             return
 
-        await self.__sendMessage(member, message + self.separator)
+        await self._sendMessage(member, message + self.separator)
 
     async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
         """
@@ -88,7 +88,7 @@ class NotificationService:
         message = message.rstrip()
         message += self.separator
 
-        await self.__sendMessage(member, message)
+        await self._sendMessage(member, message)
 
     async def sendQuestFinishNotification(self, member: Member, questId: int):
         """
@@ -109,7 +109,7 @@ class NotificationService:
 
         time: str = quest['time_type']
 
-        await self.__sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
+        await self._sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
                                          f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
                                          f"{quest['description']}\n\n"
                                          f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
@@ -137,13 +137,13 @@ class NotificationService:
 
         if not settings:
             if answer:
-                await self.__sendMessage(member, answer)
+                await self._sendMessage(member, answer)
             logger.error("cant continue - no notification settings")
 
             return
         elif not settings['notifications']:
             if answer:
-                await self.__sendMessage(member, answer)
+                await self._sendMessage(member, answer)
             logger.debug("user opted-out from all notifications")
 
             return
@@ -157,7 +157,7 @@ class NotificationService:
         if answer == "":  # self.separator:
             return
 
-        await self.__sendMessage(member, answer)
+        await self._sendMessage(member, answer)
 
     async def _sendNewsletter(self, dcUserDb: dict, database: Database) -> str:
         """
@@ -293,12 +293,12 @@ class NotificationService:
             return False
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 14:
-            await self.__sendMessage(member,
+            await self._sendMessage(member,
                                      "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
                                      "und %d Minuten nicht mehr da." %
-                                     (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
-            await self.__sendMessage(member, self.finallyAwake)
-            await self.__sendMessage(member, self.separator)
+                                    (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
+            await self._sendMessage(member, self.finallyAwake)
+            await self._sendMessage(member, self.separator)
 
             return True
 
