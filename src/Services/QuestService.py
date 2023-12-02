@@ -154,7 +154,7 @@ class QuestService:
         else:
             logger.debug(f"resettet {time.value}-quests")
 
-        await self._createQuestsForCurrentOnlineUsers(time, database)
+        await self._createQuestsForAllUsers(time, database)
 
     async def _informMemberAboutNewQuests(self, member: Member, time: QuestDates, database: Database):
         """
@@ -164,6 +164,10 @@ class QuestService:
         :param time: Type of quests
         :param database:
         """
+        # if the member is not online
+        if not member.voice:
+            return
+
         query = ("SELECT * FROM quest "
                  "WHERE id IN "
                  "(SELECT quest_id FROM quest_discord_mapping WHERE discord_id = "
@@ -176,21 +180,42 @@ class QuestService:
 
         await self.notificationService.informAboutNewQuests(member, time, quests)
 
-    async def _createQuestsForCurrentOnlineUsers(self, time: QuestDates, database: Database):
+    async def _createQuestsForAllUsers(self, time: QuestDates, database: Database):
         """
         Creates new quests for all online users, so they have new ones right at zero 'o clock.
 
         :param time: Type of quests
         """
-        for channel in self._getChannels():
-            for member in channel.members:
-                await self._createQuestForMember(member, time, database)
+        members = self.client.get_guild(GuildId.GUILD_KVGG.value).members
+        query = "SELECT user_id FROM discord"
 
-                # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
-                await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
-                logger.debug(f"added progress for {member.name} for online streak")
-                await self.addProgressToQuest(member, QuestType.DAYS_ONLINE)
-                logger.debug(f"added progress for {member.name} for days online")
+        if not (ids := database.fetchAllResults(query)):
+            logger.error("couldn't fetch all ids from discord database")
+
+            return
+
+        print(ids)
+        memberIds = []
+
+        for id in ids:
+            memberIds.append(int(id['user_id']))
+
+        for member in members:
+            if member.bot:
+                continue
+
+            if member.id not in memberIds:
+                logger.warning(f"{member.display_name} not in database, continuing")
+
+                continue
+
+            await self._createQuestForMember(member, time, database)
+
+            # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
+            await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
+            logger.debug(f"added progress for {member.name} for online streak")
+            await self.addProgressToQuest(member, QuestType.DAYS_ONLINE)
+            logger.debug(f"added progress for {member.name} for days online")
 
     async def checkQuestsForJoinedMember(self, member: Member):
         """
@@ -218,8 +243,8 @@ class QuestService:
         else:
             length = len(currentQuests)
 
-        # member has not been online yet or year has changed -> create all quests
-        if not last_online or now.year > last_online.year or length == 0:
+        # member has not been online yet -> create all quests
+        if not last_online or length == 0:
             logger.debug("no quests yet or quests too old, generate new ones for every time")
 
             await self._createQuestForMember(member, QuestDates.DAILY, database)
@@ -227,23 +252,6 @@ class QuestService:
             await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
             return
-
-        # user will get new monthly's -> don't care to reset, already done through the background service
-        if now.month > last_online.month:
-            logger.debug("create new monthly quests")
-
-            await self._createQuestForMember(member, QuestDates.MONTHLY, database)
-
-        # user will get new weekly's -> don't care to reset, already done through the background service
-        if now.isocalendar()[1] > last_online.isocalendar()[1]:
-            logger.debug("create new weekly quests")
-
-            await self._createQuestForMember(member, QuestDates.WEEKLY, database)
-
-        if now.day > last_online.day or now.month > last_online.month or now.year > last_online.year:
-            logger.debug("create new daily quests")
-
-            await self._createQuestForMember(member, QuestDates.DAILY, database)
 
     async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database):
         """
