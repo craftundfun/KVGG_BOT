@@ -194,7 +194,6 @@ class QuestService:
 
             return
 
-        print(ids)
         memberIds = []
 
         for id in ids:
@@ -302,6 +301,7 @@ class QuestService:
 
         await self._informMemberAboutNewQuests(member, time, database)
 
+    @DeprecationWarning
     def _getChannels(self):
         """
         Yields all channels to track from the guild filtered by number of members and if they are tracked
@@ -333,16 +333,29 @@ class QuestService:
             return "Es gab ein Problem beim Abfragen der Quests oder du hast keine Quests!"
 
         # to give the sort function the key to sort from
-        def sort_key(dictionary):
-            return dictionary["time_type"]
+        # def sort_key(dictionary):
+        #    return dictionary["time_type"]
 
         # first 3 daily, next 3 monthly, next 3 weekly
-        quests = sorted(quests, key=sort_key)
-        daily = quests[:3]
-        weekly = quests[6:]
-        monthly = quests[3:6]
-        answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
+        # quests = sorted(quests, key=sort_key)
+        daily = []
+        weekly = []
+        monthly = []
 
+        for quest in quests:
+            if quest['time_type'] == "daily":
+                daily.append(quest)
+            elif quest['time_type'] == "weekly":
+                weekly.append(quest)
+            elif quest['time_type'] == "monthly":
+                monthly.append(quest)
+            else:
+                logger.error("undefined quest time found")
+
+                continue
+
+        answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
+        
         for quest in daily:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
                        f"{quest['value_to_reach']}\n")
