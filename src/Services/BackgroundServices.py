@@ -132,9 +132,9 @@ class BackgroundServices(commands.Cog):
             loggerThread.info("minutely thread ended")
 
         self.thread = threading.Thread(target=minutelyJobs, args=(asyncio.get_event_loop(),))
-        self.thread.start()
 
         loggerThread.info("minutely thread started")
+        self.thread.start()
 
     @tasks.loop(hours=1)
     async def refreshMembersInDatabase(self):
