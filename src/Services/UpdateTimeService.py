@@ -150,6 +150,10 @@ class UpdateTimeService:
                     else:
                         dcUserDb['time_online'] = dcUserDb['time_online'] + 1
 
+                    dcUserDb['time_online_week'] = dcUserDb['time_online_week'] + 1
+                    dcUserDb['time_online_month'] = dcUserDb['time_online_month'] + 1
+                    dcUserDb['time_online_year'] = dcUserDb['time_online_year'] + 1
+
                     dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
                     await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
