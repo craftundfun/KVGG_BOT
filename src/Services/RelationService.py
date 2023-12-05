@@ -47,8 +47,8 @@ class RelationService:
         :param database:
         :return:
         """
-        member1 = getDiscordUser(member_1, database)
-        member2 = getDiscordUser(member_2, database)
+        member1 = getDiscordUser(member_1, database, self.client)
+        member2 = getDiscordUser(member_2, database, self.client)
 
         if not member1 or not member2:
             logger.debug("couldn't create relation")
@@ -89,8 +89,8 @@ class RelationService:
 
             return None
 
-        dcUserDb_1: dict | None = getDiscordUser(member_1, database)
-        dcUserDb_2: dict | None = getDiscordUser(member_2, database)
+        dcUserDb_1: dict | None = getDiscordUser(member_1, database, self.client)
+        dcUserDb_2: dict | None = getDiscordUser(member_2, database, self.client)
 
         if not dcUserDb_1 or not dcUserDb_2:
             logger.warning("couldn't create relation, %s has no entity"

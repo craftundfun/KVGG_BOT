@@ -114,7 +114,7 @@ class DatabaseRefreshService:
                 continue
 
             for member in channel.members:
-                dcUserDb = getDiscordUser(member, self.database)
+                dcUserDb = getDiscordUser(member, self.database, self.client)
 
                 if dcUserDb is None:
                     logger.error("couldn't create new entry for %s!" % member.name)

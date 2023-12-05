@@ -208,7 +208,11 @@ class QuestService:
 
                 continue
 
-            await self._createQuestForMember(member, time, database)
+            await self.createQuestForMember(member, time, database)
+
+            # if member is not online don't add progress to certain quests
+            if not member.voice:
+                continue
 
             # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
             await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
@@ -225,14 +229,13 @@ class QuestService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database()
-        dcUserDb = getDiscordUser(member, database)
+        dcUserDb = getDiscordUser(member, database, self.client)
 
         if not dcUserDb:
             logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")
 
             return
 
-        now = datetime.now()
         last_online: datetime | None = dcUserDb['last_online']
 
         query = "SELECT id FROM quest_discord_mapping WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
@@ -246,13 +249,13 @@ class QuestService:
         if not last_online or length == 0:
             logger.debug("no quests yet or quests too old, generate new ones for every time")
 
-            await self._createQuestForMember(member, QuestDates.DAILY, database)
-            await self._createQuestForMember(member, QuestDates.WEEKLY, database)
-            await self._createQuestForMember(member, QuestDates.MONTHLY, database)
+            await self.createQuestForMember(member, QuestDates.DAILY, database)
+            await self.createQuestForMember(member, QuestDates.WEEKLY, database)
+            await self.createQuestForMember(member, QuestDates.MONTHLY, database)
 
             return
 
-    async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database):
+    async def createQuestForMember(self, member: Member, time: QuestDates, database: Database):
         """
         Creates new quests for the given member and time.
 
@@ -301,17 +304,6 @@ class QuestService:
 
         await self._informMemberAboutNewQuests(member, time, database)
 
-    @DeprecationWarning
-    def _getChannels(self):
-        """
-        Yields all channels to track from the guild filtered by number of members and if they are tracked
-
-        :return: Generator for VoiceChannels with more than zero users
-        """
-        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
-            if len(channel.members) > 0:
-                yield channel
-
     def listQuests(self, member: Member) -> str:
         """
         Lists all the quests from a user.
@@ -355,7 +347,7 @@ class QuestService:
                 continue
 
         answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
-        
+
         for quest in daily:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
                        f"{quest['value_to_reach']}\n")

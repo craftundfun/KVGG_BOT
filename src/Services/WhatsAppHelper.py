@@ -79,7 +79,7 @@ class WhatsAppHelper:
 
             return
 
-        triggerDcUserDb = getDiscordUser(member, database)
+        triggerDcUserDb = getDiscordUser(member, database, self.client)
 
         if not triggerDcUserDb:
             logger.warning("couldn't fetch DiscordUser!")
