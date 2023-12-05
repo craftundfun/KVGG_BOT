@@ -210,6 +210,10 @@ class QuestService:
 
             await self._createQuestForMember(member, time, database)
 
+            # if member is not online don't add progress to certain quests
+            if not member.voice:
+                continue
+
             # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
             await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             logger.debug(f"added progress for {member.name} for online streak")
@@ -300,17 +304,6 @@ class QuestService:
         logger.debug("added all quests")
 
         await self._informMemberAboutNewQuests(member, time, database)
-
-    @DeprecationWarning
-    def _getChannels(self):
-        """
-        Yields all channels to track from the guild filtered by number of members and if they are tracked
-
-        :return: Generator for VoiceChannels with more than zero users
-        """
-        for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
-            if len(channel.members) > 0:
-                yield channel
 
     def listQuests(self, member: Member) -> str:
         """
