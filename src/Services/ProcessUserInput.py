@@ -115,7 +115,7 @@ class ProcessUserInput:
         logger.debug("increasing message-count for %s" % member.name)
 
         database = Database()
-        dcUserDb = getDiscordUser(member, database, self.client)
+        dcUserDb = getDiscordUser(member, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -259,7 +259,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
-        dcUserDb = getDiscordUser(user, database, self.client)
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -567,7 +567,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
 
-        dcUserDb = getDiscordUser(user, database, self.client)
+        dcUserDb = getDiscordUser(user, database)
         answerAppendix = ""
 
         if not dcUserDb:
@@ -684,7 +684,7 @@ class ProcessUserInput:
         logger.debug("handling Felix-Timer by %s" % member.name)
 
         database = Database()
-        dcUserDb = getDiscordUser(user, database, self.client)
+        dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")

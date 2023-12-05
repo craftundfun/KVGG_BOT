@@ -60,7 +60,7 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
-        dcUserDb = getDiscordUser(message.author, database, self.client)
+        dcUserDb = getDiscordUser(message.author, database)
 
         if not dcUserDb:
             logger.warning("no dcUserDb, cant save meme to database")

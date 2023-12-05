@@ -115,7 +115,7 @@ class ReminderService:
 
         minutesLeft = __getMinutesLeft()
 
-        if not (dcUserDb := getDiscordUser(member, database, self.client)):
+        if not (dcUserDb := getDiscordUser(member, database)):
             logger.debug("cant proceed, no DiscordUser")
 
             return "Es gab ein Problem!"
