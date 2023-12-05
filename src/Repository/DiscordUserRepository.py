@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime
 
-from discord import Member, User, Client
+from discord import Member, User
 
-from src.DiscordParameters.QuestParameter import QuestDates
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getDiscordUser(member: Member, database: Database, client: Client | None = None) -> dict | None:
+def getDiscordUser(member: Member, database: Database) -> dict | None:
     """
     Returns the user from the database.
     If he doesn't exist yet, a new entry is created (only if a member was given)
@@ -66,26 +64,8 @@ def getDiscordUser(member: Member, database: Database, client: Client | None = N
             logger.error("couldn't create DiscordUser!")
 
             return None
-
-        logger.debug("new DiscordUser entry for %s" % username)
-
-        if not client:
-            logger.warning(f"cant create Quests for {member.display_name}: no client given")
         else:
-            from src.Services.QuestService import QuestService
-
-            questService = QuestService(client)
-
-            loop = asyncio.get_event_loop()
-
-            loop.run_until_complete(questService.createQuestForMember(member, QuestDates.DAILY, database))
-            logger.debug("created daily-quests for new member")
-
-            loop.run_until_complete(questService.createQuestForMember(member, QuestDates.WEEKLY, database))
-            logger.debug("created weekly-quests for new member")
-
-            loop.run_until_complete(questService.createQuestForMember(member, QuestDates.MONTHLY, database))
-            logger.debug("created monthly-quests for new member")
+            logger.debug("new DiscordUser entry for %s" % username)
 
     # update quickly changing attributes
     dcUserDb['profile_picture_discord'] = member.display_avatar

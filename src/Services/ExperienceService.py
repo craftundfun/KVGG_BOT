@@ -378,7 +378,7 @@ class ExperienceService:
 
         database = Database()
 
-        if (dcUserDb := getDiscordUser(member, database, self.client)) is None:
+        if (dcUserDb := getDiscordUser(member, database)) is None:
             logger.warning("couldn't fetch DiscordUser!")
 
             return "Es ist etwas schief gelaufen!"
@@ -502,7 +502,7 @@ class ExperienceService:
         logger.debug("%s requested XP" % member.name)
 
         database = Database()
-        dcUserDb = getDiscordUser(user, database, self.client)
+        dcUserDb = getDiscordUser(user, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -539,7 +539,7 @@ class ExperienceService:
         database = Database()
 
         if setting == 'on':
-            dcUserDb = getDiscordUser(member, database, self.client)
+            dcUserDb = getDiscordUser(member, database)
 
             if dcUserDb is None:
                 logger.warning("couldn't fetch DiscordUser!")
@@ -548,7 +548,7 @@ class ExperienceService:
 
             dcUserDb['double_xp_notification'] = 1
         else:
-            dcUserDb = getDiscordUser(member, database, self.client)
+            dcUserDb = getDiscordUser(member, database)
 
             if dcUserDb is None:
                 logger.warning("Couldn't fetch DiscordUser!")
@@ -585,7 +585,7 @@ class ExperienceService:
         logger.debug("%s requested Xp-Inventory" % member.name)
 
         database = Database()
-        dcUserDb: dict | None = getDiscordUser(member, database, self.client)
+        dcUserDb: dict | None = getDiscordUser(member, database)
 
         if dcUserDb is None:
             logger.warning("couldn't fetch DiscordUser")

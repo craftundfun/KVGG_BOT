@@ -129,7 +129,7 @@ class UpdateTimeService:
                 channelType = "gaming"
 
             for member in channel.members:
-                if not (dcUserDb := getDiscordUser(member, database, self.client)):
+                if not (dcUserDb := getDiscordUser(member, database)):
                     logger.debug("couldn't fetch %s (%d) from database" % (member.name, member.id,))
 
                     continue
