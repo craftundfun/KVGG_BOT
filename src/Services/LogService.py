@@ -11,9 +11,24 @@ logger = logging.getLogger("KVGG_BOT")
 
 
 class Events(Enum):
-    JOINED_VOICE_CHAT = 0
-    LEFT_VOICE_CHANNEL = 1
-    SWITCHED_VOICE_CHANNEL = 2
+    JOINED_VOICE_CHAT = (0, 204, 0)  # green
+    LEFT_VOICE_CHANNEL = (255, 0, 0)  # red
+    SWITCHED_VOICE_CHANNEL = (255, 128, 0)  # orange
+
+    SELF_MUTE = (255, 133, 133)  # light red
+    SELF_NOT_MUTE = (153, 255, 153)  # light green
+    SELF_DEAF = (255, 133, 133)  # light red
+    SELF_NOT_DEAF = (153, 255, 153)  # light green
+
+    MUTE = (153, 0, 0)  # dark red
+    NOT_MUTE = (0, 153, 0)  # dark green
+    DEAF = (153, 0, 0)  # dark red
+    NOT_DEAF = (0, 153, 0)  # dark green
+
+    START_STREAM = (0, 0, 255)  # dark blue
+    END_STREAM = (204, 0, 204)  # violet
+    START_WEBCAM = (0, 0, 255)  # dark blue
+    END_WEBCAM = (204, 0, 204)  # violet
 
 
 class LogService:
@@ -45,14 +60,50 @@ class LogService:
                     return
 
                 title = f"{member.display_name} ist dem Sprachkanal `{voiceStateAfter.channel.name}` beigetreten."
-                color = discord.Color.green()
+
             case Events.SWITCHED_VOICE_CHANNEL:
                 title = (f"{member.display_name} ist von `{voiceStateBefore.channel.name}` nach "
                          f"`{voiceStateAfter.channel.name}` gewechselt.")
-                color = discord.Color.orange()
+
             case Events.LEFT_VOICE_CHANNEL:
                 title = f"{member.display_name} hat den Channel `{voiceStateBefore.channel.name}` verlassen."
-                color = discord.Color.red()
+
+            case Events.START_STREAM:
+                title = f"{member.display_name} hat seinen Stream gestartet."
+
+            case Events.END_STREAM:
+                title = f"{member.display_name} hat seinen Stream beendet."
+
+            case Events.START_WEBCAM:
+                title = f"{member.display_name} hat seine Webcam gestartet."
+
+            case Events.END_WEBCAM:
+                title = f"{member.display_name} hat seine Webcam beendet."
+
+            case Events.SELF_MUTE:
+                title = f"{member.display_name} hat sich mute."
+
+            case Events.SELF_NOT_MUTE:
+                title = f"{member.display_name} hat sich entmutet."
+
+            case Events.SELF_DEAF:
+                title = f"{member.display_name} hat sich deafened."
+
+            case Events.SELF_NOT_DEAF:
+                title = f"{member.display_name} hat sich deafened."
+
+            case Events.MUTE:
+                title = f"{member.display_name} wurde stummgeschaltet."
+
+            case Events.NOT_MUTE:
+                title = f"{member.display_name} wurde nicht mehr stummgeschaltet."
+
+            case Events.DEAF:
+                title = f"{member.display_name} wurde komplett stummgeschaltet."
+
+            case Events.NOT_DEAF:
+                title = f"{member.display_name} wurde nicht mehr komplett stummgeschaltet."
+
             case _:
                 logger.error("undefined enum-entry was reached")
 
@@ -60,10 +111,12 @@ class LogService:
 
         embed = Embed(
             title=title,
-            color=color,
+            color=discord.Color.from_rgb(*event.value),
         )
+
         embed.set_author(name=member.name, icon_url=profilePicture)
         embed.set_footer(text=f"KVGG")
+        embed.set_thumbnail(url=profilePicture)
         embed.timestamp = datetime.now()
 
         # channel can be None due to the start order of the bot
