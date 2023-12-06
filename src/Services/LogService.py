@@ -52,8 +52,6 @@ class LogService:
         voiceStateAfter: VoiceState = voiceStates[1]
         profilePicture = member.avatar.url
 
-        print(event.name)
-
         match event:
             case Events.JOINED_VOICE_CHAT:
                 if not voiceStateAfter.channel:
