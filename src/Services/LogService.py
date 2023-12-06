@@ -91,8 +91,6 @@ class LogService:
             case Events.SELF_DEAF:
                 title = f"{member.display_name} hat sich deafened."
 
-                print("ja")
-
             case Events.SELF_NOT_DEAF:
                 title = f"{member.display_name} hat sich nicht mehr deafened."
 
