@@ -17,18 +17,18 @@ class Events(Enum):
 
     SELF_MUTE = (255, 133, 133)  # light red
     SELF_NOT_MUTE = (153, 255, 153)  # light green
-    SELF_DEAF = (255, 133, 133)  # light red
-    SELF_NOT_DEAF = (153, 255, 153)  # light green
+    SELF_DEAF = (254, 133, 133)  # light red
+    SELF_NOT_DEAF = (152, 255, 153)  # light green
 
     MUTE = (153, 0, 0)  # dark red
     NOT_MUTE = (0, 153, 0)  # dark green
-    DEAF = (153, 0, 0)  # dark red
-    NOT_DEAF = (0, 153, 0)  # dark green
+    DEAF = (154, 0, 0)  # dark red
+    NOT_DEAF = (0, 154, 0)  # dark green
 
     START_STREAM = (0, 0, 255)  # dark blue
     END_STREAM = (204, 0, 204)  # violet
-    START_WEBCAM = (0, 0, 255)  # dark blue
-    END_WEBCAM = (204, 0, 204)  # violet
+    START_WEBCAM = (0, 0, 254)  # dark blue
+    END_WEBCAM = (205, 0, 205)  # violet
 
 
 class LogService:
@@ -52,6 +52,8 @@ class LogService:
         voiceStateAfter: VoiceState = voiceStates[1]
         profilePicture = member.avatar.url
 
+        print(event.name)
+
         match event:
             case Events.JOINED_VOICE_CHAT:
                 if not voiceStateAfter.channel:
@@ -69,28 +71,30 @@ class LogService:
                 title = f"{member.display_name} hat den Channel `{voiceStateBefore.channel.name}` verlassen."
 
             case Events.START_STREAM:
-                title = f"{member.display_name} hat seinen Stream gestartet."
+                title = f"{member.display_name} hat seinen / ihren Stream gestartet."
 
             case Events.END_STREAM:
-                title = f"{member.display_name} hat seinen Stream beendet."
+                title = f"{member.display_name} hat seinen / ihren Stream beendet."
 
             case Events.START_WEBCAM:
-                title = f"{member.display_name} hat seine Webcam gestartet."
+                title = f"{member.display_name} hat seine / ihre Webcam gestartet."
 
             case Events.END_WEBCAM:
-                title = f"{member.display_name} hat seine Webcam beendet."
+                title = f"{member.display_name} hat seine / ihre Webcam beendet."
 
             case Events.SELF_MUTE:
-                title = f"{member.display_name} hat sich mute."
+                title = f"{member.display_name} hat sich muted."
 
             case Events.SELF_NOT_MUTE:
-                title = f"{member.display_name} hat sich entmutet."
+                title = f"{member.display_name} hat sich entmuted."
 
             case Events.SELF_DEAF:
                 title = f"{member.display_name} hat sich deafened."
 
+                print("ja")
+
             case Events.SELF_NOT_DEAF:
-                title = f"{member.display_name} hat sich deafened."
+                title = f"{member.display_name} hat sich nicht mehr deafened."
 
             case Events.MUTE:
                 title = f"{member.display_name} wurde stummgeschaltet."
@@ -99,10 +103,10 @@ class LogService:
                 title = f"{member.display_name} wurde nicht mehr stummgeschaltet."
 
             case Events.DEAF:
-                title = f"{member.display_name} wurde komplett stummgeschaltet."
+                title = f"{member.display_name} wurde deafened."
 
             case Events.NOT_DEAF:
-                title = f"{member.display_name} wurde nicht mehr komplett stummgeschaltet."
+                title = f"{member.display_name} wurde nicht mehr deafened."
 
             case _:
                 logger.error("undefined enum-entry was reached")
@@ -116,7 +120,6 @@ class LogService:
 
         embed.set_author(name=member.name, icon_url=profilePicture)
         embed.set_footer(text=f"KVGG")
-        embed.set_thumbnail(url=profilePicture)
         embed.timestamp = datetime.now()
 
         # channel can be None due to the start order of the bot

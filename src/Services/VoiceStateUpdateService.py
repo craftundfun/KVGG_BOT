@@ -41,6 +41,7 @@ class VoiceStateUpdateService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database()
+        voiceStates = (voiceStateBefore, voiceStateAfter)
 
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
 
@@ -59,6 +60,13 @@ class VoiceStateUpdateService:
             logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
 
             return
+
+        async def runLogService(event: Events):
+            # runs the log service so we don't need the exception handling all the time
+            try:
+                await self.logService.sendLog(member, voiceStates, event)
+            except Exception as error:
+                logger.error("failure to run LogService", exc_info=error)
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
@@ -113,10 +121,7 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error(f"failure while running addProgressToQuest for {member}", exc_info=error)
 
-            try:
-                await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.JOINED_VOICE_CHAT)
-            except Exception as error:
-                logger.error("an error occurred while running logService", exc_info=error)
+            await runLogService(Events.JOINED_VOICE_CHAT)
 
         # user changed channel or changed status
         elif voiceStateBefore.channel and voiceStateAfter.channel:
@@ -128,29 +133,85 @@ class VoiceStateUpdateService:
 
                 now = datetime.now()
 
-                # if a user is mute
-                if voiceStateAfter.self_mute or voiceStateAfter.mute:
-                    dcUserDb['muted_at'] = now
-                elif not voiceStateAfter.self_mute and not voiceStateAfter.mute:
-                    dcUserDb['muted_at'] = None
+                # self mute
+                if not voiceStateBefore.self_mute and voiceStateAfter.self_mute:
+                    # dont overwrite previous existing value
+                    if not dcUserDb['muted_at']:
+                        dcUserDb['muted_at'] = now
 
-                # if a user is full mute
-                if voiceStateAfter.self_deaf or voiceStateAfter.deaf:
-                    dcUserDb['full_muted_at'] = now
-                elif not voiceStateAfter.self_deaf and not voiceStateAfter.deaf:
-                    dcUserDb['full_muted_at'] = None
+                    await runLogService(Events.SELF_MUTE)
+                # not self mute
+                elif voiceStateBefore.self_mute and not voiceStateAfter.self_mute:
+                    # dont go over server mute
+                    if not voiceStateAfter.mute:
+                        dcUserDb['muted_at'] = None
+
+                    await runLogService(Events.SELF_NOT_MUTE)
+
+                # server mute
+                if not voiceStateBefore.mute and voiceStateAfter.mute:
+                    # dont overwrite previous existing value
+                    if not dcUserDb['muted_at']:
+                        dcUserDb['muted_at'] = now
+
+                    await runLogService(Events.MUTE)
+                # not server mute
+                elif voiceStateBefore.mute and not voiceStateAfter.mute:
+                    # dont go over self mute
+                    if not voiceStateAfter.self_mute:
+                        dcUserDb['muted_at'] = None
+
+                    await runLogService(Events.NOT_MUTE)
+
+                # self deaf
+                if not voiceStateBefore.self_deaf and voiceStateAfter.self_deaf:
+                    # dont overwrite previous existing value
+                    if not dcUserDb['full_muted_at']:
+                        dcUserDb['full_muted_at'] = now
+
+                    await runLogService(Events.SELF_DEAF)
+                # not self deaf
+                elif voiceStateBefore.self_deaf and not voiceStateAfter.self_deaf:
+                    # dont go over server deaf
+                    if not voiceStateAfter.deaf:
+                        dcUserDb['full_muted_at'] = None
+
+                    await runLogService(Events.SELF_NOT_DEAF)
+
+                # server deaf
+                if not voiceStateBefore.deaf and voiceStateAfter.deaf:
+                    # dont overwrite previous existing value
+                    if not dcUserDb['full_muted_at']:
+                        dcUserDb['full_muted_at'] = now
+
+                    await runLogService(Events.DEAF)
+                # not server deaf
+                elif voiceStateBefore.deaf and not voiceStateAfter.deaf:
+                    # dont go over server deaf
+                    if not voiceStateAfter.self_deaf:
+                        dcUserDb['full_muted_at'] = None
+
+                    await runLogService(Events.NOT_DEAF)
 
                 # if user started stream
                 if not voiceStateBefore.self_stream and voiceStateAfter.self_stream:
                     dcUserDb['started_stream_at'] = now
+
+                    await runLogService(Events.START_STREAM)
                 elif voiceStateBefore.self_stream and not voiceStateAfter.self_stream:
                     dcUserDb['started_stream_at'] = None
+
+                    await runLogService(Events.END_STREAM)
 
                 # if user started webcam
                 if not voiceStateBefore.self_video and voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = now
+
+                    await runLogService(Events.START_WEBCAM)
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb['started_webcam_at'] = None
+
+                    await runLogService(Events.END_WEBCAM)
 
                 dcUserDb['username'] = member.display_name
 
