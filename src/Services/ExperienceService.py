@@ -663,47 +663,58 @@ class ExperienceService:
                 # list to keep track of which boosts will be used
                 usedBoosts = []
 
-                # empty active boosts => can use all boosts at once
-                if xp['active_xp_boosts'] is None:
+                currentInventory = json.loads(xp['xp_boosts_inventory']) if xp['xp_boosts_inventory'] else None
+                activeBoosts = json.loads(xp['active_xp_boosts']) if xp['active_xp_boosts'] else None
+                maxValue = ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
+
+                # empty active boosts and fewer then max boosts => can use all boosts at once
+                if currentInventory and not activeBoosts and len(currentInventory) <= maxValue:
+                    logger.debug("no active boosts, all will fit")
+
                     xp['active_xp_boosts'] = xp['xp_boosts_inventory']
                     usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
+                    usedBoosts = json.loads(usedBoosts)
                     xp['xp_boosts_inventory'] = None
                 # xp boosts can fit into active
-                elif ((len(json.loads(xp['active_xp_boosts']))
-                       + len(json.loads(xp['xp_boosts_inventory'])))
-                      <= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value):
+                elif currentInventory and activeBoosts and (len(currentInventory) + len(activeBoosts) <= maxValue):
+                    logger.debug("active boosts present, but new ones fit")
 
                     usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
+                    usedBoosts = json.loads(usedBoosts)
                     inventory = json.loads(xp['xp_boosts_inventory'])
                     activeBoosts = json.loads(xp['active_xp_boosts'])
                     xp['active_xp_boosts'] = json.dumps(activeBoosts + inventory)
                     xp['xp_boosts_inventory'] = None
                 # not all xp-boosts fit into active ones
                 else:
-                    logger.debug("choosing fitting amount of boosts")
+                    logger.debug("active boosts, choose only fitting ones")
 
-                    numXpBoosts = len(json.loads(xp['active_xp_boosts']))
+                    if not activeBoosts:
+                        activeBoosts = []
+
                     currentPosInInventory = 0
-                    xpBoostsInventory: list[dict] = json.loads(xp['xp_boosts_inventory'])
-                    activeXpBoosts: list = json.loads(xp['active_xp_boosts'])
-                    inventoryAfter: list = json.loads(xp['xp_boosts_inventory'])
+                    numXpBoosts = len(activeBoosts)
+                    inventoryAfter: list[dict] = json.loads(xp['xp_boosts_inventory'])
+
+                    print(f"{numXpBoosts} < 30 and {currentPosInInventory} < {len(currentInventory)}")
 
                     while (numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
-                           and currentPosInInventory < len(xpBoostsInventory)):
-                        currentBoost = xpBoostsInventory[currentPosInInventory]
+                           and currentPosInInventory < len(currentInventory)):
+                        print(f"numXpBoosts < 30: {numXpBoosts} < {30}")
+                        print(f"currentPosInInventory: {currentPosInInventory} < {len(currentInventory)}")
+                        currentBoost = currentInventory[currentPosInInventory]
 
                         usedBoosts.append(currentBoost)
-                        activeXpBoosts.append(currentBoost)
+                        activeBoosts.append(currentBoost)
                         inventoryAfter.remove(currentBoost)
 
                         currentPosInInventory += 1
                         numXpBoosts += 1
 
-                    xp['xp_boosts_inventory'] = json.dumps(inventoryAfter)
-                    xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
+                    xp['xp_boosts_inventory'] = json.dumps(inventoryAfter) if len(inventoryAfter) > 0 else None
+                    xp['active_xp_boosts'] = json.dumps(activeBoosts)
 
                 answer = "Alle (möglichen) XP-Boosts wurden eingesetzt!\n\n"
-                usedBoosts = json.loads(usedBoosts)
 
                 for boost in usedBoosts:
                     answer += (f"- {boost['description']}-Boost, der für {boost['remaining']} Minuten "
