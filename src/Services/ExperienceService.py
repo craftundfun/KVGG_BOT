@@ -696,12 +696,8 @@ class ExperienceService:
                     numXpBoosts = len(activeBoosts)
                     inventoryAfter: list[dict] = json.loads(xp['xp_boosts_inventory'])
 
-                    print(f"{numXpBoosts} < 30 and {currentPosInInventory} < {len(currentInventory)}")
-
                     while (numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
                            and currentPosInInventory < len(currentInventory)):
-                        print(f"numXpBoosts < 30: {numXpBoosts} < {30}")
-                        print(f"currentPosInInventory: {currentPosInInventory} < {len(currentInventory)}")
                         currentBoost = currentInventory[currentPosInInventory]
 
                         usedBoosts.append(currentBoost)
