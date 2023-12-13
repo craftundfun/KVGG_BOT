@@ -684,7 +684,7 @@ class ExperienceService:
 
                     numXpBoosts = len(json.loads(xp['active_xp_boosts']))
                     currentPosInInventory = 0
-                    xpBoostsInventory: list = json.loads(xp['xp_boosts_inventory'])
+                    xpBoostsInventory: list[dict] = json.loads(xp['xp_boosts_inventory'])
                     activeXpBoosts: list = json.loads(xp['active_xp_boosts'])
                     inventoryAfter: list = json.loads(xp['xp_boosts_inventory'])
 
@@ -703,6 +703,7 @@ class ExperienceService:
                     xp['active_xp_boosts'] = json.dumps(activeXpBoosts)
 
                 answer = "Alle (möglichen) XP-Boosts wurden eingesetzt!\n\n"
+                usedBoosts = json.loads(usedBoosts)
 
                 for boost in usedBoosts:
                     answer += (f"- {boost['description']}-Boost, der für {boost['remaining']} Minuten "
