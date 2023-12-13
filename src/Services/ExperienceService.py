@@ -704,7 +704,7 @@ class ExperienceService:
 
                 answer = "Alle (möglichen) XP-Boosts wurden eingesetzt!\n\n"
 
-                for boost in json.loads(usedBoosts):
+                for boost in usedBoosts:
                     answer += (f"- {boost['description']}-Boost, der für {boost['remaining']} Minuten "
                                f"{boost['multiplier']}-Fach XP gibt\n")
 
