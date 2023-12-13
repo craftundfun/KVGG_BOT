@@ -6,7 +6,7 @@ from discord import Client, Member
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Helper.SendDM import sendDM
+from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService, isDoubleWeekend
@@ -15,7 +15,6 @@ logger = logging.getLogger("KVGG_BOT")
 
 
 class NotificationService:
-    separator = "\n------------------------------------------------------------------------------------\n"
 
     def __init__(self, client: Client):
         """
@@ -60,7 +59,7 @@ class NotificationService:
         else:
             return
 
-        await self._sendMessage(member, message + self.separator)
+        await self._sendMessage(member, message + separator)
 
     async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
         """
@@ -86,7 +85,7 @@ class NotificationService:
             message += f"- {quest['description']}\n"
 
         message = message.rstrip()
-        message += self.separator
+        message += separator
 
         await self._sendMessage(member, message)
 
@@ -110,10 +109,10 @@ class NotificationService:
         time: str = quest['time_type']
 
         await self._sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
-                                         f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
-                                         f"{quest['description']}\n\n"
-                                         f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
-                                         f"{self.separator}")
+                                        f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
+                                        f"{quest['description']}\n\n"
+                                        f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!"
+                                        f"{separator}")
 
     async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """
@@ -125,7 +124,7 @@ class NotificationService:
         """
         database = Database()
 
-        answer = ""  # self.separator
+        answer = ""
 
         # don't send any notifications to university users
         if member.voice.channel.category.id in UniversityCategory.getValues():
@@ -154,7 +153,7 @@ class NotificationService:
         answer += await self._informAboutDoubleXpWeekend(settings)
 
         # nothing to send
-        if answer == "":  # self.separator:
+        if answer == "":
             return
 
         await self._sendMessage(member, answer)
@@ -199,7 +198,7 @@ class NotificationService:
         # remove last (two) newlines to return a clean string (end)
         answer.rstrip("\n")
 
-        return answer + self.separator
+        return answer + separator
 
     async def _welcomeBackMessage(self, member: Member, dcUserDb: dict, settings: dict) -> str:
         """
@@ -249,12 +248,21 @@ class NotificationService:
 
         try:
             xpService = ExperienceService(self.client)
+            xp: dict | None = xpService.getXpValue(dcUserDb)
         except ConnectionError as error:
             logger.error("failure to start ExperienceService", exc_info=error)
 
             xp = None
-        else:
-            xp: dict | None = xpService.getXpValue(dcUserDb)
+
+        try:
+            # circular import
+            from src.Services.QuestService import QuestService
+
+            questService = QuestService(self.client)
+            quests = questService.listQuests(member)
+        except ConnectionError as error:
+            logger.error("failure to start QuestService", exc_info=error)
+            quests = None
 
         message = "Hey, guten %s. Du warst vor %d Tagen, %d Stunden und %d Minuten zuletzt online. " % (
             daytime, days, hours, minutes
@@ -272,9 +280,12 @@ class NotificationService:
         if xp:
             message += "Außerdem hast du bereits %s XP gefarmt." % '{:,}'.format(xp['xp_amount']).replace(',', '.')
 
+        if quests:
+            message += " " + quests
+
         message += "\n\nViel Spaß!"
 
-        return message + self.separator
+        return message + separator
 
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
@@ -294,11 +305,11 @@ class NotificationService:
 
         if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 14:
             await self._sendMessage(member,
-                                     "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
-                                     "und %d Minuten nicht mehr da." %
+                                    "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
+                                    "und %d Minuten nicht mehr da." %
                                     (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60))
             await self._sendMessage(member, self.finallyAwake)
-            await self._sendMessage(member, self.separator)
+            await self._sendMessage(member, separator)
 
             return True
 
@@ -320,7 +331,7 @@ class NotificationService:
 
         return ("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
                 "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                "auf dem Server mit '/notifications' de- bzw. aktivieren!") + self.separator
+                "auf dem Server mit '/notifications' de- bzw. aktivieren!") + separator
 
     def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
         """

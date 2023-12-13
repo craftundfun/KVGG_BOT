@@ -5,12 +5,11 @@ import random
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
 
-from src.Helper.SendDM import sendDM
+from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Services.Database import Database
-from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -78,8 +77,7 @@ class QuotesManager:
             query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
 
             if database.runQueryOnDatabase(query, (message.content, message.id,)):
-                await sendDM(message.author, "Dein Zitat wurde in unserer Datenbank gespeichert!"
-                             + NotificationService.separator)
+                await sendDM(message.author, "Dein Zitat wurde in unserer Datenbank gespeichert!" + separator)
 
                 logger.debug("sent dm to %s" % message.author.name)
 
@@ -124,8 +122,7 @@ class QuotesManager:
 
                 if author:
                     try:
-                        await sendDM(author, "Dein überarbeitetes Zitat wurde gespeichert!"
-                                     + NotificationService.separator)
+                        await sendDM(author, "Dein überarbeitetes Zitat wurde gespeichert!" + separator)
 
                         logger.debug("sent dm to %s" % author.name)
                     except Exception as error:

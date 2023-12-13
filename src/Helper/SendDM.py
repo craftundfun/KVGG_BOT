@@ -38,3 +38,6 @@ async def sendDM(member: Member, content: str):
 
     for part in splitStringAtMaxLength(content):
         await member.dm_channel.send(part)
+
+
+separator = "\n------------------------------------------------------------------------------------\n"

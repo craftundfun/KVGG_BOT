@@ -5,13 +5,12 @@ import dateutil.relativedelta
 from discord import Message, Client
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.SendDM import sendDM
+from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
-from src.Services.NotificationService import NotificationService
 from src.Services.ProcessUserInput import getTagStringFromId
 
 logger = logging.getLogger("KVGG_BOT")
@@ -46,7 +45,7 @@ class MemeService:
 
             try:
                 await sendDM(message.author, "Bitte sende nur Bilder in den Meme-Channel!"
-                             + NotificationService.separator)
+                             + separator)
             except Exception as error:
                 logger.error(f"couldn't send DM to {message.author}", exc_info=error)
 
@@ -74,7 +73,7 @@ class MemeService:
 
         try:
             await sendDM(message.author, "Dein Meme wurde für den monatlichen Contest eingetragen!"
-                         + NotificationService.separator)
+                         + separator)
         except Exception as error:
             logger.error(f"couldn't send DM to {message.author.name}", exc_info=error)
 
