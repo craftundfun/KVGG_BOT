@@ -7,12 +7,11 @@ import discord
 from discord import Member
 
 from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
-from src.Helper.SendDM import sendDM
+from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
-from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -329,7 +328,7 @@ class ReminderService:
                 logger.debug("saved whatsapp into message queue")
 
         try:
-            await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'] + NotificationService.separator)
+            await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'] + separator)
 
             logger.debug("send reminder to %s" % member.name)
         except discord.HTTPException as e:

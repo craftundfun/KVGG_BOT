@@ -27,6 +27,8 @@ class QuestType(Enum):
 
 
 class QuestService:
+    questAccomplished = "✅"
+    questNotAccomplished = "❌"
 
     def __init__(self, client: Client):
         self.client = client
@@ -325,12 +327,6 @@ class QuestService:
 
             return "Es gab ein Problem beim Abfragen der Quests oder du hast keine Quests!"
 
-        # to give the sort function the key to sort from
-        # def sort_key(dictionary):
-        #    return dictionary["time_type"]
-
-        # first 3 daily, next 3 monthly, next 3 weekly
-        # quests = sorted(quests, key=sort_key)
         daily = []
         weekly = []
         monthly = []
@@ -347,22 +343,31 @@ class QuestService:
 
                 continue
 
+        def addEmoji(quest) -> str:
+            if quest['current_value'] >= quest['value_to_reach']:
+                return self.questAccomplished + "\n"
+            else:
+                return self.questNotAccomplished + "\n"
+
         answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
-        
+
         for quest in daily:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']}\n")
+                       f"{quest['value_to_reach']} ")
+            answer += addEmoji(quest)
 
         answer += "\n__**Weeklys**__:\n"
 
         for quest in weekly:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']}\n")
+                       f"{quest['value_to_reach']} ")
+            answer += addEmoji(quest)
 
         answer += "\n__**Monthlys**__:\n"
 
         for quest in monthly:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']}\n")
+                       f"{quest['value_to_reach']} ")
+            answer += addEmoji(quest)
 
         return answer
