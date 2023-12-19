@@ -295,7 +295,7 @@ client = MyClient(intents=intents)
 tree = app_commands.CommandTree(client)
 
 # create the command service
-commandService = CommandService(client, tree)
+commandService = CommandService(client)
 
 backgroundServices = None
 
