@@ -7,3 +7,7 @@ DELETE FROM quest_discord_mapping WHERE id IN (SELECT id FROM quest WHERE time_t
 USE testproject;
 
 SELECT q.*, qdm.* FROM quest q INNER JOIN quest_discord_mapping qdm ON q.id = qdm.quest_id ORDER BY qdm.time_created DESC
+
+DROP TABLE counter
+
+SELECT rene_counter FROM discord WHERE username = "Bjarne"

@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import json
 import logging.handlers
 import os
 import os.path
@@ -14,6 +15,7 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice, commands
+from discord.ext import commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper import ReadParameters
@@ -289,11 +291,11 @@ intents.members = True
 # instantiates the client
 client = MyClient(intents=intents)
 
-# create the command service
-commandService = CommandService(client)
-
 # creates the command tree
 tree = app_commands.CommandTree(client)
+
+# create the command service
+commandService = CommandService(client, tree)
 
 backgroundServices = None
 
@@ -394,24 +396,32 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 """NAME COUNTER"""
 
 
+async def listCounters(interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+    choices = []
+
+    try:
+        with open("data/CounterNames", "r") as file:
+            counters: dict = json.load(file)
+
+            for key, value in counters.items():
+                if current.lower() in value.lower():
+                    choices.append(Choice(name=key.capitalize() + " - " + value, value=key))
+    except Exception as error:
+        logger.error("couldn't list all counters", exc_info=error)
+
+        return []
+    else:
+        return choices
+
+
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.choices(counter=[
-    Choice(name="Bjarne - Counter für nicht elaborierende Menschen.", value="Bjarne"),
-    Choice(name="Carl - Counter für jemanden der etwas nicht sieht.", value="Carl"),
-    Choice(name="Cookie - Counter für jemanden der einen Keks verdient hat.", value="Cookie"),
-    Choice(name="Felix - Counter für Zuspät- / Garnichtkommer.", value="Felix"),
-    Choice(name="JJ - Counter für jemanden der sich nicht verabschiedet.", value="JJ"),
-    Choice(name="Oleg - Counter für jemanden der etwas sehr unverständliches sagt (z.B. auf einer anderen Sprache).",
-           value="Oleg"),
-    Choice(name="Paul - Counter für Donowaller.", value="Paul"),
-    Choice(name="Rene - Counter für loste Menschen.", value="Rene"),
-])
+@app_commands.autocomplete(counter=listCounters)
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(counter_hinzufuegen="Ändere den Wert eines Counter um den gegebenen Wert.")
-async def counter(interaction: discord.Interaction, counter: Choice[str], user: Member,
+async def counter(interaction: discord.Interaction, counter: str, user: Member,
                   counter_hinzufuegen: int = None):
     """
     Calls the access name counter with the correct counter
@@ -424,10 +434,24 @@ async def counter(interaction: discord.Interaction, counter: Choice[str], user: 
     """
     await commandService.runCommand(Commands.COUNTER,
                                     interaction,
-                                    counterName=counter.value,
+                                    counterName=counter,
                                     user=user,
                                     member=interaction.user,
-                                    param=counter_hinzufuegen)
+                                    param=counter_hinzufuegen,)
+
+
+@tree.command(name='erstelle_counter',
+              description="Erstelle einen neuen Counter für alle.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@app_commands.describe(name="Name des neuen Counters.")
+@app_commands.describe(description="Beschreibung des neuen Counters.")
+async def createNewCounter(interaction: discord.Interaction, name: str, description: str):
+    await commandService.runCommand(Commands.CREATE_COUNTER,
+                                    interaction,
+                                    member=interaction.user,
+                                    name=name,
+                                    description=description,
+                                    )
 
 
 """MANAGE WHATSAPP SETTINGS"""
