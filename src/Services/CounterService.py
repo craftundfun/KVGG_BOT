@@ -4,7 +4,6 @@ from pathlib import Path
 
 from discord import Client
 from discord import Member
-from discord import app_commands
 
 from src.Id.RoleId import RoleId
 from src.Services.Database import Database
@@ -16,9 +15,8 @@ logger = logging.getLogger("KVGG_BOT")
 class CounterService:
     basepath = Path(__file__).parent.parent.parent
 
-    def __init__(self, client: Client, tree: app_commands.CommandTree):
+    def __init__(self, client: Client):
         self.client = client
-        self.tree = tree
 
     async def createNewCounter(self, name: str, description: str, member: Member) -> str:
         """
@@ -73,6 +71,14 @@ class CounterService:
 
         name = name.lower()
         counters[name] = description
+
+        try:
+            with open(f"{self.basepath}/data/CounterNames", "w") as file:
+                json.dump(counters, file)
+        except Exception as error:
+            logger.error("couldn't read counters from disk", exc_info=error)
+
+            return "Es ist ein Fehler aufgetreten!"
 
         database = Database()
         query = "UPDATE discord SET counter = JSON_INSERT(counter, %s, 0)"
