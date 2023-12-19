@@ -72,6 +72,14 @@ class CounterService:
         name = name.lower()
         counters[name] = description
 
+        try:
+            with open(f"{self.basepath}/data/CounterNames", "w") as file:
+                json.dump(counters, file)
+        except Exception as error:
+            logger.error("couldn't read counters from disk", exc_info=error)
+
+            return "Es ist ein Fehler aufgetreten!"
+
         database = Database()
         query = "UPDATE discord SET counter = JSON_INSERT(counter, %s, 0)"
 
