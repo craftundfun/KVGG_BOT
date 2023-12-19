@@ -191,7 +191,7 @@ class WhatsAppHelper:
 
         for message in messages:
             message['message'] = (f"{member.nick if member.nick else member.name} "
-                                  f"({member.name} ist nun im Channel {channelName}.")
+                                  f"({member.name}) ist nun im Channel {channelName}.")
 
             query, nones = writeSaveQuery(
                 'message_queue',
