@@ -291,11 +291,11 @@ intents.members = True
 # instantiates the client
 client = MyClient(intents=intents)
 
-# creates the command tree
-tree = app_commands.CommandTree(client)
-
 # create the command service
 commandService = CommandService(client)
+
+# creates the command tree
+tree = app_commands.CommandTree(client)
 
 backgroundServices = None
 
@@ -440,7 +440,7 @@ async def counter(interaction: discord.Interaction, counter: str, user: Member,
                                     param=counter_hinzufuegen,)
 
 
-@tree.command(name='erstelle_counter',
+@tree.command(name='create_counter',
               description="Erstelle einen neuen Counter für alle.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(name="Name des neuen Counters.")
