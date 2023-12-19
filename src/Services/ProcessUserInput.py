@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import string
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 import discord
 from discord import Message, Client, Member, VoiceChannel
 
+from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
@@ -18,15 +21,7 @@ from src.Id import ChannelId
 from src.Id.Categories import TrackedCategories
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
-from src.InheritedCommands.NameCounter.BjarneCounter import BjarneCounter
-from src.InheritedCommands.NameCounter.CarlCounter import CarlCounter
-from src.InheritedCommands.NameCounter.CookieCounter import CookieCounter
-from src.InheritedCommands.NameCounter.Counter import Counter
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
-from src.InheritedCommands.NameCounter.JjCounter import JjCounter
-from src.InheritedCommands.NameCounter.OlegCounter import OlegCounter
-from src.InheritedCommands.NameCounter.PaulCounter import PaulCounter
-from src.InheritedCommands.NameCounter.ReneCounter import ReneCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
@@ -303,7 +298,7 @@ class ProcessUserInput:
         Returns the leaderboard of our stats in the database
 
         :param type:
-        :param member: Member who requested the leaderboard
+        :param member: Member, who requested the leaderboard
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
@@ -364,77 +359,8 @@ class ProcessUserInput:
 
         usersMessageCount = database.fetchAllResults(query)
 
-        # Rene counter
-        query = "SELECT username, rene_counter " \
-                "FROM discord " \
-                "WHERE rene_counter != 0 " \
-                "ORDER BY rene_counter DESC " \
-                "LIMIT 3"
-
-        usersReneCounter = database.fetchAllResults(query)
-
-        # Felix counter
-        query = "SELECT username, felix_counter " \
-                "FROM discord " \
-                "WHERE felix_counter != 0 " \
-                "ORDER BY felix_counter DESC " \
-                "LIMIT 3"
-
-        usersFelixCounter = database.fetchAllResults(query)
-
-        # Paul counter
-        query = "SELECT username, paul_counter " \
-                "FROM discord " \
-                "WHERE paul_counter != 0 " \
-                "ORDER BY paul_counter DESC " \
-                "LIMIT 3"
-
-        usersPaulCounter = database.fetchAllResults(query)
-
-        # Bjarne counter
-        query = "SELECT username, bjarne_counter " \
-                "FROM discord " \
-                "WHERE bjarne_counter != 0 " \
-                "ORDER BY bjarne_counter DESC " \
-                "LIMIT 3"
-
-        usersBjarneCounter = database.fetchAllResults(query)
-
-        # JJ counter
-        query = "SELECT username, jj_counter " \
-                "FROM discord " \
-                "WHERE jj_counter != 0 " \
-                "ORDER BY jj_counter DESC " \
-                "LIMIT 3"
-
-        usersJjCounter = database.fetchAllResults(query)
-
-        # Oleg counter
-        query = "SELECT username, oleg_counter " \
-                "FROM discord " \
-                "WHERE oleg_counter != 0 " \
-                "ORDER BY oleg_counter DESC " \
-                "LIMIT 3"
-
-        usersOlegCounter = database.fetchAllResults(query)
-
-        # Carl counter
-        query = "SELECT username, carl_counter " \
-                "FROM discord " \
-                "WHERE carl_counter != 0 " \
-                "ORDER BY carl_counter DESC " \
-                "LIMIT 3"
-
-        usersCarlCounter = database.fetchAllResults(query)
-
-        # Cookie counter
-        query = "SELECT username, cookie_counter " \
-                "FROM discord " \
-                "WHERE cookie_counter != 0 " \
-                "ORDER BY cookie_counter DESC " \
-                "LIMIT 3"
-
-        usersCookieCounter = database.fetchAllResults(query)
+        query = "SELECT username, counter FROM discord"
+        counters = database.fetchAllResults(query)
 
         answer = "--------------\n"
         answer += "__**Leaderboard**__\n"
@@ -466,41 +392,36 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        answer += self._leaderboardHelperCounter(usersReneCounter, ReneCounter())
-        answer += self._leaderboardHelperCounter(usersFelixCounter, FelixCounter())
-        answer += self._leaderboardHelperCounter(usersPaulCounter, PaulCounter())
-        answer += self._leaderboardHelperCounter(usersBjarneCounter, BjarneCounter())
-        answer += self._leaderboardHelperCounter(usersOlegCounter, OlegCounter())
-        answer += self._leaderboardHelperCounter(usersJjCounter, JjCounter())
-        answer += self._leaderboardHelperCounter(usersCookieCounter, CookieCounter())
-        answer += self._leaderboardHelperCounter(usersCarlCounter, CarlCounter())
+        answer += self._leaderboardHelperCounter(counters)
 
         logger.debug("sending leaderboard")
 
         return answer
 
-    def _leaderboardHelperCounter(self, users: list, counter: Counter) -> str:
+    def _leaderboardHelperCounter(self, counters) -> str:
         """
-        Helper for listing a leaderboard entry for given counter
+        Sort all counters and list the top three per counter
 
-        :param users: List of users
-        :param counter: counter-type
+        :param counters: Counters
         :return:
         """
-        if not users:
-            logger.debug("user list was none")
+        max_values = defaultdict(list)
 
-            return ""
-        elif len(users) < 1:
-            logger.debug("user list was empty")
+        for counterUsernamePair in counters:
+            for key, value in json.loads(counterUsernamePair['counter']).items():
+                max_values[key].append((value, counterUsernamePair['username']))
 
-            return ""
+        for key, values in max_values.items():
+            values.sort(reverse=True)
+            max_values[key] = values[:3]
 
-        answer = "\n- __%s-Counter__:\n" % counter.getNameOfCounter()
+        answer = ""
 
-        for index, user in enumerate(users, 1):
-            counter.setDiscordUser(user)
-            answer += "\t%d: %s - %d\n" % (index, user['username'], counter.getCounterValue())
+        for key, values in max_values.items():
+            answer += "\n- __%s-Counter__:\n" % str(key).capitalize()
+
+            for index, val in enumerate(values, 1):
+                answer += "\t%d: %s - %d\n" % (index, val[1], val[0])
 
         return answer
 
@@ -519,7 +440,7 @@ class ProcessUserInput:
         try:
             await sendDM(member, "Dein persönlicher Link zum registrieren: %s" % link)
         except Exception as error:
-            logger.error("couldnt send DM to %s" % member.name, exc_info=error)
+            logger.error("couldn't send DM to %s" % member.name, exc_info=error)
 
             return "Es gab Probleme dir eine Nachricht zu schreiben!"
 
@@ -541,31 +462,12 @@ class ProcessUserInput:
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
+        # whole name with description is given -> split to get name
+        counterName = counterName.split(" ")[0]
+
         database = Database()
 
-        match counterName:
-            case "Bjarne":
-                counter = BjarneCounter()
-            case "Carl":
-                counter = CarlCounter()
-            case "Cookie":
-                counter = CookieCounter()
-            case "Felix":
-                counter = FelixCounter()
-            case "JJ":
-                counter = JjCounter()
-            case "Oleg":
-                counter = OlegCounter()
-            case "Paul":
-                counter = PaulCounter()
-            case "Rene":
-                counter = ReneCounter()
-            case _:
-                logger.critical("reached unreachable code!")
-
-                return "Es ist ein Fehler aufgetreten!"
-
-        logger.debug("%s requested %s-Counter" % (member.name, counter.getNameOfCounter()))
+        logger.debug("%s requested %s-Counter" % (member.name, counterName))
 
         dcUserDb = getDiscordUser(user, database)
         answerAppendix = ""
@@ -575,12 +477,13 @@ class ProcessUserInput:
 
             return "Dieser Benutzer existiert (noch) nicht!"
 
-        counter.setDiscordUser(dcUserDb)
+        counter = json.loads(dcUserDb['counter'])
+        print(counter)
 
         if not param:
             return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
-                                                        counter.getNameOfCounter(),
-                                                        counter.getCounterValue())
+                                                        counterName,
+                                                        counter[counterName.lower()],)
 
         try:
             value = int(param)
@@ -592,7 +495,7 @@ class ProcessUserInput:
         # user trying to add his own counters
         if int(dcUserDb['user_id']) == member.id:
             # don't allow increasing cookie counter
-            if isinstance(counter, CookieCounter) and value > 0:
+            if counterName.lower() == "cookie" and value > 0:
                 logger.debug("%s tried to increase his / her own cookie-counter" % member.name)
 
                 return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
@@ -610,17 +513,28 @@ class ProcessUserInput:
             return "Du darfst einen Counter nur um -1 verringern oder +1 erhöhen!"
 
         # special case for cookie-counter due to xp-boost
-        if isinstance(counter, CookieCounter) and value >= 1:
-            await counter.setCounterValue(counter.getCounterValue() + value, user, self.client)
+        if counterName.lower() == "cookie" and value >= 1:
+            counter[counterName.lower()] = counter[counterName.lower()] + value
+
+            try:
+                es = ExperienceService(self.client)
+            except ConnectionError as error:
+                logger.error("failure to start ExperienceService", exc_info=error)
+            else:
+                await es.grantXpBoost(member, AchievementParameter.COOKIE)
 
             answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
                                                                           "XP-Boost erhalten.")
         else:
-            await counter.setCounterValue(counter.getCounterValue() + value)
+            counter[counterName.lower()] = counter[counterName.lower()] + value
 
         # dont decrease to counter into negative
-        if counter.getCounterValue() < 0:
-            await counter.setCounterValue(0)
+        if counter[counterName.lower()] < 0:
+            counter[counterName.lower()] = 0
+
+        dcUserDb['counter'] = json.dumps(counter)
+
+        print(counter)
 
         query, nones = writeSaveQuery(
             'discord',
@@ -636,28 +550,29 @@ class ProcessUserInput:
         name = user.nick if user.nick else user.name
 
         # send funny TTS for Counter-Receiver
-        if isinstance(counter, ReneCounter):
-            if value > 0:
-                tts = f"{dcUserDb['username']}, du bist dumm."
-            else:
-                tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
-        elif isinstance(counter, PaulCounter):
-            tts = f"Danke, {name}."
-        elif isinstance(counter, BjarneCounter):
-            tts = f"Nächstes Mal dann, {name}"
-        elif isinstance(counter, CarlCounter):
-            tts = f"Kleiner Tipp: Brille Fielmann hat auch 0 Euro Brillengestelle, {name}."
-        elif isinstance(counter, CookieCounter):
-            tts = f"{name}, hast du fein gemacht."
-        elif isinstance(counter, FelixCounter):
-            tts = f"Du bist mal wieder zu spät {name}."
-        elif isinstance(counter, OlegCounter):
-            tts = f"Was hast du gesagt? {name}, ich habe rein gar nichts verstanden!"
-        else:
-            tts = None
+        match counterName.lower():
+            case "rene":
+                if value > 0:
+                    tts = f"{dcUserDb['username']}, du bist dumm."
+                else:
+                    tts = f"{dcUserDb['username']}, du bist doch nicht dumm."
+            case "paul":
+                tts = f"Danke, {name}."
+            case "bjarne":
+                tts = f"Nächstes Mal dann, {name}"
+            case "carl":
+                tts = f"Kleiner Tipp: Brille Fielmann hat auch 0 Euro Brillengestelle, {name}."
+            case "cookie":
+                tts = f"{name}, hast du fein gemacht."
+            case "felix":
+                tts = f"Du bist mal wieder zu spät {name}."
+            case "oleg":
+                tts = f"Was hast du gesagt? {name}, ich habe rein gar nichts verstanden!"
+            case _:
+                tts = None
 
         if user.voice and tts:
-            logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counter.name}-Counter")
+            logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counterName}-Counter")
 
             if await TTSService().generateTTS(tts):
                 await self.voiceClientService.play(user.voice.channel,
@@ -665,9 +580,9 @@ class ProcessUserInput:
                                                    None,
                                                    True, )
 
-        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counter.getNameOfCounter(),
+        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counterName,
                                                                getTagStringFromId(str(user.id)),
-                                                               value)
+                                                               value,)
                 + answerAppendix)
 
     async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None) -> str:

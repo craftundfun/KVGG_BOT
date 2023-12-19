@@ -4,10 +4,12 @@ from enum import Enum
 
 import discord.interactions
 from discord import HTTPException, InteractionResponded, Client
+from discord import app_commands
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Services.ApiServices import ApiServices
 from src.Services.ChannelService import ChannelService
+from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuestService import QuestService, QuestType
@@ -57,12 +59,14 @@ class Commands(Enum):
     DELETE_SOUND = 32
     LIST_QUESTS = 33
     NOTIFICATION_SETTING = 34
+    CREATE_COUNTER = 35
 
 
 class CommandService:
 
-    def __init__(self, client: Client):
+    def __init__(self, client: Client, tree: app_commands.CommandTree):
         self.client = client
+        self.tree = tree
 
         self.apiService = ApiServices()
         self.userInputService = ProcessUserInput(self.client)
@@ -75,6 +79,7 @@ class CommandService:
         self.voiceClientService = VoiceClientService(self.client)
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
+        self.counterService = CounterService(self.client, self.tree)
 
     async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -238,6 +243,9 @@ class CommandService:
 
             case Commands.LIST_QUESTS:
                 function = self.questService.listQuests
+
+            case Commands.CREATE_COUNTER:
+                function = self.counterService.createNewCounter
 
             case _:
                 logger.error("undefined enum entry was reached!")
