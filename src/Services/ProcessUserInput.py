@@ -478,12 +478,11 @@ class ProcessUserInput:
             return "Dieser Benutzer existiert (noch) nicht!"
 
         counter = json.loads(dcUserDb['counter'])
-        print(counter)
 
         if not param:
             return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
                                                         counterName,
-                                                        counter[counterName.lower()],)
+                                                        counter[counterName.lower()].capitalize(),)
 
         try:
             value = int(param)
@@ -568,6 +567,10 @@ class ProcessUserInput:
                 tts = f"Du bist mal wieder zu spät {name}."
             case "oleg":
                 tts = f"Was hast du gesagt? {name}, ich habe rein gar nichts verstanden!"
+            case "crash":
+                tts = f"Fix deinen scheiß Computer, {name}!"
+            case "datum":
+                tts = f"Bist du dir sicher mit dem Datum, {name}?"
             case _:
                 tts = None
 
@@ -580,7 +583,7 @@ class ProcessUserInput:
                                                    None,
                                                    True, )
 
-        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counterName,
+        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counterName.capitalize(),
                                                                getTagStringFromId(str(user.id)),
                                                                value,)
                 + answerAppendix)
