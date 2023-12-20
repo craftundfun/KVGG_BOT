@@ -482,7 +482,7 @@ class ProcessUserInput:
         if not param:
             return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
                                                         counterName,
-                                                        counter[counterName.lower()].capitalize(),)
+                                                        counter[counterName.lower()],)
 
         try:
             value = int(param)
@@ -532,8 +532,6 @@ class ProcessUserInput:
             counter[counterName.lower()] = 0
 
         dcUserDb['counter'] = json.dumps(counter)
-
-        print(counter)
 
         query, nones = writeSaveQuery(
             'discord',
