@@ -481,7 +481,7 @@ class ProcessUserInput:
 
         if not param:
             return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
-                                                        counterName,
+                                                        counterName.capitalize(),
                                                         counter[counterName.lower()],)
 
         try:

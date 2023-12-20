@@ -404,7 +404,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
             counters: dict = json.load(file)
 
             for key, value in counters.items():
-                if current.lower() in value.lower():
+                if current.lower() == "" or current.lower() in key.lower():
                     choices.append(Choice(name=key.capitalize() + " - " + value, value=key))
     except Exception as error:
         logger.error("couldn't list all counters", exc_info=error)
