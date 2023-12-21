@@ -353,21 +353,21 @@ class QuestService:
 
         for quest in daily:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} ")
+                       f"{quest['value_to_reach']} {quest['unit']} ")
             answer += addEmoji(quest)
 
         answer += "\n__**Weeklys**__:\n"
 
         for quest in weekly:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} ")
+                       f"{quest['value_to_reach']} {quest['unit']} ")
             answer += addEmoji(quest)
 
         answer += "\n__**Monthlys**__:\n"
 
         for quest in monthly:
             answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} ")
+                       f"{quest['value_to_reach']} {quest['unit']} ")
             answer += addEmoji(quest)
 
         return answer
