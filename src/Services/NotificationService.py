@@ -59,6 +59,14 @@ class NotificationService:
         else:
             return
 
+        database = Database()
+        settings = self._getNotificationSettings(member, database)
+
+        if not settings or not settings['notifications'] or not settings['xp_inventory']:
+            logger.debug(f"no settings or {member.display_name} doesnt want xp_inventory notifications")
+
+            return
+
         await self._sendMessage(member, message + separator)
 
     async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
