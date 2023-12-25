@@ -126,9 +126,8 @@ class MemeService:
 
         query = "SELECT * FROM meme WHERE created_at > %s ORDER BY likes DESC LIMIT 1 OFFSET %s"
 
-        now = datetime.now()
-        firstOfMonth = now - dateutil.relativedelta.relativedelta(month=1)
-        firstOfMonthCorrectTime = firstOfMonth.replace(hour=0, minute=0, second=0, microsecond=0)
+        lastMonth = datetime.now() - dateutil.relativedelta.relativedelta(months=1)
+        firstOfMonthCorrectTime = lastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
         if not (meme := database.fetchOneResult(query, (firstOfMonthCorrectTime, offset,))):
             logger.error("couldn't fetch any memes from database")
