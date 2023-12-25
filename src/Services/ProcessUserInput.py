@@ -392,7 +392,8 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        answer += self._leaderboardHelperCounter(counters)
+        # answer += self._leaderboardHelperCounter(counters)
+        answer += "Das Leaderboard für Counter steht akutell nicht zur Verfügung!"
 
         logger.debug("sending leaderboard")
 
