@@ -606,6 +606,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     Choice(name="Willkommen", value="welcome_back"),
     Choice(name="Alle", value="notifications"),
     Choice(name="Quest", value="quest"),
+    Choice(name="XP-Inventar", value="xp_inventory")
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
