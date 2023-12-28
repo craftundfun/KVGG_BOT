@@ -392,8 +392,7 @@ class ProcessUserInput:
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
 
-        # answer += self._leaderboardHelperCounter(counters)
-        answer += "Das Leaderboard für Counter steht akutell nicht zur Verfügung!"
+        answer += self._leaderboardHelperCounter(counters)
 
         logger.debug("sending leaderboard")
 
@@ -408,9 +407,14 @@ class ProcessUserInput:
         """
         max_values = defaultdict(list)
 
-        for counterUsernamePair in counters:
-            for key, value in json.loads(counterUsernamePair['counter']).items():
-                max_values[key].append((value, counterUsernamePair['username']))
+        try:
+            for counterUsernamePair in counters:
+                for key, value in json.loads(counterUsernamePair['counter']).items():
+                    max_values[key].append((value, counterUsernamePair['username']))
+        except Exception as error:
+            logger.error("cant sort by counters", exc_info=error)
+
+            return "\nEs gab ein Problem mit den Countern!"
 
         for key, values in max_values.items():
             values.sort(reverse=True)
