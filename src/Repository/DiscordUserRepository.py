@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime
+from pathlib import Path
 
 from discord import Member, User
 
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
+basepath = Path(__file__).parent.parent.parent
 
 
 def getDiscordUser(member: Member, database: Database) -> dict | None:
@@ -38,12 +41,24 @@ def getDiscordUser(member: Member, database: Database) -> dict | None:
     if not dcUserDb:
         logger.debug("creating new DiscordUser")
 
-        query = "INSERT INTO discord (guild_id, user_id, username, created_at, time_streamed) " \
-                "VALUES (%s, %s, %s, %s, %s)"
+        try:
+            with open(f"{basepath}/data/CounterNames", "r") as file:
+                counters: dict = json.load(file)
+        except Exception as error:
+            logger.error("couldn't read counters from disk", exc_info=error)
+
+            counter = None
+        else:
+            counter = {key: 0 for key in counters.keys()}
+
+            counter = json.dumps(counter)
+
+        query = "INSERT INTO discord (guild_id, user_id, username, created_at, time_streamed, counter) " \
+                "VALUES (%s, %s, %s, %s, %s, %s)"
         username = member.nick if member.nick else member.name
 
         if not database.runQueryOnDatabase(query,
-                                           (member.guild.id, member.id, username, datetime.now(), 0,)):
+                                           (member.guild.id, member.id, username, datetime.now(), 0, counter)):
             logger.critical("couldn't create new discordUser entry in our database")
 
             return None

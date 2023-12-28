@@ -61,7 +61,7 @@ class UserSettings:
             return "Es gab ein Problem!"
 
         # database rows
-        settings_keys = ["notifications", "double_xp", "welcome_back", "quest"]
+        settings_keys = ["notifications", "double_xp", "welcome_back", "quest", "xp_inventory"]
 
         if kind in settings_keys:
             settings[kind] = 1 if setting else 0
