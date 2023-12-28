@@ -521,7 +521,7 @@ class ProcessUserInput:
             except ConnectionError as error:
                 logger.error("failure to start ExperienceService", exc_info=error)
             else:
-                await es.grantXpBoost(member, AchievementParameter.COOKIE)
+                await es.grantXpBoost(user, AchievementParameter.COOKIE)
 
             answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
                                                                           "XP-Boost erhalten.")
