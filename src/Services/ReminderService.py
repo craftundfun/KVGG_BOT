@@ -192,7 +192,7 @@ class ReminderService:
             days = minutes // (24 * 60)
             remainingMinutes = minutes % (24 * 60)
             hours = remainingMinutes // 60
-            minutes = remainingMinutes & 60
+            minutes = remainingMinutes % 60
 
             return days, hours, minutes
 
