@@ -5,7 +5,7 @@ from datetime import datetime
 
 from discord import Client, Member
 
-from src.Helper.SendDM import sendDM
+from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.Counter import Counter
@@ -113,7 +113,7 @@ class FelixCounter(Counter):
             return
 
         try:
-            await sendDM(member, "Dein Felix-Counter wurde beendet!")
+            await sendDM(member, "Dein Felix-Counter wurde beendet!" + separator)
         except Exception as error:
             logger.error("couldn't send DM to %s" % member.name, exc_info=error)
         else:
