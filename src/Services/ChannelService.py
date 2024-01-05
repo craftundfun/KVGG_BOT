@@ -137,7 +137,7 @@ class ChannelService:
         :return:
         """
         # only move out of this channel
-        if member.voice.channel.id != ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
+        if member.voice and member.voice.channel.id != ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
             return
 
         # ignore members who are alone

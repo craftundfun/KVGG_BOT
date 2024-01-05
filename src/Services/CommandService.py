@@ -89,8 +89,8 @@ class CommandService:
         """
         try:
             await ctx.response.defer(thinking=True)
-        except discord.errors.NotFound as error:
-            logger.error("too late :(", exc_info=error)
+        except discord.errors.NotFound:
+            logger.warning("too late :(")
 
             return False
         except HTTPException as e:
