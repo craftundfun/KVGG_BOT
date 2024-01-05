@@ -437,7 +437,7 @@ async def counter(interaction: discord.Interaction, counter: str, user: Member,
                                     counterName=counter,
                                     user=user,
                                     member=interaction.user,
-                                    param=counter_hinzufuegen,)
+                                    param=counter_hinzufuegen, )
 
 
 @tree.command(name='create_counter',
@@ -445,13 +445,24 @@ async def counter(interaction: discord.Interaction, counter: str, user: Member,
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(name="Name des neuen Counters.")
 @app_commands.describe(description="Beschreibung des neuen Counters.")
-async def createNewCounter(interaction: discord.Interaction, name: str, description: str):
+@app_commands.describe(voiceline="TTS für den Counter. "
+                                 "Mit {name} wird der Name des Users automatisch an der Stelle eingefügt.")
+async def createNewCounter(interaction: discord.Interaction, name: str, description: str, voiceline: str = None):
     await commandService.runCommand(Commands.CREATE_COUNTER,
                                     interaction,
                                     member=interaction.user,
                                     name=name,
                                     description=description,
+                                    voiceLine=voiceline,
                                     )
+
+
+@tree.command(name='list_counters',
+              description="Listet alle aktuell vorhandenen Counter auf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def listCounters(interaction: discord.Interaction):
+    await commandService.runCommand(Commands.LIST_COUNTERS,
+                                    interaction)
 
 
 """MANAGE WHATSAPP SETTINGS"""
@@ -501,7 +512,7 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
               description="Listet dir unsere Bestenliste auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(typ=[
-    Choice(name="relationen", value="relations"),
+    Choice(name="Relationen", value="relations"),
     Choice(name="XP", value="xp")
 ])
 async def sendLeaderboard(interaction: discord.Interaction, typ: Choice[str] = None):

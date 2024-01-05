@@ -24,6 +24,7 @@ class QuestType(Enum):
     STREAM_TIME = "stream_time"
     DAYS_ONLINE = "days_online"
     ONLINE_STREAK = "online_streak"
+    MEME_COUNT = "meme_count"
 
 
 class QuestService:

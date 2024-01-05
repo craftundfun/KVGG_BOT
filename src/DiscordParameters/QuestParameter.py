@@ -25,15 +25,6 @@ class QuestDates(Enum):
                 return None
 
 
-class QuestTypes(Enum):
-    ONLINE_TIME = "online_time"
-    STREAM_TIME = "stream_time"
-    MESSAGE_COUNT = "message_count"
-    COMMAND_COUNT = "command_count"
-    ONLINE_STREAK = "online_streak"
-    DAYS_ONLINE = "days_online"
-
-
 class QuestAmountsPerDate(Enum):
     DAILY = 3
     WEEKLY = 3
