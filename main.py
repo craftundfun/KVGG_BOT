@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import json
 import logging.handlers
 import os
 import os.path
@@ -28,6 +27,7 @@ from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
 from src.Services import ProcessUserInput, QuotesManager
 from src.Services.CommandService import CommandService, Commands
+from src.Services.Database import Database
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.MemeService import MemeService
 from src.Services.QuotesManager import QuotesManager
@@ -400,19 +400,24 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
     choices = []
 
     try:
-        with open("data/CounterNames", "r") as file:
-            counters: dict = json.load(file)
-
-            for key, value in counters.items():
-                if current.lower() == "" or current.lower() in key.lower():
-                    choices.append(Choice(name=key.capitalize() + " - " + value, value=key))
+        database = Database()
     except Exception as error:
-        logger.error("couldn't list all counters", exc_info=error)
-
-        return []
+        logger.error("couldn't create database connection", exc_info=error)
     else:
-        return choices
+        query = "SELECT name, description FROM counter LIMIT 25"
 
+        if not (counters := database.fetchAllResults(query)):
+            logger.error("couldnt fetch any counters from database")
+
+            return choices
+
+        for counter in counters:
+            name = counter['name']
+
+            if current.lower() == "" or current.lower() in name.lower():
+                choices.append(Choice(name=name.capitalize() + " - " + counter['description'], value=name))
+    finally:
+        return choices
 
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
