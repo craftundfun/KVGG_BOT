@@ -142,6 +142,11 @@ class CounterService:
 
             return "Dieser Benutzer existiert (noch) nicht!"
 
+        query = "SELECT * FROM counter WHERE name = %s"
+
+        if not (database.fetchOneResult(query, (counterName.lower(),))):
+            return "Es gibt diesen Counter nicht."
+
         query = ("SELECT cdm.*, c.tts_voice_line "
                  "FROM counter_discord_mapping cdm INNER JOIN counter c ON cdm.counter_id = c.id "
                  "WHERE discord_id = %s AND counter_id = "
@@ -216,7 +221,13 @@ class CounterService:
         name = user.nick if user.nick else user.name
 
         if counterDiscordMapping['tts_voice_line']:
-            tts = counterDiscordMapping['tts_voice_line'].format(name=name)
+            try:
+                tts = counterDiscordMapping['tts_voice_line'].format(name=name)
+            except KeyError as error:
+                logger.error(f"KeyError in '{counterDiscordMapping['tts_voice_line']}' von "
+                             f"ID: {counterDiscordMapping['counter_id']} Quest.", exc_info=error)
+
+                tts = None
         else:
             tts = None
 
