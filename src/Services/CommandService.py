@@ -59,6 +59,7 @@ class Commands(Enum):
     LIST_QUESTS = 33
     NOTIFICATION_SETTING = 34
     CREATE_COUNTER = 35
+    LIST_COUNTERS = 36
 
 
 class CommandService:
@@ -161,7 +162,7 @@ class CommandService:
                 function = self.userInputService.accessTimeAndEdit
 
             case Commands.COUNTER:
-                function = self.userInputService.accessNameCounterAndEdit
+                function = self.counterService.accessNameCounterAndEdit
 
             case Commands.WHATSAPP:
                 function = self.userSettings.manageWhatsAppSettings
@@ -244,6 +245,9 @@ class CommandService:
 
             case Commands.CREATE_COUNTER:
                 function = self.counterService.createNewCounter
+
+            case Commands.LIST_COUNTERS:
+                function = self.counterService.listAllCounters
 
             case _:
                 logger.error("undefined enum entry was reached!")
