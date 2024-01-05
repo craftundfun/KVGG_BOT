@@ -12,6 +12,7 @@ from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
+from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -23,6 +24,7 @@ class MemeService:
     def __init__(self, client: Client):
         self.client = client
         self.experienceService = ExperienceService(self.client)
+        self.questService = QuestService(self.client)
 
     async def checkIfMemeAndPrepareReactions(self, message: Message):
         """
@@ -76,6 +78,8 @@ class MemeService:
                          + separator)
         except Exception as error:
             logger.error(f"couldn't send DM to {message.author.name}", exc_info=error)
+
+        await self.questService.addProgressToQuest(message.author, QuestType.MEME_COUNT)
 
     async def changeLikeCounterOfMessage(self, message: Message):
         """
