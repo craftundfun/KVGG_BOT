@@ -60,7 +60,7 @@ class VoiceClientService:
             try:
                 self.voiceClient = await channel.connect()
             except Exception as error:
-                logger.error("something went wrong while connecting to a voice-channel", exc_info=error)
+                logger.debug("something went wrong while connecting to a voice-channel", exc_info=error)
 
                 return False
         # if it exists and is forced to play something, stop it
