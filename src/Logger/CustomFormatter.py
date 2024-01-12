@@ -31,8 +31,6 @@ class CustomFormatter(logging.Formatter):
         appendix = record.filename + ":" + str(record.lineno)
 
         if record.levelno >= logging.WARNING and record.exc_text:
-            sys.stderr.write(record.message + "\n")
-            sys.stderr.write(record.exc_text + "\n")
             sys.stdout.write(record.message + "\n")
             sys.stdout.write(record.exc_text + "\n")
 
