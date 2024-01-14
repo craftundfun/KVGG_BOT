@@ -384,7 +384,7 @@ class QuestService:
 
         def _getChannels():
             for voiceChannel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
-                if voiceChannel.category in TrackedCategories.getValues():
+                if voiceChannel.category.id in TrackedCategories.getValues():
                     yield voiceChannel
 
         for channel in _getChannels():
