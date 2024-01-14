@@ -342,6 +342,8 @@ class ExperienceService:
                 logger.debug("cant grant boost, too many inactive xp boosts")
 
                 await notificationService.informAboutXpBoostInventoryLength(member, len(inventory))
+
+                return
         else:
             inventory = []
 
