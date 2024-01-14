@@ -43,6 +43,7 @@ loggerThread.setLevel(logging.INFO)
 
 tz = datetime.datetime.now().astimezone().tzinfo
 midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
+twentyThree = datetime.time(hour=23, minute=0, second=0, microsecond=0, tzinfo=tz)
 
 
 class BackgroundServices(commands.Cog):
@@ -65,6 +66,9 @@ class BackgroundServices(commands.Cog):
 
         self.chooseWinnerOfMemes.start()
         logger.info("choose-winner-job started")
+
+        self.informAboutUnfinishedQuests.start()
+        logger.info("unfinished-quests-job started")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -241,3 +245,11 @@ class BackgroundServices(commands.Cog):
             logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
         else:
             await meme.chooseWinner()
+
+    @tasks.loop(time=twentyThree)
+    async def informAboutUnfinishedQuests(self):
+        questService = QuestService(self.client)
+
+        await questService.remindToFulFillQuests(QuestDates.DAILY)
+
+        logger.debug("ran daily quests reminder")

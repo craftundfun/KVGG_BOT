@@ -356,3 +356,19 @@ class NotificationService:
             return None
 
         return settings
+
+    async def notifyAboutUnfinishedQuests(self, questDate: QuestDates, quests: list, member: Member):
+        """
+        Sends a message to the member about the unfinished quests.
+        """
+        message = (f"Hey {member.display_name}, du hast noch folgende {questDate.value.capitalize()}-Quests "
+                   f"nicht abgeschlossen:\n\n")
+
+        for index, quest in enumerate(quests, 1):
+            message += (f"{index}. {quest.description} Aktueller Wert: **{quest['current_value']}**, "
+                        f"von: {quest['value_to_reach']} {quest['unit']}\n")
+
+        message = message.rstrip()
+        message += separator
+
+        await self._sendMessage(member, message)
