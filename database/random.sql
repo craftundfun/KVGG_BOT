@@ -35,3 +35,12 @@ WHERE
     rn <= 3;
 
 SELECT d.username, cdm.value FROM counter_discord_mapping cdm INNER JOIN discord d ON cdm.discord_id = d.id WHERE cdm.value > 0 ORDER BY value DESC LIMIT 3;
+
+SELECT qdm.current_value, q.value_to_reach, q.description, q.unit
+                         FROM quest_discord_mapping AS qdm INNER JOIN quest AS q ON q.id = qdm.quest_id
+                         WHERE q.time_type = 'daily' AND qdm.current_value < q.value_to_reach
+                         AND qdm.discord_id = (
+                         SELECT id
+                         FROM discord AS d
+                         WHERE d.user_id = 416967436617777163
+                         );
