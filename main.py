@@ -25,7 +25,7 @@ from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Services import BackgroundServices
-from src.Services import ProcessUserInput, QuotesManager
+from src.Services import ProcessUserInput
 from src.Services.CommandService import CommandService, Commands
 from src.Services.Database import Database
 from src.Services.DatabaseRefreshService import DatabaseRefreshService
@@ -82,6 +82,7 @@ class MyClient(discord.Client):
         self.memeService = MemeService(self)
         self.soundboardService = SoundboardService(self)
         self.voiceStateUpdateService = VoiceStateUpdateService(self)
+        self.quotesManager = QuotesManager(self)
 
     async def on_member_join(self, member: Member):
         """
@@ -102,7 +103,7 @@ class MyClient(discord.Client):
     async def on_member_remove(self, member):
         pass
 
-    async def __prepareForMemeService(self, payload: RawReactionActionEvent):
+    async def _prepareForMemeService(self, payload: RawReactionActionEvent):
         channel = client.get_channel(payload.channel_id)
 
         if not channel:
@@ -116,10 +117,10 @@ class MyClient(discord.Client):
         await self.memeService.changeLikeCounterOfMessage(message)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
-        await self.__prepareForMemeService(payload)
+        await self._prepareForMemeService(payload)
 
     async def on_raw_reaction_remove(self, payload: RawReactionActionEvent):
-        await self.__prepareForMemeService(payload)
+        await self._prepareForMemeService(payload)
 
     async def on_ready(self):
         """
@@ -212,13 +213,7 @@ class MyClient(discord.Client):
             else:
                 await pui.raiseMessageCounter(message.author, message.channel)
 
-            try:
-                qm = QuotesManager(self)
-            except ConnectionError as error:
-                logger.error("failure to start QuotesManager", exc_info=error)
-            else:
-                await qm.checkForNewQuote(message)
-
+            await self.quotesManager.checkForNewQuote(message)
             await self.memeService.checkIfMemeAndPrepareReactions(message)
 
         # empty message but on server
@@ -241,12 +236,7 @@ class MyClient(discord.Client):
         """
         logger.debug("received deleted message")
 
-        try:
-            qm = QuotesManager(self)
-        except ConnectionError as error:
-            logger.error("failure to start QuotesManager", exc_info=error)
-        else:
-            await qm.deleteQuote(message)
+        await self.quotesManager.deleteQuote(message)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
         """
@@ -257,12 +247,8 @@ class MyClient(discord.Client):
         """
         logger.debug("received edited message")
 
-        try:
-            qm = QuotesManager(self)
-        except ConnectionError as error:
-            logger.error("failure to start QuotesManager", exc_info=error)
-        else:
-            await qm.updateQuote(message)
+        await self.quotesManager.updateQuote(message)
+        await self.memeService.updateMeme(message)
 
     async def on_voice_state_update(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """

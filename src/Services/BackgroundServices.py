@@ -10,6 +10,8 @@ from discord.ext import tasks, commands
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
@@ -69,6 +71,9 @@ class BackgroundServices(commands.Cog):
 
         self.informAboutUnfinishedQuests.start()
         logger.info("unfinished-quests-job started")
+
+        self.createStatistics.start()
+        logger.info("createStatistics-job started")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -245,6 +250,66 @@ class BackgroundServices(commands.Cog):
             logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
         else:
             await meme.chooseWinner()
+
+    @tasks.loop(time=midnight)
+    async def createStatistics(self):
+        """
+        Creates statistics at the end of the week, month or year
+        """
+        now = datetime.datetime.now()
+        query = "SELECT * FROM discord"
+        database = Database()
+
+        if not (users := database.fetchAllResults(query)):
+            logger.error("couldn't fetch all discord users")
+
+            return
+
+        query = ("INSERT INTO statistic_log (time_online, type, discord_user_id, created_at) "
+                 "VALUES (%s, %s, %s, %s)")
+
+        def runStatistics(statisticType: StatisticsParameter):
+            """
+            Creates the specified statistic type for every user in the database
+            """
+            for user in users:
+                logger.debug(f"running statistic for {user['username']}")
+
+                if statisticType == StatisticsParameter.WEEKLY:
+                    timeOnline = user['time_online_week']
+                    user['time_online_week'] = 0
+                elif statisticType == StatisticsParameter.MONTHLY:
+                    timeOnline = user['time_online_month']
+                    user['time_online_month'] = 0
+                elif statisticType == StatisticsParameter.YEARLY:
+                    timeOnline = user['time_online_year']
+                    user['time_online_year'] = 0
+                else:
+                    logger.error("unknown statisticType")
+
+                    continue
+
+                if not database.runQueryOnDatabase(query, (timeOnline, statisticType.value, user['id'], now)):
+                    logger.error(f"couldn't insert statistics for {user['username']}")
+
+                saveQuery, nones = writeSaveQuery("discord", user['id'], user)
+
+                if not database.runQueryOnDatabase(saveQuery, nones):
+                    logger.error(f"couldn't save {user['username']} to database")
+
+        if now.weekday() == 0:
+            logger.debug("running weekly statistics")
+            runStatistics(StatisticsParameter.WEEKLY)
+
+        # 1st day of the month
+        if now.day == 1:
+            logger.debug("running monthly statistics")
+            runStatistics(StatisticsParameter.MONTHLY)
+
+        # 1st day of the year
+        if now.month == 1 and now.day == 1:
+            logger.debug("running yearly statistics")
+            runStatistics(StatisticsParameter.YEARLY)
 
     @tasks.loop(time=twentyThree)
     async def informAboutUnfinishedQuests(self):
