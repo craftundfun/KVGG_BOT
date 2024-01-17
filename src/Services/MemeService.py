@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 import dateutil.relativedelta
-from discord import Message, Client
+from discord import Message, Client, RawMessageUpdateEvent
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.SendDM import sendDM, separator
@@ -167,3 +167,40 @@ class MemeService:
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
 
         logger.debug("choose meme winner and granted boost")
+
+    async def updateMeme(self, message: RawMessageUpdateEvent):
+        """
+        If the meme was edited to not have an attachment anymore, delete it.
+
+        :param message: RawMessageUpdateEvent to get the updated message
+        """
+        if message.channel_id != ChannelId.CHANNEL_MEMES.value:
+            return
+
+        try:
+            message = await self.client.get_channel(ChannelId.CHANNEL_MEMES.value).fetch_message(message.message_id)
+        except Exception as error:
+            logger.error("couldn't fetch message", exc_info=error)
+
+            return
+
+        database = Database()
+
+        if len(message.attachments) == 0:
+            logger.debug(f"removing meme from {message.author.display_name}")
+
+            query = "DELETE FROM meme WHERE message_id = %s"
+
+            if not database.runQueryOnDatabase(query, (message.id,)):
+                logger.error("couldn't delete meme")
+
+            try:
+                await message.delete()
+            except Exception as error:
+                logger.error("couldn't delete meme", exc_info=error)
+
+            try:
+                await sendDM(message.author, "Dein Meme wurde wieder entfernt, da du deinen Anhang gelöscht hast!"
+                             + separator)
+            except Exception as error:
+                logger.error(f"couldn't send DM to {message.author.name}", exc_info=error)
