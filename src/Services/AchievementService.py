@@ -64,7 +64,7 @@ class AchievementService:
                            + tag
                            + ", du bist nun schon seit "
                            + str(value)
-                           + " Jahren auf unserem Server! :fireworks: :fireworks:")
+                           + f" {'Jahren' if value > 1 else 'Jahr'} auf unserem Server! :fireworks: :fireworks:")
             case _:
                 logger.critical("reached undefined enum entry")
 
