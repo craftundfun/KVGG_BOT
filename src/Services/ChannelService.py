@@ -5,11 +5,11 @@ import discord.errors
 from discord import Client, Member, VoiceChannel, CategoryChannel
 
 from src.Helper.MoveMembesToVoicechannel import moveMembers
-from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
 from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
+from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -18,6 +18,7 @@ class ChannelService:
 
     def __init__(self, client: Client):
         self.client = client
+        self.notificationService = NotificationService(self.client)
 
     @staticmethod
     async def manageKneipe(channel: VoiceChannel):
@@ -165,11 +166,9 @@ class ChannelService:
 
         # send DMs after moving all users to prioritize and speed up the moving process
         for user in members:
-            try:
-                await sendDM(user, "Du wurdest verschoben, da ihr mind. zu zweit in 'warte auf "
-                                   "Mitspieler/innen' wart." + separator)
-            except Exception as error:
-                logger.error("couldn't send DM to %s (%d)" % (user.name, user.id), exc_info=error)
+            await self.notificationService.sendStatusReport(user,
+                                                            "Du wurdest verschoben, da ihr mind. zu zweit "
+                                                            "in 'warte auf Mitspieler/innen' wart.")
 
         logger.debug("moved users out of 'warte auf Mitspieler/innen' due to more than 2 users")
 

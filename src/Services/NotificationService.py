@@ -372,3 +372,27 @@ class NotificationService:
         message += separator
 
         await self._sendMessage(member, message)
+
+    async def sendStatusReport(self, member: Member, message: str):
+        """
+        Checks and sends status reports to the given user.
+
+        :param member: The member who will receive the message
+        :param message: The message (status report) to send
+        """
+        database = Database()
+        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+        if not (settings := database.fetchOneResult(query, (member.id,))):
+            logger.error("couldn't fetch results from database")
+
+            return
+
+        if not settings['notifications'] or not settings['status_report']:
+            logger.debug(f"{member.display_name} does not want any status reports")
+
+            return
+
+        message += separator
+
+        await self._sendMessage(member, message)
