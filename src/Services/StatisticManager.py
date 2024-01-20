@@ -146,4 +146,4 @@ class StatisticManager:
             if commandStatistic and commandStatistic['value'] > 0:
                 message += f"-\tDu hast mich {commandStatistic['value']} Mal genutzt.\n"
 
-            await self.notificationService.sendRetrospect(member, message)
+            await self.notificationService.sendRetrospect(member, message.rstrip("\n"))
