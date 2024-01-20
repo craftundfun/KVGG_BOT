@@ -14,7 +14,7 @@ logger = logging.getLogger("KVGG_BOT")
 class Database:
 
     def __init__(self):
-        self.connection = self.__createConnection()
+        self.connection = self._createConnection()
 
         if not self.connection:
             raise ConnectionError("no connection to mysql")
@@ -97,7 +97,7 @@ class Database:
                 else:
                     cursor.execute(query)
             except Exception as error:
-                logger.error("couldn't run changes on database, query: %s" % query, exc_info=error)
+                logger.error("couldn't run changes on database, query: %s, param: %s" % (query, parameters), exc_info=error)
                 send_exception_mail(traceback.format_exc())
             else:
                 success = True
@@ -106,7 +106,7 @@ class Database:
 
                 return success
 
-    def __createConnection(self) -> MySQLConnection | None:
+    def _createConnection(self) -> MySQLConnection | None:
         """
         Creates a connection to our database
 

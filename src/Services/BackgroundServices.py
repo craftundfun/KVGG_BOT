@@ -11,7 +11,6 @@ from discord.ext import tasks, commands
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
@@ -23,6 +22,7 @@ from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
+from src.Services.StatisticManager import StatisticManager
 from src.Services.UpdateTimeService import UpdateTimeService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -257,59 +257,48 @@ class BackgroundServices(commands.Cog):
         Creates statistics at the end of the week, month or year
         """
         now = datetime.datetime.now()
-        query = "SELECT * FROM discord"
+        query = ("SELECT * "
+                 "FROM current_discord_statistic "
+                 "WHERE statistic_time = %s")
         database = Database()
+        statisticManager = StatisticManager(self.client)
 
-        if not (users := database.fetchAllResults(query)):
-            logger.error("couldn't fetch all discord users")
+        def getUsers(type: str) -> list[dict] | None:
+            if not (users := database.fetchAllResults(query, (type,))):
+                logger.error(f"couldn't fetch all statistics for {type}")
 
-            return
+                return None
 
-        query = ("INSERT INTO statistic_log (time_online, type, discord_user_id, created_at) "
-                 "VALUES (%s, %s, %s, %s)")
-
-        def runStatistics(statisticType: StatisticsParameter):
-            """
-            Creates the specified statistic type for every user in the database
-            """
-            for user in users:
-                logger.debug(f"running statistic for {user['username']}")
-
-                if statisticType == StatisticsParameter.WEEKLY:
-                    timeOnline = user['time_online_week']
-                    user['time_online_week'] = 0
-                elif statisticType == StatisticsParameter.MONTHLY:
-                    timeOnline = user['time_online_month']
-                    user['time_online_month'] = 0
-                elif statisticType == StatisticsParameter.YEARLY:
-                    timeOnline = user['time_online_year']
-                    user['time_online_year'] = 0
-                else:
-                    logger.error("unknown statisticType")
-
-                    continue
-
-                if not database.runQueryOnDatabase(query, (timeOnline, statisticType.value, user['id'], now)):
-                    logger.error(f"couldn't insert statistics for {user['username']}")
-
-                saveQuery, nones = writeSaveQuery("discord", user['id'], user)
-
-                if not database.runQueryOnDatabase(saveQuery, nones):
-                    logger.error(f"couldn't save {user['username']} to database")
+            return users
 
         if now.weekday() == 0:
             logger.debug("running weekly statistics")
-            runStatistics(StatisticsParameter.WEEKLY)
+
+            try:
+                await statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
+                statisticManager.runStatistics(getUsers(StatisticsParameter.WEEKLY.value))
+            except Exception as error:
+                logger.error("couldn't run weekly statistics", exc_info=error)
 
         # 1st day of the month
         if now.day == 1:
             logger.debug("running monthly statistics")
-            runStatistics(StatisticsParameter.MONTHLY)
+
+            try:
+                await statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
+                statisticManager.runStatistics(getUsers(StatisticsParameter.MONTHLY.value))
+            except Exception as error:
+                logger.error("couldn't run yearly statistics", exc_info=error)
 
         # 1st day of the year
         if now.month == 1 and now.day == 1:
             logger.debug("running yearly statistics")
-            runStatistics(StatisticsParameter.YEARLY)
+
+            try:
+                await statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
+                statisticManager.runStatistics(getUsers(StatisticsParameter.YEARLY.value))
+            except Exception as error:
+                logger.error("couldn't run monthly statistics", exc_info=error)
 
     @tasks.loop(time=twentyThree)
     async def informAboutUnfinishedQuests(self):
