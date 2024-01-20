@@ -44,3 +44,5 @@ SELECT qdm.current_value, q.value_to_reach, q.description, q.unit
                          FROM discord AS d
                          WHERE d.user_id = 416967436617777163
                          );
+
+DELETE FROM statistic_log;

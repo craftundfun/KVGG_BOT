@@ -6,6 +6,7 @@ from discord import Client, VoiceChannel, Member
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.MuteParameter import MuteParameter
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
@@ -16,6 +17,7 @@ from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
+from src.Services.StatisticManager import StatisticManager
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -36,6 +38,7 @@ class UpdateTimeService:
         self.experienceService = ExperienceService(self.client)
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
+        self.statisticManager = StatisticManager(self.client)
 
     def _getChannels(self):
         """
@@ -150,14 +153,11 @@ class UpdateTimeService:
                     else:
                         dcUserDb['time_online'] = dcUserDb['time_online'] + 1
 
-                    dcUserDb['time_online_week'] = dcUserDb['time_online_week'] + 1
-                    dcUserDb['time_online_month'] = dcUserDb['time_online_month'] + 1
-                    dcUserDb['time_online_year'] = dcUserDb['time_online_year'] + 1
-
                     dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
                     await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
+                    self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
 
                     logger.debug("%s got XP for being online" % member.name)
 
@@ -170,6 +170,7 @@ class UpdateTimeService:
                         await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
                         await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                                    member=member)
+                        self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member)
                         logger.debug("%s got XP for streaming" % member.name)
 
                     self.experienceService.reduceXpBoostsTime(member)

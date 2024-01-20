@@ -396,3 +396,21 @@ class NotificationService:
         message += separator
 
         await self._sendMessage(member, message)
+
+    async def sendRetrospect(self, member: Member, message: str):
+        database = Database()
+        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
+
+        if not (settings := database.fetchOneResult(query, (member.id,))):
+            logger.error("couldn't fetch results from database")
+
+            return
+
+        if not settings['notifications'] or not settings['retrospect']:
+            logger.debug(f"{member.display_name} does not want any retrospect reports")
+
+            return
+
+        message += separator
+
+        await self._sendMessage(member, message)
