@@ -845,6 +845,22 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
                                     id=id)
 
 
+@tree.command(name="timer",
+              description="Stellt einen Timer und erinnert dich bei Ablauf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@app_commands.describe(minuten="In wie vielen Minuten du erinnerst werden möchtest.")
+@app_commands.describe(name="Name des Timers")
+async def createTimer(ctx: discord.interactions.Interaction, name: str, minuten: int):
+    """
+    Creates a timer in the reminder database.
+    """
+    await commandService.runCommand(Commands.CREATE_TIMER,
+                                    ctx,
+                                    member=ctx.user,
+                                    name=name,
+                                    minutes=minuten, )
+
+
 """PLAY SOUND"""
 
 

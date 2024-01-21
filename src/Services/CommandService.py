@@ -60,6 +60,7 @@ class Commands(Enum):
     NOTIFICATION_SETTING = 34
     CREATE_COUNTER = 35
     LIST_COUNTERS = 36
+    CREATE_TIMER = 37
 
 
 class CommandService:
@@ -249,6 +250,9 @@ class CommandService:
 
             case Commands.LIST_COUNTERS:
                 function = self.counterService.listAllCounters
+
+            case Commands.CREATE_TIMER:
+                function = self.reminderService.createTimer
 
             case _:
                 logger.error("undefined enum entry was reached!")

@@ -25,6 +25,48 @@ class ReminderService:
         """
         self.client = client
 
+    def createTimer(self, member: Member, name: str, minutes: int) -> str:
+        database = Database()
+
+        if not (dcUserDb := getDiscordUser(member, database)):
+            logger.debug("cant proceed, no DiscordUser")
+
+            return "Es gab ein Problem!"
+
+        if len(name) > 1000:
+            logger.debug("name for timer is too long")
+
+            return "Bitte gib einen kürzeren Namen ein!"
+
+        if minutes <= 0:
+            logger.debug(f"negative number of minutes given by {member.display_name}")
+
+            return "Deine angegebene Zeit muss sich in der Zukunft befinden!"
+        elif minutes > 525960:
+            logger.debug(f"{member.display_name} wanted to time a timer for over a year in the future")
+
+            return "Bitte stell deinen Timer auf unter ein Jahr ein!"
+
+        now = datetime.now()
+        timeToSent = now + timedelta(minutes=minutes)
+
+        query = ("INSERT INTO reminder (discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes,"
+                 " is_timer) "
+                 "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+
+        if not database.runQueryOnDatabase(query, (dcUserDb['id'],
+                                                   name,
+                                                   timeToSent,
+                                                   None,
+                                                   False,
+                                                   None,
+                                                   True,)):
+            logger.error(f"couldn't save timer for {member.display_name}")
+
+            return "Es gab einen Fehler!"
+
+        return "Dein Timer wurde gespeichert. Du kannst ihn über `/list_reminder` oder `/delete_reminder` verwalten."
+
     def createReminder(self,
                        member: Member,
                        content: str,
@@ -107,7 +149,7 @@ class ReminderService:
             else:
                 return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
 
-        if len(content) > 2000:
+        if len(content) > 1000:
             logger.debug("content is too long")
 
             return "Bitte gib einen kürzeren Text ein!"
@@ -178,7 +220,7 @@ class ReminderService:
 
             return "Du hast keine aktiven Reminders."
 
-        answer = "Du hast folgende Reminder: (die vorderen Zahlen sind die individuellen IDs)\n\n"
+        answer = "Du hast folgende Reminder / Timer: (die vorderen Zahlen sind die individuellen IDs)\n\n"
 
         def getTimeFromRepeatInMinutes(minutes: int | None) -> [int, int, int] | None:
             """
@@ -199,13 +241,15 @@ class ReminderService:
         for reminder in reminders:
             repetition = getTimeFromRepeatInMinutes(reminder['repeat_in_minutes'])
 
-            answer += "%d: '%s' am %s, Wiederholung: %s, Whatsapp: %s\n" % (
+            answer += "%d: '%s' am %s, Wiederholung: %s, Whatsapp: %s, Typ: %s\n" % (
                 reminder['id'],
                 reminder['content'],
                 reminder['time_to_sent'].strftime("%d.%m.%Y %H:%M"),
                 "aktiviert - alle %d Tage, %d Stunden, %d Minuten" % (
-                    repetition[0], repetition[1], repetition[2]) if repetition else "deaktiviert",
-                "aktiviert" if reminder['whatsapp'] else "deaktiviert")
+                    repetition[0], repetition[1], repetition[2]
+                ) if repetition else "deaktiviert",
+                "aktiviert" if reminder['whatsapp'] else "deaktiviert",
+                "Reminder" if not reminder['is_timer'] else "Timer",)
 
         logger.debug("listed all reminders from %s" % member.name)
         return answer
@@ -319,7 +363,9 @@ class ReminderService:
                     "FALSE)"
 
             if not database.runQueryOnDatabase(query,
-                                               ("Hier ist deine Erinnerung:\n\n" + reminder['content'],
+                                               (f"Hier ist "
+                                                f"{'deine Erinnerung' if not reminder['is_timer'] else 'dein Timer'}"
+                                                f":\n\n" + reminder['content'],
                                                 member.id,
                                                 datetime.now(),
                                                 member.id,)):
@@ -328,7 +374,8 @@ class ReminderService:
                 logger.debug("saved whatsapp into message queue")
 
         try:
-            await sendDM(member, "Hier ist deine Erinnerung:\n\n" + reminder['content'] + separator)
+            await sendDM(member, f"Hier ist {'deine Erinnerung' if not reminder['is_timer'] else 'dein Timer'}:\n\n"
+                         + reminder['content'] + separator)
 
             logger.debug("send reminder to %s" % member.name)
         except discord.HTTPException as e:
