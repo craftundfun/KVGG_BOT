@@ -609,7 +609,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     Choice(name=NotificationType.DOUBLE_XP_SETTING_NAME.value, value=NotificationType.DOUBLE_XP.value),
     Choice(name=NotificationType.WELCOME_BACK_SETTING_NAME.value, value=NotificationType.WELCOME_BACK.value),
     Choice(name=NotificationType.NOTIFICATION_SETTING_NAME.value, value=NotificationType.NOTIFICATION.value),
-    Choice(name=NotificationType.QUEST_SETTING_NAME.name, value=NotificationType.QUEST.value),
+    Choice(name=NotificationType.QUEST_SETTING_NAME.value, value=NotificationType.QUEST.value),
     Choice(name=NotificationType.XP_INVENTORY_SETTING_NAME.value, value=NotificationType.XP_INVENTORY.value),
     Choice(name=NotificationType.STATUS_SETTING_NAME.value, value=NotificationType.STATUS.value),
     Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
