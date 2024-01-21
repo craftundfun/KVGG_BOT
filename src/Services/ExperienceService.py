@@ -363,11 +363,6 @@ class ExperienceService:
 
             logger.debug("saved granted boost to database for %s" % member.name)
 
-            if xp := self._getExperience(member.id, database):
-                logger.debug("inventory: " + xp['xp_boosts_inventory'])
-            else:
-                logger.debug("couldn't fetch inventory again")
-
     def spinForXpBoost(self, member: Member) -> string:
         """
         Xp-Boost-Spin for member
