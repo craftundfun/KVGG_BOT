@@ -17,6 +17,7 @@ from discord.app_commands import Choice, commands
 from discord.ext import commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper import ReadParameters
 from src.Helper.EmailService import send_exception_mail
 from src.Id.GuildId import GuildId
@@ -393,7 +394,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
         query = "SELECT name, description FROM counter LIMIT 25"
 
         if not (counters := database.fetchAllResults(query)):
-            logger.error("couldnt fetch any counters from database")
+            logger.error("couldn't fetch any counters from database")
 
             return choices
 
@@ -404,6 +405,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
                 choices.append(Choice(name=name.capitalize() + " - " + counter['description'], value=name))
     finally:
         return choices
+
 
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
@@ -604,13 +606,13 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
               description="Lässt dich deine Benachrichtigungen einstellen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(kategorie=[
-    Choice(name="Doppel-XP-Wochenende", value="double_xp"),
-    Choice(name="Willkommen", value="welcome_back"),
-    Choice(name="Alle", value="notifications"),
-    Choice(name="Quest", value="quest"),
-    Choice(name="XP-Inventar", value="xp_inventory"),
-    Choice(name="Statusmeldungen", value="status_report"),
-    Choice(name="Rückblicke", value="retrospect"),
+    Choice(name=NotificationType.DOUBLE_XP_SETTING_NAME.value, value=NotificationType.DOUBLE_XP.value),
+    Choice(name=NotificationType.WELCOME_BACK_SETTING_NAME.value, value=NotificationType.WELCOME_BACK.value),
+    Choice(name=NotificationType.NOTIFICATION_SETTING_NAME.value, value=NotificationType.NOTIFICATION.value),
+    Choice(name=NotificationType.QUEST_SETTING_NAME.value, value=NotificationType.QUEST.value),
+    Choice(name=NotificationType.XP_INVENTORY_SETTING_NAME.value, value=NotificationType.XP_INVENTORY.value),
+    Choice(name=NotificationType.STATUS_SETTING_NAME.value, value=NotificationType.STATUS.value),
+    Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
@@ -841,6 +843,22 @@ async def deleteReminder(ctx: discord.interactions.Interaction, id: int):
                                     ctx,
                                     member=ctx.user,
                                     id=id)
+
+
+@tree.command(name="timer",
+              description="Stellt einen Timer und erinnert dich bei Ablauf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@app_commands.describe(minuten="In wie vielen Minuten du erinnerst werden möchtest.")
+@app_commands.describe(name="Name des Timers")
+async def createTimer(ctx: discord.interactions.Interaction, name: str, minuten: int):
+    """
+    Creates a timer in the reminder database.
+    """
+    await commandService.runCommand(Commands.CREATE_TIMER,
+                                    ctx,
+                                    member=ctx.user,
+                                    name=name,
+                                    minutes=minuten, )
 
 
 """PLAY SOUND"""

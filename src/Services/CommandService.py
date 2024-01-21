@@ -60,6 +60,7 @@ class Commands(Enum):
     NOTIFICATION_SETTING = 34
     CREATE_COUNTER = 35
     LIST_COUNTERS = 36
+    CREATE_TIMER = 37
 
 
 class CommandService:
@@ -80,7 +81,7 @@ class CommandService:
         self.questService = QuestService(self.client)
         self.counterService = CounterService(self.client)
 
-    async def __setLoading(self, ctx: discord.interactions.Interaction) -> bool:
+    async def _setLoading(self, ctx: discord.interactions.Interaction) -> bool:
         """
         Sets the interaction to thinking
 
@@ -106,7 +107,7 @@ class CommandService:
 
         return True
 
-    async def __sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
+    async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
         """
         Sends the specified answer to the interaction
 
@@ -114,6 +115,7 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
+        # increase command counter
         try:
             await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
         except ConnectionError as error:
@@ -143,7 +145,7 @@ class CommandService:
         :param kwargs: Parameters of the called function
         :return:
         """
-        if not await self.__setLoading(interaction):
+        if not await self._setLoading(interaction):
             return
 
         function = None
@@ -249,12 +251,15 @@ class CommandService:
             case Commands.LIST_COUNTERS:
                 function = self.counterService.listAllCounters
 
+            case Commands.CREATE_TIMER:
+                function = self.reminderService.createTimer
+
             case _:
                 logger.error("undefined enum entry was reached!")
 
         try:
             if not function:
-                await self.__sendAnswer(interaction, "Es ist etwas schief gelaufen!")
+                await self._sendAnswer(interaction, "Es ist etwas schief gelaufen!")
 
                 return
             elif inspect.iscoroutinefunction(function):
@@ -269,4 +274,4 @@ class CommandService:
 
             answer = "Es gab einen Fehler!"
 
-        await self.__sendAnswer(interaction, answer)
+        await self._sendAnswer(interaction, answer)

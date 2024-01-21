@@ -10,6 +10,7 @@ import discord
 from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
@@ -25,6 +26,7 @@ from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.RelationService import RelationService, RelationTypeEnum
+from src.Services.StatisticManager import StatisticManager
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -91,6 +93,7 @@ class ProcessUserInput:
         self.experienceService = ExperienceService(self.client)
         self.relationService = RelationService(self.client)
         self.voiceClientService = VoiceClientService(self.client)
+        self.statisticManager = StatisticManager(self.client)
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -129,6 +132,9 @@ class ProcessUserInput:
 
             if not command:
                 await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
+                self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member)
+            else:
+                self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member)
 
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
 

@@ -181,7 +181,7 @@ class SoundboardService:
 
                 return
         except Exception as error:
-            logger.error(f"user {message.author.name} did not upload a mp3", exc_info=error)
+            logger.debug(f"user {message.author.name} did not upload a mp3", exc_info=error)
             os.remove(filepath)
 
             # warn user
@@ -204,6 +204,7 @@ class SoundboardService:
             ),
             loop,
         )
+
         logger.debug("MP3 was saved successfully")
 
     async def manageDirectMessage(self, message: Message):

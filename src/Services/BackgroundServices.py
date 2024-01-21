@@ -276,7 +276,7 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
-                statisticManager.runStatistics(getUsers(StatisticsParameter.WEEKLY.value))
+                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.WEEKLY.value))
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
@@ -286,7 +286,7 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
-                statisticManager.runStatistics(getUsers(StatisticsParameter.MONTHLY.value))
+                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.MONTHLY.value))
             except Exception as error:
                 logger.error("couldn't run yearly statistics", exc_info=error)
 
@@ -296,7 +296,7 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
-                statisticManager.runStatistics(getUsers(StatisticsParameter.YEARLY.value))
+                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.YEARLY.value))
             except Exception as error:
                 logger.error("couldn't run monthly statistics", exc_info=error)
 
