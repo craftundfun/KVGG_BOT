@@ -152,13 +152,13 @@ class StatisticManager:
                 message += f"-\tDu warst {getFormattedTime(onlineStatistic['value'])} Stunden online.\n"
 
             if streamStatistic and streamStatistic['value'] > 0:
-                message += (f"-\tDu warst hast insgesamt {getFormattedTime(streamStatistic['value'])} Stunden "
+                message += (f"-\tDu hast insgesamt {getFormattedTime(streamStatistic['value'])} Stunden "
                             f"gestreamt.\n")
 
             if messageStatistic and messageStatistic['value'] > 0:
                 message += f"-\tDu hast ganze {messageStatistic['value']} Nachrichten verfasst.\n"
 
             if commandStatistic and commandStatistic['value'] > 0:
-                message += f"-\tDu hast mich {commandStatistic['value']} Mal genutzt.\n"
+                message += f"-\tDu hast mich {commandStatistic['value']} Mal genutzt (aka. Commands genutzt).\n"
 
             await self.notificationService.sendRetrospect(member, message.rstrip("\n"))
