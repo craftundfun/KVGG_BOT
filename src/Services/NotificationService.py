@@ -51,7 +51,7 @@ class NotificationService:
         if currentAmount >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
             message = ("**Dein XP-Boost-Inventar ist voll!**\n\nDu kannst ab jetzt keine weiteren Boosts in dein "
                        "Inventar aufnehmen, bis du welche benutzt.")
-        elif currentAmount >= 25:
+        elif currentAmount >= (ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value - 5):
             message = (f"**Achtung, dein XP-Boost-Inventar ist fast voll!**\n\nDu kannst noch "
                        f"{ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value - currentAmount} XP-Boost in dein "
                        f"Inventar aufnehmen. Danach ist es nicht mehr möglich welche zu bekommen! Also benutz besser "
