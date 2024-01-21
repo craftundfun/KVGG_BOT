@@ -21,7 +21,7 @@ class StatisticManager:
 
         self.notificationService = NotificationService(self.client)
 
-    def runStatistics(self, userStatistics: list[dict] | None):
+    def saveStatisticsToStatisticLog(self, userStatistics: list[dict] | None):
         """
         Saves the statistics (currently only online statistic) to the statistic-log database.
 
