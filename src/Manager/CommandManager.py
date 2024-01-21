@@ -6,18 +6,18 @@ import discord.interactions
 from discord import HTTPException, InteractionResponded, Client
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
+from src.Manager.ChannelManager import ChannelService
+from src.Manager.QuotesManager import QuotesManager
 from src.Services.ApiServices import ApiServices
-from src.Services.ChannelService import ChannelService
 from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuestService import QuestService, QuestType
-from src.Services.QuotesManager import QuotesManager
 from src.Services.ReminderService import ReminderService
 from src.Services.SoundboardService import SoundboardService
 from src.Services.UserSettings import UserSettings
 from src.Services.VoiceClientService import VoiceClientService
-from src.Services.WhatsAppHelper import WhatsAppHelper
+from src.Services.WhatsAppService import WhatsAppHelper
 from src.View.PaginationView import PaginationView
 
 logger = logging.getLogger("KVGG_BOT")

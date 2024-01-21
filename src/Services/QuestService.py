@@ -10,10 +10,10 @@ from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories
 from src.Id.GuildId import GuildId
+from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
-from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 

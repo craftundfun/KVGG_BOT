@@ -25,15 +25,15 @@ from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
-from src.Services import BackgroundServices
+from src.Manager.BackgroundServiceManager import BackgroundServices
+from src.Manager.CommandManager import CommandService, Commands
+from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
+from src.Manager.QuotesManager import QuotesManager
+from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
 from src.Services import ProcessUserInput
-from src.Services.CommandService import CommandService, Commands
 from src.Services.Database import Database
-from src.Services.DatabaseRefreshService import DatabaseRefreshService
 from src.Services.MemeService import MemeService
-from src.Services.QuotesManager import QuotesManager
 from src.Services.SoundboardService import SoundboardService
-from src.Services.VoiceStateUpdateService import VoiceStateUpdateService
 
 # set timezone to our time
 os.environ['TZ'] = 'Europe/Berlin'
@@ -190,7 +190,7 @@ class MyClient(discord.Client):
 
         global backgroundServices
 
-        backgroundServices = BackgroundServices.BackgroundServices(self)
+        backgroundServices = BackgroundServices(self)
 
     async def on_message(self, message: discord.Message):
         """
@@ -274,6 +274,7 @@ intents = discord.Intents.default()
 # enables the client to read messages
 intents.message_content = True
 intents.members = True
+intents.presences = True
 
 # instantiates the client
 client = MyClient(intents=intents)

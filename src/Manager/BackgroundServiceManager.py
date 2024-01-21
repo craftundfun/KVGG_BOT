@@ -15,15 +15,15 @@ from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
-from src.Services import DatabaseRefreshService
-from src.Services.AchievementService import AchievementService
+from src.Manager.AchievementManager import AchievementService
+from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
+from src.Manager.StatisticManager import StatisticManager
+from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Services.Database import Database
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
-from src.Services.StatisticManager import StatisticManager
-from src.Services.UpdateTimeService import UpdateTimeService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -149,7 +149,7 @@ class BackgroundServices(commands.Cog):
     async def refreshMembersInDatabase(self):
         logger.debug("running refreshMembersInDatabase")
 
-        dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
+        dbr = DatabaseRefreshService(self.client)
 
         await dbr.updateAllMembers()
 

@@ -7,13 +7,13 @@ from discord import Member, VoiceState, Client
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
+from src.Manager.ChannelManager import ChannelService
+from src.Manager.LogManager import Events, LogService
+from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.ChannelService import ChannelService
 from src.Services.Database import Database
-from src.Services.LogService import Events, LogService
-from src.Services.NotificationService import NotificationService
 from src.Services.QuestService import QuestService, QuestType
-from src.Services.WhatsAppHelper import WhatsAppHelper
+from src.Services.WhatsAppService import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
 

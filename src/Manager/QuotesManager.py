@@ -8,8 +8,8 @@ from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Clien
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Manager.NotificationManager import NotificationService
 from src.Services.Database import Database
-from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
