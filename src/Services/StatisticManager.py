@@ -23,7 +23,7 @@ class StatisticManager:
 
     def runStatistics(self, userStatistics: list[dict] | None):
         """
-        Creates the specified statistic type for every user in the database
+        Saves the statistics (currently only online statistic) to the statistic-log database.
 
         :param userStatistics: List of DiscordUsers
         """
@@ -49,6 +49,13 @@ class StatisticManager:
                 logger.error(f"couldn't delete statistics for DiscordID: {data['discord_id']}")
 
     def increaseStatistic(self, type: StatisticsParameter, member: Member, value: int = 1):
+        """
+        Increases the value of the given statistic in each time period.
+
+        :param type: The type of the statistic
+        :param member: The member whose statistic is increases
+        :param value: The value to add, standard value of 1.
+        """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
 
         database = Database()
@@ -95,6 +102,11 @@ class StatisticManager:
                 continue
 
             def getStatisticForTime(statistics: list[dict]) -> dict | None:
+                """
+                Filters all the given statistics for the wanted time.
+
+                [statistic.YEAR, statistic.MONTH, statistic.WEEK] =wanted is week> [statistic.WEEK]
+                """
                 if not statistics:
                     return None
 
@@ -109,10 +121,12 @@ class StatisticManager:
             messageStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.MESSAGE, member))
             commandStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.COMMAND, member))
 
+            # if the user has no statistics in any field
             if not onlineStatistic and not streamStatistic and not messageStatistic and not commandStatistic:
                 logger.debug(f"{member.display_name} has no statistics this {time.value}")
 
                 continue
+            # if the statistics were created but are all zero
             elif (onlineStatistic['value'] == 0 and streamStatistic['value'] == 0
                   and messageStatistic['value'] == 0 and commandStatistic['value'] == 0):
                 logger.debug(f"{member.display_name} has no real values")
