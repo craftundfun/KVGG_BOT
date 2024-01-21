@@ -2,7 +2,9 @@ import logging
 
 from discord import Member
 
+from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Repository.NotificationSettingRepository import getNotificationSettings
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
@@ -52,22 +54,15 @@ class UserSettings:
         :return: Answer
         """
         database = Database()
-
-        settings = self._getNotificationSettings(member, database)
+        settings = getNotificationSettings(member, database)
 
         if not settings:
-            logger.warning("couldn't fetch settings")
+            logger.error("couldn't fetch settings")
 
             return "Es gab ein Problem!"
 
         # database rows
-        settings_keys = ["notifications",
-                         "double_xp",
-                         "welcome_back",
-                         "quest",
-                         "xp_inventory",
-                         "status_report",
-                         "retrospect",]
+        settings_keys = NotificationType.getValues()
 
         if kind in settings_keys:
             settings[kind] = 1 if setting else 0

@@ -50,11 +50,6 @@ def getDiscordUser(member: Member, database: Database) -> dict | None:
 
             return None
 
-        query = "INSERT INTO notification_setting (discord_id) VALUES ((SELECT id FROM discord WHERE user_id = %s))"
-
-        if not database.runQueryOnDatabase(query, (member.id,)):
-            logger.critical(f"couldn't create notification settings for {member.name}")
-
         # fetch the newly added DiscordUser
         query = "SELECT * " \
                 "FROM discord " \

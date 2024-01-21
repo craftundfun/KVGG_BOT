@@ -17,6 +17,7 @@ from discord.app_commands import Choice, commands
 from discord.ext import commands
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper import ReadParameters
 from src.Helper.EmailService import send_exception_mail
 from src.Id.GuildId import GuildId
@@ -405,6 +406,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
     finally:
         return choices
 
+
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
@@ -604,13 +606,13 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
               description="Lässt dich deine Benachrichtigungen einstellen.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(kategorie=[
-    Choice(name="Doppel-XP-Wochenende", value="double_xp"),
-    Choice(name="Willkommen", value="welcome_back"),
-    Choice(name="Alle", value="notifications"),
-    Choice(name="Quest", value="quest"),
-    Choice(name="XP-Inventar", value="xp_inventory"),
-    Choice(name="Statusmeldungen", value="status_report"),
-    Choice(name="Rückblicke", value="retrospect"),
+    Choice(name=NotificationType.DOUBLE_XP_SETTING_NAME.value, value=NotificationType.DOUBLE_XP.value),
+    Choice(name=NotificationType.WELCOME_BACK_SETTING_NAME.value, value=NotificationType.WELCOME_BACK.value),
+    Choice(name=NotificationType.NOTIFICATION_SETTING_NAME.value, value=NotificationType.NOTIFICATION.value),
+    Choice(name=NotificationType.QUEST_SETTING_NAME.name, value=NotificationType.QUEST.value),
+    Choice(name=NotificationType.XP_INVENTORY_SETTING_NAME.value, value=NotificationType.XP_INVENTORY.value),
+    Choice(name=NotificationType.STATUS_SETTING_NAME.value, value=NotificationType.STATUS.value),
+    Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
