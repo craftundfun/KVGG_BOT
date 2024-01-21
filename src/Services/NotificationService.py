@@ -42,7 +42,7 @@ class NotificationService:
             logger.critical(f"no notification settings for {member.display_name}, aborting sending message")
 
             return
-        elif not settings[typeOfMessage.value]:
+        elif not settings[typeOfMessage.value] or not settings['notifications']:
             logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
             return

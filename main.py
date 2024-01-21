@@ -394,7 +394,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
         query = "SELECT name, description FROM counter LIMIT 25"
 
         if not (counters := database.fetchAllResults(query)):
-            logger.error("couldnt fetch any counters from database")
+            logger.error("couldn't fetch any counters from database")
 
             return choices
 
