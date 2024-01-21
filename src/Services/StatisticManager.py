@@ -76,7 +76,8 @@ class StatisticManager:
         :param time: Time period to send the retrospect for
         """
         database = Database()
-        query = "SELECT id, user_id FROM discord"
+        query = ("SELECT DISTINCT d.id, d.user_id "
+                 "FROM discord d INNER JOIN current_discord_statistic cds ON cds.discord_id = d.id")
 
         if not (users := database.fetchAllResults(query)):
             logger.error("couldn't fetch all users from database to create retrospects")

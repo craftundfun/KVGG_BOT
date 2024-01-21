@@ -204,6 +204,7 @@ class SoundboardService:
             ),
             loop,
         )
+
         logger.debug("MP3 was saved successfully")
 
     async def manageDirectMessage(self, message: Message):
