@@ -21,21 +21,22 @@ def getStatisticsForUser(database: Database, type: StatisticsParameter, member: 
                 "FROM current_discord_statistic "
                 "WHERE statistic_type = %s AND discord_id = "
                 "(SELECT id FROM discord WHERE user_id = %s)")
-    insertQuery = ("INSERT INTO current_discord_statistic (discord_id, statistic_time, statistic_type) "
-                   "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s, %s)")
+    # TODO dont create with 1 - but we have to because of a bug
+    insertQuery = ("INSERT INTO current_discord_statistic (discord_id, statistic_time, statistic_type, value) "
+                   "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s, %s, %s)")
 
     if not (statistics := database.fetchAllResults(getQuery, (type.value, member.id,))):
-        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.WEEKLY.value, type.value)):
+        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.WEEKLY.value, type.value, 1)):
             logger.error(f"couldn't insert weekly statistics for {member.display_name}")
 
             return None
 
-        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.MONTHLY.value, type.value)):
+        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.MONTHLY.value, type.value, 1)):
             logger.error(f"couldn't insert monthly statistics for {member.display_name}")
 
             return None
 
-        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.YEARLY.value, type.value)):
+        if not database.runQueryOnDatabase(insertQuery, (member.id, StatisticsParameter.YEARLY.value, type.value, 1)):
             logger.error(f"couldn't insert yearly statistics for {member.display_name}")
 
             return None

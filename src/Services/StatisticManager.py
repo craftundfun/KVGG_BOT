@@ -66,14 +66,9 @@ class StatisticManager:
 
             return
 
-        print(member.display_name)
-        print(statistics)
-
         # increase weekly, monthly and yearly
         for statistic in statistics:
             statistic['value'] += value
-
-            print(statistic)
 
             saveQuery, nones = writeSaveQuery("current_discord_statistic", statistic['id'], statistic)
 

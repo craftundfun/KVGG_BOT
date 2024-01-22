@@ -10,7 +10,7 @@ class Time(ABC):
         self.name = name
 
     @abstractmethod
-    def increaseTime(self, dcUserDb, value: int, updateFormattedTime: bool = True):
+    def increaseTime(self, dcUserDb: dict, value: int, updateFormattedTime: bool = True):
         pass
 
     @abstractmethod
