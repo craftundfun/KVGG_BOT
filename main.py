@@ -269,12 +269,7 @@ class MyClient(discord.Client):
 token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
 
 # sets the intents of the client to the default ones
-intents = discord.Intents.default()
-
-# enables the client to read messages
-intents.message_content = True
-intents.members = True
-intents.presences = True
+intents = discord.Intents.all()
 
 # instantiates the client
 client = MyClient(intents=intents)

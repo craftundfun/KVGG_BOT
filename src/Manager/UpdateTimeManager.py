@@ -160,7 +160,7 @@ class UpdateTimeService:
                     await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
                     self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
-                    # self.gameDiscordManager.increaseGameRelationsForMember(member, database)
+                    self.gameDiscordManager.increaseGameRelationsForMember(member, database)
 
                     logger.debug("%s got XP for being online" % member.name)
 
