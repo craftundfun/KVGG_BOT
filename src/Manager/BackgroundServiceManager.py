@@ -16,6 +16,7 @@ from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
+from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.StatisticManager import StatisticManager
 from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Services.Database import Database
@@ -148,7 +149,7 @@ class BackgroundServices(commands.Cog):
     async def refreshMembersInDatabase(self):
         logger.debug("running refreshMembersInDatabase")
 
-        dbr = DatabaseRefreshService.DatabaseRefreshService(self.client)
+        dbr = DatabaseRefreshService(self.client)
 
         await dbr.updateAllMembers()
 
