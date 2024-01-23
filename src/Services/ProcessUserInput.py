@@ -21,12 +21,12 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
+from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.RelationService import RelationService, RelationTypeEnum
-from src.Services.StatisticManager import StatisticManager
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")

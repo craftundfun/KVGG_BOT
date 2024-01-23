@@ -7,9 +7,9 @@ from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
+from src.Manager.NotificationManager import NotificationService
 from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser
 from src.Services.Database import Database
-from src.Services.NotificationService import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
