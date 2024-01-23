@@ -69,6 +69,7 @@ class StatisticManager:
         # increase weekly, monthly and yearly
         for statistic in statistics:
             statistic['value'] += value
+
             saveQuery, nones = writeSaveQuery("current_discord_statistic", statistic['id'], statistic)
 
             if not database.runQueryOnDatabase(saveQuery, nones):
