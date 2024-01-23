@@ -14,19 +14,19 @@ class Time(ABC):
         pass
 
     @abstractmethod
-    def getTime(self, dcUserDb) -> int | None:
+    def getTime(self, dcUserDb: dict) -> int | None:
         pass
 
     @abstractmethod
-    def setFormattedTime(self, dcUserDb, time: string):
+    def setFormattedTime(self, dcUserDb: dict, time: string):
         pass
 
     @abstractmethod
-    def getFormattedTime(self, dcUserDb) -> string:
+    def getFormattedTime(self, dcUserDb: dict) -> string:
         pass
 
     @abstractmethod
-    def getStringForTime(self, dcUserDb) -> string:
+    def getStringForTime(self, dcUserDb: dict) -> string:
         pass
 
     def getName(self) -> string:
