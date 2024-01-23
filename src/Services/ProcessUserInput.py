@@ -285,6 +285,15 @@ class ProcessUserInput:
 
             logger.debug("saved changes to database")
 
+            if isinstance(time, OnlineTime.OnlineTime):
+                self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, user, correction)
+
+                logger.debug(f"increased statistics for {user.display_name}")
+            elif isinstance(time, StreamTime.StreamTime):
+                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, user, correction)
+
+                logger.debug(f"increased statistics for {user.display_name}")
+
             return ("Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!"
                     % (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter))
         elif param and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
