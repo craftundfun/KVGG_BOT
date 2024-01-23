@@ -23,8 +23,7 @@ class GameDiscordManager:
         """
         for activity in member.activities:
             if relation := getGameDiscordRelation(database, member, activity):
-                print("increased")
-                relation['value'] += 1
+                relation['time_played'] += 1
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 
                 if not database.runQueryOnDatabase(saveQuery, nones):
