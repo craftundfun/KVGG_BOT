@@ -11,8 +11,8 @@ from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
+from src.Manager.AchievementManager import AchievementService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.AchievementService import AchievementService
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")

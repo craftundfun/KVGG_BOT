@@ -9,7 +9,7 @@ from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
 from src.Id.DiscordUserId import DiscordUserId
 from src.Id.GuildId import GuildId
-from src.Services.NotificationService import NotificationService
+from src.Manager.NotificationManager import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 

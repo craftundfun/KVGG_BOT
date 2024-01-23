@@ -7,11 +7,11 @@ from discord import Member
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.RoleId import RoleId
+from src.Manager.TTSManager import TTSService
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
-from src.Services.TTSService import TTSService
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")

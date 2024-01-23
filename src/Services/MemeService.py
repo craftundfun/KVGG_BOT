@@ -7,10 +7,10 @@ from discord import Message, Client, RawMessageUpdateEvent
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
+from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
-from src.Services.NotificationService import NotificationService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType
 
