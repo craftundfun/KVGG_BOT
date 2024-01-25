@@ -126,6 +126,10 @@ class UpdateTimeService:
 
         checkAchievementMembers = []
 
+        # await sleep(17)
+
+        raise ValueError
+
         for channel in self._getChannels():
             # specify a type of channel for easier distinguishing later
             if channel in self.universityChannels:

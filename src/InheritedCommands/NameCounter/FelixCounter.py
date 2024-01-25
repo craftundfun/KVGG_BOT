@@ -25,8 +25,10 @@ def getAllKeywords() -> list:
 
 class FelixCounter(Counter):
 
-    def __init__(self, dcUserDb: dict = None):
+    def __init__(self, dcUserDb: dict = None, client: Client = None):
         super().__init__('Felix', dcUserDb)
+
+        self.client = client
 
     def getCounterValue(self) -> int:
         if self.dcUserDb:
@@ -49,19 +51,14 @@ class FelixCounter(Counter):
             return self.dcUserDb['felix_counter_start']
         return None
 
-    async def updateFelixCounter(self, client: Client):
+    async def updateFelixCounter(self):
         """
         Increases the Felix-Counter of members with an active timer
 
-        :param client:
+        :raise ConnectionError: If there is a problem with the database connection
         :return:
         """
-        try:
-            database = Database()
-        except ConnectionError as error:
-            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-            return
+        database = Database()
 
         query = "SELECT * FROM discord WHERE felix_counter_start IS NOT NULL"
         dcUsersDb = database.fetchAllResults(query)
@@ -82,7 +79,12 @@ class FelixCounter(Counter):
             else:
                 dcUserDb['felix_counter_start'] = None
 
-                member = client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb['user_id']))
+                if not self.client:
+                    logger.error("no client to run the function")
+
+                    return
+
+                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb['user_id']))
 
                 if member:
                     try:
