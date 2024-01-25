@@ -46,8 +46,6 @@ twentyThree = datetime.time(hour=23, minute=0, second=0, microsecond=0, tzinfo=t
 
 
 class BackgroundServices(commands.Cog):
-    task = None
-
     def __init__(self, client: discord.Client):
         self.client = client
 
@@ -55,6 +53,11 @@ class BackgroundServices(commands.Cog):
         self.reminderService = ReminderService(self.client)
         self.relationService = RelationService(self.client)
         self.felixCounter = FelixCounter(None, self.client)
+        self.databaseRefreshService = DatabaseRefreshService(self.client)
+        self.achievementService = AchievementService(self.client)
+        self.questService = QuestService(self.client)
+        self.memeService = MemeService(self.client)
+        self.statisticManager = StatisticManager(self.client)
 
         self.refreshMembersInDatabase.start()
         logger.info("refreshMembersInDatabase started")
@@ -85,22 +88,25 @@ class BackgroundServices(commands.Cog):
             """
             Executes the given function safely
             """
+            functionName = function.__name__
+
             try:
-                logger.debug(f"running {function.__name__}")
-                loggerTime.info(f"{function.__name__}")
+                logger.debug(f"running {functionName}")
+                loggerTime.info(f"{functionName}")
 
                 await function()
             except ConnectionError as error:
-                logger.error(f"failure to start {function.__name__}", exc_info=error)
+                logger.error(f"failure to start {functionName}", exc_info=error)
             except TimeoutError as error:
-                logger.error(f"{function.__name__} took too long", exc_info=error)
+                logger.error(f"{functionName} took too long", exc_info=error)
             except Exception as error:
-                logger.error(f"encountered exception while executing {function.__name__}", exc_info=error)
+                logger.error(f"encountered exception while executing {functionName}", exc_info=error)
 
         async def functionWrapper(function: callable):
             """
             Ensures that the given function will not run longer than wanted
             """
+            functionName = function.__name__
             task = asyncio.create_task(
                 functionExecutor(
                     function,
@@ -110,7 +116,9 @@ class BackgroundServices(commands.Cog):
             try:
                 await asyncio.wait_for(task, 15)
             except TimeoutError as error:
-                logger.error(f"{function.__name__} took too long", exc_info=error)
+                logger.error(f"{functionName} took too long", exc_info=error)
+            except Exception as error:
+                logger.error(f"error while running {functionName}", exc_info=error)
 
         await functionWrapper(self.updateTimeManager.updateTimesAndExperience)
         await functionWrapper(self.reminderService.manageReminders)
@@ -124,9 +132,10 @@ class BackgroundServices(commands.Cog):
     async def refreshMembersInDatabase(self):
         logger.debug("running refreshMembersInDatabase")
 
-        dbr = DatabaseRefreshService(self.client)
-
-        await dbr.updateAllMembers()
+        try:
+            await self.databaseRefreshService.updateAllMembers()
+        except Exception as error:
+            logger.error("error while running updateAllMembers", exc_info=error)
 
     @tasks.loop(time=midnight)
     async def runAnniversary(self):
@@ -139,7 +148,6 @@ class BackgroundServices(commands.Cog):
 
         try:
             database = Database()
-            achievementService = AchievementService(self.client)
         except ConnectionError as error:
             logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
 
@@ -184,7 +192,7 @@ class BackgroundServices(commands.Cog):
             difference = relativedelta(now, joinedAt)
             years = difference.years + 1
 
-            await achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
+            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
 
     @tasks.loop(time=midnight)
     async def refreshQuests(self):
@@ -192,24 +200,17 @@ class BackgroundServices(commands.Cog):
 
         now = datetime.datetime.now().replace(tzinfo=tz)
 
-        try:
-            questService = QuestService(self.client)
-        except ConnectionError as error:
-            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-            return
-
-        await questService.resetQuests(QuestDates.DAILY)
+        await self.questService.resetQuests(QuestDates.DAILY)
         logger.debug("reset daily quests")
 
         # if monday reset weekly's as well
         if now.weekday() == 0:
-            await questService.resetQuests(QuestDates.WEEKLY)
+            await self.questService.resetQuests(QuestDates.WEEKLY)
             logger.debug("reset weekly quests")
 
         # if 1st of month reset monthly's
         if now.day == 1:
-            await questService.resetQuests(QuestDates.MONTHLY)
+            await self.questService.resetQuests(QuestDates.MONTHLY)
             logger.debug("reset monthly quests")
 
     @tasks.loop(time=midnight)
@@ -220,11 +221,9 @@ class BackgroundServices(commands.Cog):
             return
 
         try:
-            meme = MemeService(self.client)
-        except ConnectionError as error:
-            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-        else:
-            await meme.chooseWinner()
+            await self.memeService.chooseWinner()
+        except Exception as error:
+            logger.error("error while running chooseWinner", exc_info=error)
 
     @tasks.loop(time=midnight)
     async def createStatistics(self):
@@ -236,7 +235,6 @@ class BackgroundServices(commands.Cog):
                  "FROM current_discord_statistic "
                  "WHERE statistic_time = %s")
         database = Database()
-        statisticManager = StatisticManager(self.client)
 
         def getUsers(type: str) -> list[dict] | None:
             if not (users := database.fetchAllResults(query, (type,))):
@@ -250,8 +248,8 @@ class BackgroundServices(commands.Cog):
             logger.debug("running weekly statistics")
 
             try:
-                await statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
-                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.WEEKLY.value))
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
+                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.WEEKLY.value))
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
@@ -260,8 +258,8 @@ class BackgroundServices(commands.Cog):
             logger.debug("running monthly statistics")
 
             try:
-                await statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
-                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.MONTHLY.value))
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
+                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.MONTHLY.value))
             except Exception as error:
                 logger.error("couldn't run yearly statistics", exc_info=error)
 
@@ -270,15 +268,13 @@ class BackgroundServices(commands.Cog):
             logger.debug("running yearly statistics")
 
             try:
-                await statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
-                statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.YEARLY.value))
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
+                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.YEARLY.value))
             except Exception as error:
                 logger.error("couldn't run monthly statistics", exc_info=error)
 
     @tasks.loop(time=twentyThree)
     async def informAboutUnfinishedQuests(self):
-        questService = QuestService(self.client)
-
-        await questService.remindToFulFillQuests(QuestDates.DAILY)
+        await self.questService.remindToFulFillQuests(QuestDates.DAILY)
 
         logger.debug("ran daily quests reminder")
