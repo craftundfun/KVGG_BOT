@@ -11,7 +11,6 @@ import requests
 from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
 from mutagen.mp3 import MP3
 
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.SendDM import sendDM, separator
 from src.Id import Categories
@@ -299,7 +298,6 @@ class SoundboardService:
             await voiceClient.disconnect()
 
     @DeprecationWarning
-    @validateKeys
     async def stop(self, member: Member) -> str:
         """
         If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the

@@ -12,7 +12,6 @@ from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper.DictionaryFuntionKeyDecorator import validateKeys
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.AchievementManager import AchievementService
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
@@ -521,7 +520,7 @@ class ExperienceService:
 
         return reply
 
-    @validateKeys
+    @DeprecationWarning
     def handleXpNotification(self, member: Member, setting: string) -> string:
         """
         Lets the user choose his / her double-xp-weekend notification
@@ -842,7 +841,6 @@ class ExperienceService:
 
         logger.debug("saved changes to database")
 
-    @validateKeys
     def sendXpLeaderboard(self, member: Member) -> string:
         """
         Answers the Xp-Leaderboard

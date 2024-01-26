@@ -1,3 +1,4 @@
+@DeprecationWarning
 def validateKeys(func):
     def wrapper(self, **kwargs):
         parameter_names = func.__code__.co_varnames[:func.__code__.co_argcount]
