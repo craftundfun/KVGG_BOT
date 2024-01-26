@@ -13,11 +13,11 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
-from src.Manager.GameDiscordManager import GameDiscordManager
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
+from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -40,7 +40,7 @@ class UpdateTimeService:
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
         self.statisticManager = StatisticManager(self.client)
-        self.gameDiscordManager = GameDiscordManager()
+        self.gameDiscordService = GameDiscordService()
 
     def _getChannels(self):
         """
@@ -160,7 +160,7 @@ class UpdateTimeService:
                     await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
                     await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
                     self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
-                    self.gameDiscordManager.increaseGameRelationsForMember(member, database)
+                    self.gameDiscordService.increaseGameRelationsForMember(member, database)
 
                     logger.debug("%s got XP for being online" % member.name)
 

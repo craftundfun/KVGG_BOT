@@ -62,12 +62,12 @@ class WhatsAppHelper:
         """
         logger.debug("creating Online-Notification for %s" % member.name)
 
-        database = Database()
-
         if member.bot:
             logger.debug("user was a bot")
 
             return
+
+        database = Database()
 
         # gaming channel => true, university => false, other channels => function will return
         if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
@@ -177,8 +177,6 @@ class WhatsAppHelper:
         """
         logger.debug("editing message from %s caused by changing channels" % dcUserDb['username'])
 
-        database = Database()
-
         if (messages := getUnsentMessagesFromTriggerUser(dcUserDb, True)) is None:
             logger.debug("no messages to edit")
 
@@ -188,6 +186,8 @@ class WhatsAppHelper:
             logger.debug("no messages to edit")
 
             return
+
+        database = Database()
 
         for message in messages:
             message['message'] = (f"{member.nick if member.nick else member.name} "
@@ -419,7 +419,6 @@ class WhatsAppHelper:
         :return:
         """
         database = Database()
-
         query = "SELECT * " \
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
@@ -505,9 +504,7 @@ class WhatsAppHelper:
         :return:
         """
         database = Database()
-
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-
         whatsappSetting = database.fetchOneResult(query, (member.id,))
 
         if not whatsappSetting:

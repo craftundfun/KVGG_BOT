@@ -257,7 +257,7 @@ class RelationService:
 
                     continue
 
-                answer += "\t%d: %s und %s - %s\n" % (
+                answer += "\t%d: %s und %s - %s Stunden\n" % (
                     index, dcUserDb_1['username'], dcUserDb_2['username'], getFormattedTime(relation['value']))
 
             if answer == "":

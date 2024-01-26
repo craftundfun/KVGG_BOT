@@ -5,7 +5,6 @@ import os
 import os.path
 import sys
 import time
-import traceback
 from typing import Any
 
 import discord
@@ -19,7 +18,6 @@ from discord.ext import commands
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper import ReadParameters
-from src.Helper.EmailService import send_exception_mail
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
@@ -30,9 +28,9 @@ from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Services import ProcessUserInput
 from src.Services.Database import Database
 from src.Services.MemeService import MemeService
+from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService
 
 # set timezone to our time
@@ -84,6 +82,7 @@ class MyClient(discord.Client):
         self.soundboardService = SoundboardService(self)
         self.voiceStateUpdateService = VoiceStateUpdateService(self)
         self.quotesManager = QuotesManager(self)
+        self.processUserInput = ProcessUserInput(self)
 
     async def on_member_join(self, member: Member):
         """
@@ -208,14 +207,11 @@ class MyClient(discord.Client):
                 return
 
             try:
-                pui = ProcessUserInput.ProcessUserInput(self)
-            except ConnectionError as error:
-                logger.error("failure to start ProcessUserInput", exc_info=error)
-            else:
-                await pui.raiseMessageCounter(message.author, message.channel)
-
-            await self.quotesManager.checkForNewQuote(message)
-            await self.memeService.checkIfMemeAndPrepareReactions(message)
+                await self.processUserInput.raiseMessageCounter(message.author, message.channel)
+                await self.quotesManager.checkForNewQuote(message)
+                await self.memeService.checkIfMemeAndPrepareReactions(message)
+            except Exception as error:
+                logger.error("failure to run message functions", exc_info=error)
 
         # empty message but on server
         elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
@@ -974,17 +970,15 @@ def run():
 
     try:
         client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
-    except Exception as e:
-        logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=e)
-
-        send_exception_mail(traceback.format_exc())
+    except Exception as error:
+        logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=error)
 
         if restartTrys > 0:
             restartTrys -= 1
 
             run()
         else:
-            logger.critical("BOT STOPPING, 5 RESTARTS ENCOUNTERED")
+            logger.error("BOT STOPPING, 5 RESTARTS ENCOUNTERED")
             sys.exit(1)
 
 

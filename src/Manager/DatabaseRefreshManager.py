@@ -129,6 +129,8 @@ class DatabaseRefreshService:
         dcUsersDb = self.database.fetchAllResults(query)
 
         if not dcUsersDb:
+            logger.error("couldn't fetch any discord users")
+
             return
 
         logger.debug("fetched %s members from database" % len(dcUsersDb))
@@ -141,6 +143,7 @@ class DatabaseRefreshService:
 
             dcUserDb['username'] = member.nick if member.nick else member.name
             dcUserDb['profile_picture_discord'] = member.display_avatar
+            dcUserDb['channel_id'] = member.voice.channel.id if member.voice else None
 
             query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 

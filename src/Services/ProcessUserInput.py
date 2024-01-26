@@ -25,6 +25,7 @@ from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
+from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.RelationService import RelationService, RelationTypeEnum
 from src.Services.VoiceClientService import VoiceClientService
@@ -94,6 +95,7 @@ class ProcessUserInput:
         self.relationService = RelationService(self.client)
         self.voiceClientService = VoiceClientService(self.client)
         self.statisticManager = StatisticManager(self.client)
+        self.gameDiscordService = GameDiscordService()
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -378,7 +380,7 @@ class ProcessUserInput:
             answer += "- __Online-Zeit__:\n"
 
             for index, user in enumerate(usersOnlineTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formated_time'])
+                answer += "\t%d: %s - %s Stunden\n" % (index + 1, user['username'], user['formated_time'])
 
         if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
             answer += "\n- __Online-Pärchen__:\n"
@@ -388,7 +390,7 @@ class ProcessUserInput:
             answer += "\n- __Stream-Zeit__:\n"
 
             for index, user in enumerate(usersStreamTime):
-                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['formatted_stream_time'])
+                answer += "\t%d: %s - %s Stunden\n" % (index + 1, user['username'], user['formatted_stream_time'])
 
         if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
             answer += "\n- __Stream-Pärchen__:\n"
@@ -399,6 +401,10 @@ class ProcessUserInput:
 
             for index, user in enumerate(usersMessageCount):
                 answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
+
+        if mostPlayedGames := self.gameDiscordService.getMostPlayedGamesForLeaderboard():
+            answer += "\n- __Die meist gespielten Spiele__:\n"
+            answer += mostPlayedGames
 
         # circular import
         from src.Services.CounterService import CounterService

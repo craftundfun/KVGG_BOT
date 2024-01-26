@@ -1,7 +1,7 @@
 import logging
 import os
+import random
 import smtplib
-import string
 from email.message import EmailMessage
 
 from src.Helper.ReadParameters import Parameters as param
@@ -10,8 +10,16 @@ from src.Id.ExceptionEmailAddresses import ExceptionEmailAddresses
 
 logger = logging.getLogger("KVGG_BOT")
 
+funnySubject = [
+    "UwU Exception: KVGG-Chan does a super cute oopsie in the world of kawaii programming~",
+    "Adorabibble Oopsie-Woopsie Exception: Code-Chan UwU-nexpectedly Trips in the World of Kawaii Programming Nya~",
+    "Kawaii Code Catastrophe: UwU-sual Exceptional Adorableness Sends Shockwaves through the Programmer's Heart OwO",
+    "STACKTRACE",
+    "UwUception: When KVGG-Chan's Cuteness Breaks the Programming Matrix!",
+]
 
-def send_exception_mail(message: string):
+
+def send_exception_mail(message: str):
     # check if we are in docker -> if yes send email
     SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
@@ -19,12 +27,13 @@ def send_exception_mail(message: string):
         return
 
     exception_recipients = ExceptionEmailAddresses.getValues()
+    subject = funnySubject[random.randint(0, len(funnySubject) - 1)]
 
     for exception_recipient in exception_recipients:
         email = EmailMessage()
         email["From"] = "KVGG-Bot-Python"
         email["To"] = exception_recipient
-        email["Subject"] = "STACKTRACE"
+        email["Subject"] = subject
         email.set_content(f"Stacktrace: {message}")
 
         try:
