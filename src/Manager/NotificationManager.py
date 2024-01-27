@@ -143,7 +143,9 @@ class NotificationService:
         if not canSendWelcomeBackMessage:
             answer += await self._welcomeBackMessage(member, dcUserDb)
 
-        answer += await self._informAboutDoubleXpWeekend()
+        if (xpAnswer := await self._informAboutDoubleXpWeekend()) != "":
+            answer += separator
+            answer += xpAnswer
 
         # nothing to send
         if answer == "":
@@ -313,9 +315,7 @@ class NotificationService:
         if not isDoubleWeekend(datetime.now()):
             return ""
 
-        return ("Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen.\n\nWenn du diese "
-                "Benachrichtigung nicht mehr erhalten möchtest, kannst du sie in '#bot-commands'"
-                "auf dem Server mit '/notifications' de- bzw. aktivieren!") + separator
+        return "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen."
 
     @DeprecationWarning  # moved to repository
     def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
