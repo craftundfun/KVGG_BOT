@@ -144,7 +144,9 @@ class NotificationService:
             answer += await self._welcomeBackMessage(member, dcUserDb)
 
         if (xpAnswer := await self._informAboutDoubleXpWeekend()) != "":
-            answer += separator
+            # if no welcome message is there to avoid leading seperator
+            if answer != "":
+                answer += separator
             answer += xpAnswer
 
         # nothing to send
