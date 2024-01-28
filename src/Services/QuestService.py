@@ -50,7 +50,6 @@ class QuestService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database()
-
         query = ("SELECT qdm.*, q.value_to_reach, q.time_type "
                  "FROM quest_discord_mapping qdm INNER JOIN quest q ON quest_id = q.id "
                  "WHERE quest_id IN "
@@ -58,68 +57,70 @@ class QuestService:
                  "AND discord_id = "
                  "(SELECT id FROM discord WHERE user_id = %s)")
 
-        if not (quests := database.fetchAllResults(query, (questType.value, member.id,))):
-            logger.debug(f"no quests found to type {questType.value} and {member.name}")
+        # use lock here to avoid giving spammers more boosts
+        async with lock:
+            if not (quests := database.fetchAllResults(query, (questType.value, member.id,))):
+                logger.debug(f"no quests found to type {questType.value} and {member.name}")
 
-            return
+                return
 
-        for quest in quests:
-            lastUpdated: datetime | None = quest['time_updated']
+            for quest in quests:
+                lastUpdated: datetime | None = quest['time_updated']
 
-            # special checks for special quests
-            if questType == QuestType.DAYS_ONLINE:
-                # if its same day the count cant be increased
-                if lastUpdated and lastUpdated.day == datetime.now().day:
-                    logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
-                                 f"continuing loop")
+                # special checks for special quests
+                if questType == QuestType.DAYS_ONLINE:
+                    # if its same day the count cant be increased
+                    if lastUpdated and lastUpdated.day == datetime.now().day:
+                        logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
+                                     f"continuing loop")
 
-                    continue
+                        continue
+                    else:
+                        logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
+                                     f"== current day, continuing to give value")
+
+                elif questType == QuestType.ONLINE_STREAK:
+                    # if its same day the count cant be increased
+                    if lastUpdated and datetime.now().day == lastUpdated.day:
+                        logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
+                                     f"continuing loop")
+
+                        continue
+                    else:
+                        logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
+                                     f"== current day, continuing to give value")
+
+                    # if the difference is too big, the progress will be lost
+                    if lastUpdated and datetime.now().day - lastUpdated.day > 1:
+                        # reset value due to loss in streak
+                        quest['current_value'] = 0
+                        quest['time_updated'] = None
+
+                        del quest['value_to_reach']
+                        del quest['time_type']
+
+                        query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
+
+                        if not database.runQueryOnDatabase(query, nones):
+                            logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
+
+                        continue
+
+                quest['current_value'] += value
+                quest['time_updated'] = datetime.now()
+
+                await self._checkForFinishedQuest(member, quest)
+
+                # remove value_to_reach key due it's online for comparison and doesn't belong into quest_discord_mapping
+                del quest['value_to_reach']
+                del quest['time_type']
+
+                query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
+
+                if not database.runQueryOnDatabase(query, nones):
+                    logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
                 else:
-                    logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
-                                 f"== current day, continuing to give value")
-
-            elif questType == QuestType.ONLINE_STREAK:
-                # if its same day the count cant be increased
-                if lastUpdated and datetime.now().day == lastUpdated.day:
-                    logger.debug(f"lastUpdated: {lastUpdated.day} == now: {datetime.now().day} for {member.name}, "
-                                 f"continuing loop")
-
-                    continue
-                else:
-                    logger.debug(f"no lastUpdated or lastUpdated: {lastUpdated.day if lastUpdated else 'None'} "
-                                 f"== current day, continuing to give value")
-
-                # if the difference is too big, the progress will be lost
-                if lastUpdated and datetime.now().day - lastUpdated.day > 1:
-                    # reset value due to loss in streak
-                    quest['current_value'] = 0
-                    quest['time_updated'] = None
-
-                    del quest['value_to_reach']
-                    del quest['time_type']
-
-                    query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
-
-                    if not database.runQueryOnDatabase(query, nones):
-                        logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
-
-                    continue
-
-            quest['current_value'] += value
-            quest['time_updated'] = datetime.now()
-
-            await self._checkForFinishedQuest(member, quest)
-
-            # remove value_to_reach key due it's online for comparison and doesn't belong into quest_discord_mapping
-            del quest['value_to_reach']
-            del quest['time_type']
-
-            query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
-
-            if not database.runQueryOnDatabase(query, nones):
-                logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
-            else:
-                logger.debug(f"saved {quest} to database for {member.name}")
+                    logger.debug(f"saved {quest} to database for {member.name}")
 
     async def _checkForFinishedQuest(self, member: Member, quest: dict):
         """
@@ -129,18 +130,16 @@ class QuestService:
         :param quest: Dictionary of the quest in the database with current_value from the mapping
         """
         if quest['current_value'] == quest['value_to_reach']:
-            # use lock here to avoid giving spammers more boosts
-            async with lock:
-                await self.notificationService.sendQuestFinishNotification(member, quest['quest_id'])
+            await self.notificationService.sendQuestFinishNotification(member, quest['quest_id'])
 
-                if quest['time_type'] == "daily":
-                    boost = AchievementParameter.DAILY_QUEST
-                elif quest['time_type'] == "weekly":
-                    boost = AchievementParameter.WEEKLY_QUEST
-                else:
-                    boost = AchievementParameter.MONTHLY_QUEST
+            if quest['time_type'] == "daily":
+                boost = AchievementParameter.DAILY_QUEST
+            elif quest['time_type'] == "weekly":
+                boost = AchievementParameter.WEEKLY_QUEST
+            else:
+                boost = AchievementParameter.MONTHLY_QUEST
 
-                await self.experienceService.grantXpBoost(member, boost)
+            await self.experienceService.grantXpBoost(member, boost)
 
     async def resetQuests(self, time: QuestDates):
         """
