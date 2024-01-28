@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 from datetime import datetime
@@ -16,6 +17,7 @@ from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
+lock = asyncio.Lock()
 
 
 class QuestType(Enum):
@@ -127,16 +129,18 @@ class QuestService:
         :param quest: Dictionary of the quest in the database with current_value from the mapping
         """
         if quest['current_value'] == quest['value_to_reach']:
-            await self.notificationService.sendQuestFinishNotification(member, quest['quest_id'])
+            # use lock here to avoid giving spammers more boosts
+            async with lock:
+                await self.notificationService.sendQuestFinishNotification(member, quest['quest_id'])
 
-            if quest['time_type'] == "daily":
-                boost = AchievementParameter.DAILY_QUEST
-            elif quest['time_type'] == "weekly":
-                boost = AchievementParameter.WEEKLY_QUEST
-            else:
-                boost = AchievementParameter.MONTHLY_QUEST
+                if quest['time_type'] == "daily":
+                    boost = AchievementParameter.DAILY_QUEST
+                elif quest['time_type'] == "weekly":
+                    boost = AchievementParameter.WEEKLY_QUEST
+                else:
+                    boost = AchievementParameter.MONTHLY_QUEST
 
-            await self.experienceService.grantXpBoost(member, boost)
+                await self.experienceService.grantXpBoost(member, boost)
 
     async def resetQuests(self, time: QuestDates):
         """
