@@ -866,7 +866,9 @@ class ExperienceService:
 
             return "Es gab ein Problem."
 
-        reply = "Folgende User haben die meisten XP:\n\n"
+        reply = "--------------------\n"
+        reply += "__**Leaderboard - XP**__\n"
+        reply += "--------------------\n\n"
 
         for index, user in enumerate(users):
             reply += "%d. %s - %s XP\n" % (index, user['username'], '{:,}'.format(user['xp_amount']).replace(',', '.'))
