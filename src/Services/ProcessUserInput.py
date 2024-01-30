@@ -346,6 +346,16 @@ class ProcessUserInput:
 
             return answer
 
+        if type == "games":
+            logger.debug("leaderboard for games")
+
+            answer = "------------------------\n"
+            answer += "__**Leaderboard - Games**__\n"
+            answer += "------------------------\n\n"
+            answer += self.gameDiscordService.getMostPlayedGamesForLeaderboard(limit=10)
+
+            return answer
+
         # online time
         query = "SELECT username, formated_time " \
                 "FROM discord " \

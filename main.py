@@ -498,7 +498,8 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(typ=[
     Choice(name="Relationen", value="relations"),
-    Choice(name="XP", value="xp")
+    Choice(name="XP", value="xp"),
+    Choice(name="Games", value="games"),
 ])
 async def sendLeaderboard(interaction: discord.Interaction, typ: Choice[str] = None):
     """
