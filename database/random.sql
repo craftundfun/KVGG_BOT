@@ -46,3 +46,9 @@ SELECT qdm.current_value, q.value_to_reach, q.description, q.unit
                          );
 
 DELETE FROM statistic_log;
+
+USE beta;
+
+SELECT d.id AS discord_id, cds.value, cds.statistic_time, cds.statistic_type
+FROM discord d LEFT JOIN current_discord_statistic cds ON d.id = cds.discord_id
+WHERE cds.statistic_time = 'WEEK' OR cds.statistic_time IS NULL;

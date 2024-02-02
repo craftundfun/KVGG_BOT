@@ -41,7 +41,7 @@ loggerThread.addHandler(fileHandlerThread)
 loggerThread.setLevel(logging.INFO)
 
 tz = datetime.datetime.now().astimezone().tzinfo
-midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
+midnight = datetime.time(hour=21, minute=17, second=15, microsecond=0, tzinfo=tz)
 twentyThree = datetime.time(hour=23, minute=0, second=0, microsecond=0, tzinfo=tz)
 
 
@@ -231,25 +231,13 @@ class BackgroundServices(commands.Cog):
         Creates statistics at the end of the week, month or year
         """
         now = datetime.datetime.now()
-        query = ("SELECT * "
-                 "FROM current_discord_statistic "
-                 "WHERE statistic_time = %s")
-        database = Database()
-
-        def getUsers(type: str) -> list[dict] | None:
-            if not (users := database.fetchAllResults(query, (type,))):
-                logger.error(f"couldn't fetch all statistics for {type}")
-
-                return None
-
-            return users
 
         if now.weekday() == 0:
             logger.debug("running weekly statistics")
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
-                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.WEEKLY.value))
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY.value)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
@@ -259,7 +247,7 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
-                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.MONTHLY.value))
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.MONTHLY.value)
             except Exception as error:
                 logger.error("couldn't run yearly statistics", exc_info=error)
 
@@ -269,7 +257,7 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
-                self.statisticManager.saveStatisticsToStatisticLog(getUsers(StatisticsParameter.YEARLY.value))
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY.value)
             except Exception as error:
                 logger.error("couldn't run monthly statistics", exc_info=error)
 
