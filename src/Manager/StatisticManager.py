@@ -21,32 +21,59 @@ class StatisticManager:
 
         self.notificationService = NotificationService(self.client)
 
-    def saveStatisticsToStatisticLog(self, userStatistics: list[dict] | None):
+    def saveStatisticsToStatisticLog(self, time: StatisticsParameter):
         """
         Saves the statistics (currently only online statistic) to the statistic-log database.
 
-        :param userStatistics: List of DiscordUsers
+        :param time: Time to add statistics to
         """
-        if not userStatistics:
-            return
-
-        database = Database()
+        query = ("SELECT * "
+                 "FROM current_discord_statistic "
+                 "WHERE statistic_time = %s")
         insertQuery = ("INSERT INTO statistic_log (time_online, type, discord_user_id, created_at) "
                        "VALUES (%s, %s, %s, %s)")
         deleteQuery = "DELETE FROM current_discord_statistic WHERE id = %s"
         now = datetime.now()
+        listOfInsertedUsers = []
+        database = Database()
+
+        if not (userStatistics := database.fetchAllResults(query, (time,))):
+            logger.error(f"couldn't fetch all statistics for {time}")
+
+            return
 
         for data in userStatistics:
             logger.debug(f"running statistic for DiscordID: {data['discord_id']}")
 
             # only create statistic log if the type is online
             if data['statistic_type'] == StatisticsParameter.ONLINE.value and data['value'] > 0:
-                if not database.runQueryOnDatabase(insertQuery,
-                                                   (data['value'], data['statistic_time'], data['discord_id'], now)):
+                if not database.runQueryOnDatabase(insertQuery,(data['value'], time, data['discord_id'], now)):
                     logger.error(f"couldn't insert statistics for DiscordID: {data['discord_id']}")
 
+                listOfInsertedUsers.append(data['discord_id'])
+
+            # delete statistic regardless of the type
             if not database.runQueryOnDatabase(deleteQuery, (data['id'],)):
                 logger.error(f"couldn't delete statistics for DiscordID: {data['discord_id']}")
+
+        query = "SELECT id FROM discord"
+
+        if not (users := database.fetchAllResults(query)):
+            logger.error(f"couldn't fetch all DiscordUsers")
+
+            return
+
+        # add "empty" statistics for users without any
+        for user in users:
+            if user['id'] in listOfInsertedUsers:
+                continue
+
+            logger.debug(f"DiscordID: {user['id']} had no previous online statistics, inserting 0")
+
+            if not database.runQueryOnDatabase(insertQuery, (0, time, user['id'], now)):
+                logger.error(f"couldn't insert statistics for DiscordID: {user['id']}")
+
+                continue
 
     def increaseStatistic(self, type: StatisticsParameter, member: Member, value: int = 1):
         """

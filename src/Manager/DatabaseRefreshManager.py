@@ -20,7 +20,6 @@ class DatabaseRefreshService:
         :param client:
         :raise ConnectionError:
         """
-        self.database = Database()
         self.client = client
 
     async def startUp(self):
@@ -31,8 +30,9 @@ class DatabaseRefreshService:
         """
         logger.debug("beginning fetching data")
 
+        database = Database()
         query = "SELECT * FROM discord"
-        dcUsersDb = self.database.fetchAllResults(query)
+        dcUsersDb = database.fetchAllResults(query)
 
         if dcUsersDb is None:
             return
@@ -105,7 +105,7 @@ class DatabaseRefreshService:
                 user['id'],
                 user,
             )
-            if not self.database.runQueryOnDatabase(query, nones):
+            if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save changes to database")
 
         # check for new members that aren't in our database
@@ -114,7 +114,7 @@ class DatabaseRefreshService:
                 continue
 
             for member in channel.members:
-                dcUserDb = getDiscordUser(member, self.database)
+                dcUserDb = getDiscordUser(member, database)
 
                 if dcUserDb is None:
                     logger.error("couldn't create new entry for %s!" % member.name)
@@ -125,8 +125,9 @@ class DatabaseRefreshService:
 
         :return:
         """
+        database = Database()
         query = "SELECT * FROM discord"
-        dcUsersDb = self.database.fetchAllResults(query)
+        dcUsersDb = database.fetchAllResults(query)
 
         if not dcUsersDb:
             logger.error("couldn't fetch any discord users")
@@ -147,7 +148,7 @@ class DatabaseRefreshService:
 
             query, nones = writeSaveQuery('discord', dcUserDb['id'], dcUserDb)
 
-            if self.database.runQueryOnDatabase(query, nones):
+            if database.runQueryOnDatabase(query, nones):
                 logger.debug("updated %s" % dcUserDb['username'])
             else:
                 logger.critical("couldn't save changes to database")

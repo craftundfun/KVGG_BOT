@@ -12,8 +12,7 @@ import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
     RawReactionActionEvent, Intents
 from discord import VoiceChannel
-from discord.app_commands import Choice, commands
-from discord.ext import commands
+from discord.app_commands import Choice
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
@@ -83,6 +82,7 @@ class MyClient(discord.Client):
         self.voiceStateUpdateService = VoiceStateUpdateService(self)
         self.quotesManager = QuotesManager(self)
         self.processUserInput = ProcessUserInput(self)
+        self.databaseRefreshService = DatabaseRefreshService(self)
 
     async def on_member_join(self, member: Member):
         """
@@ -134,41 +134,40 @@ class MyClient(discord.Client):
         logger.info("Logged in as: " + str(self.user))
 
         try:
-            botStartUpService = DatabaseRefreshService(self)
-
-            await botStartUpService.startUp()
+            await self.databaseRefreshService.startUp()
         except ConnectionError as error:
-            logger.error("couldn't create instance of DatabaseRefreshService", exc_info=error)
+            logger.error("failure to run database start up", exc_info=error)
         else:
             logger.info("users fetched and updated")
+
+        if not (guild := client.get_guild(GuildId.GUILD_KVGG.value)):
+            logger.error("couldn't fetch guild")
+
+            return
 
         if len(sys.argv) > 1 and sys.argv[1] == "-clean":
             logger.debug("REMOVING COMMANDS FROM GUILD")
 
-            commandsTree = []
+            tree.clear_commands(guild=guild)
 
-            for command in tree.walk_commands(guild=discord.Object(id=GuildId.GUILD_KVGG.value)):
-                if isinstance(command, commands.Command):
-                    commandsTree.append(command)
+            for removedCommand in await tree.sync(guild=guild):
+                logger.warning(f"removed {removedCommand.name} from server")
 
-            for command in commandsTree:
-                tree.remove_command(command.name, guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-
-            await tree.sync(guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-            logger.critical("Removed commands from tree. You can end the bot now!")
+            # to get some color in the console
+            logger.critical("removed commands from tree")
         else:
             try:
                 logger.debug("trying to sync commands to guild")
 
-                await tree.sync(guild=discord.Object(GuildId.GUILD_KVGG.value))
-            except Exception as e:
-                logger.critical("Commands couldn't be synced to Guild!", exc_info=e)
+                await tree.sync(guild=guild)
+            except Exception as error:
+                logger.error("commands couldn't be synced to guild!", exc_info=error)
             else:
                 logger.info("commands synced to guild")
 
         # https://stackoverflow.com/questions/59126137/how-to-change-activity-of-a-discord-py-bot
         try:
-            logger.debug("Trying to set activity")
+            logger.debug("trying to set activity")
 
             if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
                 await client.change_presence(
