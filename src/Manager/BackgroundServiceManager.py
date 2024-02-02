@@ -41,7 +41,7 @@ loggerThread.addHandler(fileHandlerThread)
 loggerThread.setLevel(logging.INFO)
 
 tz = datetime.datetime.now().astimezone().tzinfo
-midnight = datetime.time(hour=21, minute=17, second=15, microsecond=0, tzinfo=tz)
+midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 twentyThree = datetime.time(hour=23, minute=0, second=0, microsecond=0, tzinfo=tz)
 
 
