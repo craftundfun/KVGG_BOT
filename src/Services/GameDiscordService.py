@@ -69,4 +69,7 @@ class GameDiscordService:
         for index, game in enumerate(games, 1):
             answer += f"\t{index}: {game['name']} - {getFormattedTime(game['time_played'])} Stunden\n"
 
+        answer += ("\n\n`Diese Stunden sind zusammengerechnet über alle User. Außerdem können die Zahlen evtl. nicht "
+                   "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
+
         return answer

@@ -218,11 +218,9 @@ class CounterService:
         if counterDiscordMapping['value'] < 0:
             counterDiscordMapping['value'] = 0
 
-        name = user.nick if user.nick else user.name
-
-        if counterDiscordMapping['tts_voice_line']:
+        if counterDiscordMapping['tts_voice_line'] and value >= 1:
             try:
-                tts = counterDiscordMapping['tts_voice_line'].format(name=name)
+                tts = counterDiscordMapping['tts_voice_line'].format(name=user.display_name)
             except KeyError as error:
                 logger.error(f"KeyError in '{counterDiscordMapping['tts_voice_line']}' von "
                              f"ID: {counterDiscordMapping['counter_id']} Quest.", exc_info=error)
