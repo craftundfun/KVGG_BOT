@@ -151,6 +151,6 @@ class DatabaseRefreshService:
             if database.runQueryOnDatabase(query, nones):
                 logger.debug("updated %s" % dcUserDb['username'])
             else:
-                logger.critical("couldn't save changes to database")
+                logger.error("couldn't save changes to database")
 
         logger.debug("uploaded changes to database")

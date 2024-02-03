@@ -212,7 +212,18 @@ class CommandService:
                 function = self.reminderService.createReminder
 
             case Commands.LIST_REMINDERS:
-                function = self.reminderService.listReminders
+                data = self.reminderService.listReminders(**kwargs)
+
+                await PaginationView(
+                    ctx=interaction,
+                    data=data,
+                    client=self.client,
+                    title="Reminder",
+                    defer=False,
+                    seperator=9,
+                ).send()
+
+                function = "Pagination-View"
 
             case Commands.DELETE_REMINDER:
                 function = self.reminderService.deleteReminder
