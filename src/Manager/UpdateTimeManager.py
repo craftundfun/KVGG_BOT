@@ -119,11 +119,9 @@ class UpdateTimeService:
         """
         Updates the time online, stream (if the member is streaming) and writes new formatted values
 
-        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         database = Database()
-
         checkAchievementMembers = []
 
         for channel in self._getChannels():
