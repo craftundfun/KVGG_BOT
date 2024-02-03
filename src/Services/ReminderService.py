@@ -12,6 +12,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
+from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -199,7 +200,7 @@ class ReminderService:
         return "Deine Erinnerung wurde erfolgreich gespeichert! " + \
             (answerAppendix if 'answerAppendix' in locals() else "")
 
-    def listReminders(self, member: Member) -> str:
+    def listReminders(self, member: Member) -> [PaginationViewDataItem]:
         """
         Lists all active reminders from the user
 
@@ -208,7 +209,6 @@ class ReminderService:
         :return:
         """
         database = Database()
-
         query = "SELECT * " \
                 "FROM reminder " \
                 "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
@@ -218,11 +218,9 @@ class ReminderService:
         if not reminders:
             logger.debug("reminders for %s were empty" % member.name)
 
-            return "Du hast keine aktiven Reminders."
+            return [PaginationViewDataItem(field_name="Du hast aktuell keine Reminder.")]
 
-        answer = "Du hast folgende Reminder / Timer: (die vorderen Zahlen sind die individuellen IDs)\n\n"
-
-        def getTimeFromRepeatInMinutes(minutes: int | None) -> [int, int, int] | None:
+        def getTimeFromRepeatInMinutes(minutes: int | None) -> (int, int, int) | None:
             """
             Calculates the days, hours and minutes from repeat_in_minutes from each reminder.
 
@@ -238,21 +236,25 @@ class ReminderService:
 
             return days, hours, minutes
 
+        allReminder: [PaginationViewDataItem] = []
+
         for reminder in reminders:
             repetition = getTimeFromRepeatInMinutes(reminder['repeat_in_minutes'])
 
-            answer += "%d: '%s' am %s, Wiederholung: %s, Whatsapp: %s, Typ: %s\n" % (
-                reminder['id'],
-                reminder['content'],
-                reminder['time_to_sent'].strftime("%d.%m.%Y %H:%M"),
-                "aktiviert - alle %d Tage, %d Stunden, %d Minuten" % (
-                    repetition[0], repetition[1], repetition[2]
-                ) if repetition else "deaktiviert",
-                "aktiviert" if reminder['whatsapp'] else "deaktiviert",
-                "Reminder" if not reminder['is_timer'] else "Timer",)
+            allReminder += [
+                PaginationViewDataItem(
+                    field_name=f"__**{reminder['content']}**__",
+                    field_value=f"**Zeitpunkt**: {reminder['time_to_sent'].strftime('%d.%m.%Y %H:%M')} Uhr\n "
+                                f"**Wiederholung**: {'aktiviert - alle %d Tage, %d Stunden, %d Minuten' % (repetition[0], repetition[1], repetition[2]) if repetition else 'deaktiviert'}\n"
+                                f"**Whatsapp**: {'aktiviert' if reminder['whatsapp'] else 'deaktiviert'}\n"
+                                f"**Typ**: {'Reminder' if not reminder['is_timer'] else 'Timer'}\n"
+                                f"**ID**: {reminder['id']}"
+                )
+            ]
 
         logger.debug("listed all reminders from %s" % member.name)
-        return answer
+
+        return allReminder
 
     async def manageReminders(self):
         """

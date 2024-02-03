@@ -24,12 +24,10 @@ class GameDiscordService:
         :param database:
         """
         for activity in member.activities:
-            if not isinstance(activity, discord.Activity):
-                logger.debug("activity type is not a discord.Activity instance")
-
-                continue
-
-            if relation := getGameDiscordRelation(database, member, activity):
+            if relation := getGameDiscordRelation(database,
+                                                  member,
+                                                  activity if isinstance(activity, discord.Activity) else None,
+                                                  activity.name):
                 relation['time_played'] += 1
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 
@@ -69,7 +67,7 @@ class GameDiscordService:
         for index, game in enumerate(games, 1):
             answer += f"\t{index}: {game['name']} - {getFormattedTime(game['time_played'])} Stunden\n"
 
-        answer += ("\n\n`Diese Stunden sind zusammengerechnet über alle User. Außerdem können die Zahlen evtl. nicht "
+        answer += ("\n`Diese Stunden sind zusammengerechnet über alle User. Außerdem können die Zahlen evtl. nicht "
                    "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
 
         return answer
