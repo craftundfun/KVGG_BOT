@@ -43,9 +43,7 @@ def getDiscordGame(database: Database, activity: Activity = None, gameName: str 
             return None
 
         for name in names:
-            print(gameName, name['name'], Levenshtein.distance(gameName, name['name']))
-
-            if Levenshtein.distance(gameName, name['name']) <= 3:
+            if Levenshtein.distance(gameName, name['name'], score_cutoff=2) > 2:
                 gameId = name['id']
 
                 break
