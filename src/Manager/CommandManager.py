@@ -235,6 +235,7 @@ class CommandService:
                     client=self.client,
                     title="Sounds",
                     defer=False,
+                    seperator=9,
                 ).send()
 
                 function = "Pagination-View"
