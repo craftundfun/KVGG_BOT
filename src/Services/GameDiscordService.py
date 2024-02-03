@@ -24,6 +24,11 @@ class GameDiscordService:
         :param database:
         """
         for activity in member.activities:
+            if isinstance(activity, discord.CustomActivity):
+                logger.debug(f"{member.display_name} had an custom activity: {activity.name} => dont count it")
+
+                continue
+
             if relation := getGameDiscordRelation(database,
                                                   member,
                                                   activity if isinstance(activity, discord.Activity) else None,
