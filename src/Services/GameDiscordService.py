@@ -24,12 +24,10 @@ class GameDiscordService:
         :param database:
         """
         for activity in member.activities:
-            if not isinstance(activity, discord.Activity):
-                logger.debug("activity type is not a discord.Activity instance")
-
-                continue
-
-            if relation := getGameDiscordRelation(database, member, activity):
+            if relation := getGameDiscordRelation(database,
+                                                  member,
+                                                  activity if isinstance(activity, discord.Activity) else None,
+                                                  activity.name):
                 relation['time_played'] += 1
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 

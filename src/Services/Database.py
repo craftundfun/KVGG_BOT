@@ -73,7 +73,7 @@ class Database:
                 if not data:
                     logger.debug("fetching data from database was successful, but no result were found")
 
-                    return None
+                    return []
 
                 logger.debug("fetching data from database was successful")
 
