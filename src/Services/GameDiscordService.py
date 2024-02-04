@@ -1,6 +1,7 @@
 import logging
 
 import discord
+from discord import Client
 from discord import Member
 
 from src.Helper.GetFormattedTime import getFormattedTime
@@ -13,8 +14,8 @@ logger = logging.getLogger("KVGG_BOT")
 
 class GameDiscordService:
 
-    def __init__(self):
-        pass
+    def __init__(self, client: Client):
+        self.client = client
 
     def increaseGameRelationsForMember(self, member: Member, database: Database):
         """
@@ -31,6 +32,7 @@ class GameDiscordService:
 
             if relation := getGameDiscordRelation(database,
                                                   member,
+                                                  True if member.voice else False,
                                                   activity if isinstance(activity, discord.Activity) else None,
                                                   activity.name):
                 relation['time_played'] += 1
@@ -76,3 +78,9 @@ class GameDiscordService:
                    "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
 
         return answer
+
+    async def runIncreaseGameRelationForEveryone(self):
+        database = Database()
+
+        for member in self.client.get_all_members():
+            self.increaseGameRelationsForMember(member, database)

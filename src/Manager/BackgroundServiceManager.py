@@ -17,6 +17,7 @@ from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.StatisticManager import StatisticManager
 from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Services.Database import Database
+from src.Services.GameDiscordService import GameDiscordService
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 from src.Services.RelationService import RelationService
@@ -58,6 +59,7 @@ class BackgroundServices(commands.Cog):
         self.questService = QuestService(self.client)
         self.memeService = MemeService(self.client)
         self.statisticManager = StatisticManager(self.client)
+        self.gameDiscordService = GameDiscordService(self.client)
 
         self.refreshMembersInDatabase.start()
         logger.info("refreshMembersInDatabase started")
@@ -121,6 +123,7 @@ class BackgroundServices(commands.Cog):
                 logger.error(f"error while running {functionName}", exc_info=error)
 
         await functionWrapper(self.updateTimeManager.updateTimesAndExperience)
+        await functionWrapper(self.gameDiscordService.runIncreaseGameRelationForEveryone)
         await functionWrapper(self.reminderService.manageReminders)
         await functionWrapper(self.relationService.increaseAllRelation)
         await functionWrapper(self.felixCounter.updateFelixCounter)
