@@ -10,18 +10,13 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Id.GuildId import GuildId
-from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
-from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
+from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
-from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Services.Database import Database
-from src.Services.GameDiscordService import GameDiscordService
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
-from src.Services.RelationService import RelationService
-from src.Services.ReminderService import ReminderService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -43,41 +38,29 @@ loggerThread.setLevel(logging.INFO)
 
 tz = datetime.datetime.now().astimezone().tzinfo
 midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
-twentyThree = datetime.time(hour=23, minute=0, second=0, microsecond=0, tzinfo=tz)
 
 
 class BackgroundServices(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
 
-        self.updateTimeManager = UpdateTimeService(self.client)
-        self.reminderService = ReminderService(self.client)
-        self.relationService = RelationService(self.client)
-        self.felixCounter = FelixCounter(None, self.client)
-        self.databaseRefreshService = DatabaseRefreshService(self.client)
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
         self.memeService = MemeService(self.client)
+        self.minutelyJobRunner = MinutelyJobRunner(self.client)
         self.statisticManager = StatisticManager(self.client)
-        self.gameDiscordService = GameDiscordService(self.client)
-
-        self.refreshMembersInDatabase.start()
-        logger.info("refreshMembersInDatabase started")
 
         self.minutely.start()
         logger.info("minutely-job started")
 
-        self.runAnniversary.start()
-        logger.info("anniversary-job started")
+        # self.runAnniversary.start()
+        # logger.info("anniversary-job started")
 
         self.refreshQuests.start()
         logger.info("refresh-quest-job started")
 
         self.chooseWinnerOfMemes.start()
         logger.info("choose-winner-job started")
-
-        self.informAboutUnfinishedQuests.start()
-        logger.info("unfinished-quests-job started")
 
         self.createStatistics.start()
         logger.info("createStatistics-job started")
@@ -86,6 +69,7 @@ class BackgroundServices(commands.Cog):
     async def minutely(self):
         loggerTime.info("start")
 
+        # double wrapped -> maybe look into it again in the future
         async def functionExecutor(function: callable):
             """
             Executes the given function safely
@@ -97,10 +81,6 @@ class BackgroundServices(commands.Cog):
                 loggerTime.info(f"{functionName}")
 
                 await function()
-            except ConnectionError as error:
-                logger.error(f"failure to start {functionName}", exc_info=error)
-            except TimeoutError as error:
-                logger.error(f"{functionName} took too long", exc_info=error)
             except Exception as error:
                 logger.error(f"encountered exception while executing {functionName}", exc_info=error)
 
@@ -116,30 +96,18 @@ class BackgroundServices(commands.Cog):
             )
 
             try:
-                await asyncio.wait_for(task, 15)
+                await asyncio.wait_for(task, 50)
             except TimeoutError as error:
-                logger.error(f"{functionName} took too long", exc_info=error)
+                logger.error(f"{functionName} took too long (longer than 50 seconds!)", exc_info=error)
             except Exception as error:
                 logger.error(f"error while running {functionName}", exc_info=error)
 
-        await functionWrapper(self.updateTimeManager.updateTimesAndExperience)
-        await functionWrapper(self.gameDiscordService.runIncreaseGameRelationForEveryone)
-        await functionWrapper(self.reminderService.manageReminders)
-        await functionWrapper(self.relationService.increaseAllRelation)
-        await functionWrapper(self.felixCounter.updateFelixCounter)
+        await functionWrapper(self.minutelyJobRunner.run)
 
         loggerTime.info("end")
         loggerThread.info("minutely task ended")
 
-    @tasks.loop(hours=1)
-    async def refreshMembersInDatabase(self):
-        logger.debug("running refreshMembersInDatabase")
-
-        try:
-            await self.databaseRefreshService.updateAllMembers()
-        except Exception as error:
-            logger.error("error while running updateAllMembers", exc_info=error)
-
+    @DeprecationWarning
     @tasks.loop(time=midnight)
     async def runAnniversary(self):
         """
@@ -263,9 +231,3 @@ class BackgroundServices(commands.Cog):
                 self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY.value)
             except Exception as error:
                 logger.error("couldn't run monthly statistics", exc_info=error)
-
-    @tasks.loop(time=twentyThree)
-    async def informAboutUnfinishedQuests(self):
-        await self.questService.remindToFulFillQuests(QuestDates.DAILY)
-
-        logger.debug("ran daily quests reminder")

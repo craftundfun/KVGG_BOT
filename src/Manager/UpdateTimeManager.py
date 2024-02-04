@@ -9,13 +9,10 @@ from src.DiscordParameters.MuteParameter import MuteParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
 
@@ -113,85 +110,70 @@ class UpdateTimeService:
 
         return True
 
-    async def updateTimesAndExperience(self):
+    async def updateTimesAndExperience(self, member: Member, dcUserDb: dict):
         """
         Updates the time online, stream (if the member is streaming) and writes new formatted values
 
         :return:
         """
-        database = Database()
-        checkAchievementMembers = []
+        if not member.voice:
+            logger.debug(f"{member.display_name} has no voice status")
 
-        for channel in self._getChannels():
-            # specify a type of channel for easier distinguishing later
-            if channel in self.universityChannels:
-                channelType = "uni"
+            return
+
+        if (channel := member.voice.channel) in self.universityChannels:
+            channelType = "uni"
+        else:
+            channelType = "gaming"
+
+        # user cant get time -> continue with next user
+        if not self._eligibleForGettingTime((dcUserDb, channelType), channel):
+            return
+
+        if channelType == "gaming":
+            # time_online can be None -> None-safe operation
+            if not dcUserDb['time_online']:
+                dcUserDb['time_online'] = 1
             else:
-                channelType = "gaming"
+                dcUserDb['time_online'] = dcUserDb['time_online'] + 1
 
-            for member in channel.members:
-                if not (dcUserDb := getDiscordUser(member, database)):
-                    logger.debug("couldn't fetch %s (%d) from database" % (member.name, member.id,))
+            dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
-                    continue
+            await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
+            logger.debug(f"increased online-quest for {member.display_name}")
 
-                # user cant get time -> continue with next user
-                if not self._eligibleForGettingTime((dcUserDb, channelType), channel):
-                    continue
+            await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
+            logger.debug(f"increased online-xp for {member.display_name}")
 
-                # update commonly changing things
-                dcUserDb['channel_id'] = channel.id
-                dcUserDb['username'] = member.nick if member.nick else member.name
-                dcUserDb['profile_picture_discord'] = member.display_avatar
+            self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
+            logger.debug(f"increased online statistics for {member.display_name}")
 
-                if channelType == "gaming":
-                    # time_online can be None -> None-safe operation
-                    if not dcUserDb['time_online']:
-                        dcUserDb['time_online'] = 1
-                    else:
-                        dcUserDb['time_online'] = dcUserDb['time_online'] + 1
+            # increase time for streaming
+            if member.voice.self_video or member.voice.self_stream:
+                # don't check for None here, default value is 0
+                dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
+                dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
-                    dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
+                await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
+                logger.debug(f"increased stream-quest for {member.display_name}")
 
-                    await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
-                    await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
-                    self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
+                await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
+                                                           member=member)
+                logger.debug(f"increased stream-xp for {member.display_name}")
 
-                    logger.debug("%s got XP for being online" % member.name)
+                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member)
+                logger.debug(f"increased stream statistics for {member.display_name}")
 
-                    # increase time for streaming
-                    if member.voice.self_video or member.voice.self_stream:
-                        # don't check for None here, default value is 0
-                        dcUserDb['time_streamed'] = dcUserDb['time_streamed'] + 1
-                        dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
+            self.experienceService.reduceXpBoostsTime(member)
+            logger.debug(f"reduced xp boosts for {member.display_name}")
+        else:
+            # university_time_online can be None -> None-safe operation
+            if not dcUserDb['university_time_online']:
+                dcUserDb['university_time_online'] = 1
+            else:
+                dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + 1
 
-                        await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
-                        await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
-                                                                   member=member)
-                        self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member)
-                        logger.debug("%s got XP for streaming" % member.name)
-
-                    self.experienceService.reduceXpBoostsTime(member)
-                    checkAchievementMembers.append((dcUserDb, member))
-
-                else:
-                    # university_time_online can be None -> None-safe operation
-                    if not dcUserDb['university_time_online']:
-                        dcUserDb['university_time_online'] = 1
-                    else:
-                        dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + 1
-
-                    dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
-
-                query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
-
-                if not database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database for %s" % dcUserDb['username'])
-
-                    continue
-
-        if len(checkAchievementMembers) != 0:
-            await self._checkForAchievements(checkAchievementMembers)
+            dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
 
     async def _checkForAchievements(self, members: list[tuple[dict, Member]]):
         """

@@ -22,7 +22,6 @@ class ReminderService:
     def __init__(self, client: discord.Client):
         """
         :param client:
-        :raise ConnectionError:
         """
         self.client = client
 
