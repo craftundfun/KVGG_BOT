@@ -393,7 +393,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
             name = counter['name']
 
             if current.lower() == "" or current.lower() in name.lower():
-                choices.append(Choice(name=name.capitalize() + " - " + counter['description'], value=name))
+                choices.append(Choice(name=(name.capitalize() + " - " + counter['description'])[:100], value=name))
     finally:
         return choices
 
