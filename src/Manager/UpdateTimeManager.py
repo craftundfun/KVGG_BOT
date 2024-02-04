@@ -17,7 +17,6 @@ from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.ExperienceService import ExperienceService
-from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -40,7 +39,6 @@ class UpdateTimeService:
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
         self.statisticManager = StatisticManager(self.client)
-        self.gameDiscordService = GameDiscordService()
 
     def _getChannels(self):
         """

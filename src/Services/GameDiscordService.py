@@ -7,6 +7,7 @@ from discord import Member
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
+from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
@@ -83,4 +84,5 @@ class GameDiscordService:
         database = Database()
 
         for member in self.client.get_all_members():
-            self.increaseGameRelationsForMember(member, database)
+            if getDiscordUser(member, database):
+                self.increaseGameRelationsForMember(member, database)
