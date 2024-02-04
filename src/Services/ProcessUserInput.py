@@ -95,7 +95,7 @@ class ProcessUserInput:
         self.relationService = RelationService(self.client)
         self.voiceClientService = VoiceClientService(self.client)
         self.statisticManager = StatisticManager(self.client)
-        self.gameDiscordService = GameDiscordService()
+        self.gameDiscordService = GameDiscordService(self.client)
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """

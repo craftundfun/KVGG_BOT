@@ -1,11 +1,13 @@
 import logging
 
 import discord
+from discord import Client
 from discord import Member
 
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
+from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 
 logger = logging.getLogger("KVGG_BOT")
@@ -13,8 +15,8 @@ logger = logging.getLogger("KVGG_BOT")
 
 class GameDiscordService:
 
-    def __init__(self):
-        pass
+    def __init__(self, client: Client):
+        self.client = client
 
     def increaseGameRelationsForMember(self, member: Member, database: Database):
         """
@@ -31,6 +33,7 @@ class GameDiscordService:
 
             if relation := getGameDiscordRelation(database,
                                                   member,
+                                                  True if member.voice else False,
                                                   activity if isinstance(activity, discord.Activity) else None,
                                                   activity.name):
                 relation['time_played'] += 1
@@ -76,3 +79,10 @@ class GameDiscordService:
                    "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
 
         return answer
+
+    async def runIncreaseGameRelationForEveryone(self):
+        database = Database()
+
+        for member in self.client.get_all_members():
+            if getDiscordUser(member, database):
+                self.increaseGameRelationsForMember(member, database)

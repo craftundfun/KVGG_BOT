@@ -119,6 +119,7 @@ class DatabaseRefreshService:
                 if dcUserDb is None:
                     logger.error("couldn't create new entry for %s!" % member.name)
 
+    @DeprecationWarning
     async def updateAllMembers(self):
         """
         Updates all members in the database. Profile picture, nickname etc.
