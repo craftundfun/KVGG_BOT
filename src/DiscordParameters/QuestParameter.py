@@ -7,6 +7,10 @@ class QuestDates(Enum):
     MONTHLY = "monthly"
 
     @classmethod
+    def getValues(cls) -> set[str]:
+        return set(category.value for category in QuestDates)
+
+    @classmethod
     def getQuestAmountForDate(cls, time: "QuestDates") -> int | None:
         """
         Returns the amount of quest allowed for each time.
