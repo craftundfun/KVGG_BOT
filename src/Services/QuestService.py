@@ -243,7 +243,6 @@ class QuestService:
 
             return
 
-        now = datetime.now()
         last_online: datetime | None = dcUserDb['last_online']
 
         query = "SELECT id FROM quest_discord_mapping WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
@@ -262,6 +261,16 @@ class QuestService:
             await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
             return
+
+    async def createQuestsForNewMember(self, member: Member):
+        """
+        Creates all quest typs for the newly joined member.
+        """
+        database: Database = Database()
+
+        await self._createQuestForMember(member, QuestDates.DAILY, database)
+        await self._createQuestForMember(member, QuestDates.WEEKLY, database)
+        await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
     async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database):
         """
