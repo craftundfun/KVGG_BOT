@@ -33,7 +33,7 @@ def getDiscordGame(database: Database, activity: Activity = None, gameName: str 
 
                 return None
     else:
-        getQuery = "SELECT id, name FROM discord_game WHERE application_id IS NULL"
+        getQuery = "SELECT id, name FROM discord_game"
         gameId = -1
 
         # check for None here in case we have no games => Murphy's Law
