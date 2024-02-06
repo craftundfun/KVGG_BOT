@@ -30,6 +30,11 @@ class GameDiscordService:
                 logger.debug(f"{member.display_name} had an custom activity: {activity.name} => dont count it")
 
                 continue
+            elif isinstance(activity, discord.Streaming):
+                logger.debug(f"{member.display_name} had an custom streaming-activity: "
+                             f"{activity.name} => dont count it")
+
+                continue
 
             if relation := getGameDiscordRelation(database,
                                                   member,
