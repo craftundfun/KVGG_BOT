@@ -17,7 +17,7 @@ def main():
         print(f"[INFO] checking games for user-id: {user['id']}")
 
         for game in games:
-            print(f"[INFO] checking game-id: {game['game_id']}")
+            print(f"[INFO] checking game-id: {game['id']}")
             gameMappings = database.fetchAllResults(getGameQuery, (user['id'], game['id'],))
 
             if not gameMappings:
