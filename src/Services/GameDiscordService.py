@@ -38,10 +38,13 @@ class GameDiscordService:
 
             if relation := getGameDiscordRelation(database,
                                                   member,
-                                                  True if member.voice else False,
                                                   activity if isinstance(activity, discord.Activity) else None,
                                                   activity.name):
-                relation['time_played'] += 1
+                if member.voice:
+                    relation['time_played_online'] += 1
+                else:
+                    relation['time_played_offline'] += 1
+
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 
                 if not database.runQueryOnDatabase(saveQuery, nones):

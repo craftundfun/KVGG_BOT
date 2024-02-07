@@ -77,19 +77,18 @@ def getDiscordGame(database: Database, activity: Activity = None, gameName: str 
 
 def getGameDiscordRelation(database: Database,
                            member: Member,
-                           whileOnline: bool,
                            activity: Activity = None,
                            gameName: str = None) -> dict | None:
-    insertQuery = ("INSERT INTO game_discord_mapping (discord_id, discord_game_id, while_online) "
-                   "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s, %s)")
+    insertQuery = ("INSERT INTO game_discord_mapping (discord_id, discord_game_id) "
+                   "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s)")
 
     if activity:
         getQuery = ("SELECT gdm.* "
                     "FROM game_discord_mapping gdm INNER JOIN discord_game dg ON gdm.discord_game_id = dg.id "
-                    "WHERE dg.application_id = %s AND gdm.while_online = %s "
+                    "WHERE dg.application_id = %s "
                     "AND gdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")
 
-        if not (relation := database.fetchOneResult(getQuery, (activity.application_id, whileOnline, member.id,))):
+        if not (relation := database.fetchOneResult(getQuery, (activity.application_id, member.id,))):
             logger.debug(f"did not found relation for {member.display_name} and {activity.name}")
 
             if not (game := getDiscordGame(database, activity, gameName)):
@@ -97,12 +96,12 @@ def getGameDiscordRelation(database: Database,
 
                 return None
 
-            if not database.runQueryOnDatabase(insertQuery, (member.id, game['id'], whileOnline,)):
+            if not database.runQueryOnDatabase(insertQuery, (member.id, game['id'],)):
                 logger.error(f"couldn't create new game_discord_relation for {member.display_name} and {activity.name}")
 
                 return None
 
-            if not (relation := database.fetchOneResult(getQuery, (activity.application_id, whileOnline, member.id,))):
+            if not (relation := database.fetchOneResult(getQuery, (activity.application_id, member.id,))):
                 logger.error("couldn't fetch newly created game_discord_relation")
 
                 return None
@@ -116,18 +115,18 @@ def getGameDiscordRelation(database: Database,
 
         getQuery = ("SELECT gdm.* "
                     "FROM game_discord_mapping gdm INNER JOIN discord_game dg ON gdm.discord_game_id = dg.id "
-                    "WHERE dg.id = %s AND gdm.while_online = %s "
+                    "WHERE dg.id = %s "
                     "AND gdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")
 
-        if not (relation := database.fetchOneResult(getQuery, (game['id'], whileOnline, member.id,))):
+        if not (relation := database.fetchOneResult(getQuery, (game['id'], member.id,))):
             logger.debug(f"did not found relation for {member.display_name} and {gameName}")
 
-            if not database.runQueryOnDatabase(insertQuery, (member.id, game['id'], whileOnline,)):
+            if not database.runQueryOnDatabase(insertQuery, (member.id, game['id'],)):
                 logger.error(f"couldn't create new game_discord_relation for {member.display_name} and {gameName}")
 
                 return None
 
-            if not (relation := database.fetchOneResult(getQuery, (game['id'], whileOnline, member.id,))):
+            if not (relation := database.fetchOneResult(getQuery, (game['id'], member.id,))):
                 logger.error("couldn't fetch newly created game_discord_relation")
 
                 return None
