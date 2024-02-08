@@ -67,7 +67,7 @@ class GameDiscordService:
         """
         database = Database()
         answer = ""
-        query = ("SELECT dg.name, SUM(gdm.time_played) AS time_played "
+        query = ("SELECT dg.name, SUM(gdm.time_played_online) + SUM(gdm.time_played_offline) AS time_played "
                  "FROM discord_game dg JOIN game_discord_mapping gdm ON dg.id = gdm.discord_game_id "
                  "GROUP BY gdm.discord_game_id "
                  "ORDER BY time_played DESC "
