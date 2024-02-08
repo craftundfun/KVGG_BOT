@@ -140,7 +140,7 @@ class UpdateTimeService:
             dcUserDb['formated_time'] = getFormattedTime(dcUserDb['time_online'])
 
             await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
-            logger.debug(f"increased online-quest for {member.display_name}")
+            logger.debug(f"checked online-quest for {member.display_name}")
 
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
             logger.debug(f"increased online-xp for {member.display_name}")
@@ -155,7 +155,7 @@ class UpdateTimeService:
                 dcUserDb['formatted_stream_time'] = getFormattedTime(dcUserDb['time_streamed'])
 
                 await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
-                logger.debug(f"increased stream-quest for {member.display_name}")
+                logger.debug(f"checked stream-quest for {member.display_name}")
 
                 await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                            member=member)
@@ -166,6 +166,9 @@ class UpdateTimeService:
 
             self.experienceService.reduceXpBoostsTime(member)
             logger.debug(f"reduced xp boosts for {member.display_name}")
+
+            await self._checkForAchievements(member, dcUserDb)
+            logger.debug(f"checked for achievements for {member.display_name}")
         else:
             # university_time_online can be None -> None-safe operation
             if not dcUserDb['university_time_online']:
@@ -175,22 +178,26 @@ class UpdateTimeService:
 
             dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
 
-    async def _checkForAchievements(self, members: list[tuple[dict, Member]]):
+    async def _checkForAchievements(self, member: Member, dcUserDb: dict):
         """
         Maybe this will fix my achievement problem :(
 
-        :param members: List of members that are currently online to check achievements for
+        :param member: Member that is currently online to check achievements for
+        :param dcUserDb: a belonging database object for the member
         """
-        for dcUserDb, member in members:
-            # online time achievement
-            if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
-                await self.achievementService.sendAchievementAndGrantBoost(member,
-                                                                           AchievementParameter.ONLINE,
-                                                                           dcUserDb['time_online'])
+        # online time achievement
+        if (dcUserDb['time_online'] % (AchievementParameter.ONLINE_TIME_HOURS.value * 60)) == 0:
+            logger.debug(f"{member.display_name} gets an online achievement")
 
-            if member.voice.self_video or member.voice.self_stream:
-                # stream time achievement
-                if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
-                    await self.achievementService.sendAchievementAndGrantBoost(member,
-                                                                               AchievementParameter.STREAM,
-                                                                               dcUserDb['time_streamed'])
+            await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                       AchievementParameter.ONLINE,
+                                                                       dcUserDb['time_online'])
+
+        if member.voice.self_video or member.voice.self_stream:
+            # stream time achievement
+            if (dcUserDb['time_streamed'] % (AchievementParameter.STREAM_TIME_HOURS.value * 60)) == 0:
+                logger.debug(f"{member.display_name} gets an stream achievement")
+
+                await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                           AchievementParameter.STREAM,
+                                                                           dcUserDb['time_streamed'])
