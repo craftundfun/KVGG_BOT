@@ -36,10 +36,7 @@ class GameDiscordService:
 
                 continue
 
-            if relation := getGameDiscordRelation(database,
-                                                  member,
-                                                  activity if isinstance(activity, discord.Activity) else None,
-                                                  activity.name):
+            if relation := getGameDiscordRelation(database, member, activity.name):
                 if member.voice:
                     relation['time_played_online'] += 1
                 else:
@@ -88,6 +85,7 @@ class GameDiscordService:
 
         return answer
 
+    @DeprecationWarning
     async def runIncreaseGameRelationForEveryone(self):
         database = Database()
 

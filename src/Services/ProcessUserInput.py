@@ -349,9 +349,9 @@ class ProcessUserInput:
         if type == "games":
             logger.debug("leaderboard for games")
 
-            answer = "------------------------\n"
-            answer += "__**Leaderboard - Games**__\n"
-            answer += "------------------------\n\n"
+            answer = "---------------------------\n"
+            answer += "__**Leaderboard - Activities**__\n"
+            answer += "---------------------------\n\n"
             answer += self.gameDiscordService.getMostPlayedGamesForLeaderboard(limit=10)
 
             return answer
