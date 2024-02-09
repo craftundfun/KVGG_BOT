@@ -8,5 +8,6 @@ python-dateutil>=2.8.2
 discord.py>=2.3.2
 discord.py[voice]
 levenshtein
+matplotlib
 fastapi
 uvicorn
