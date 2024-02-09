@@ -17,7 +17,7 @@ def run_server():
 
 
 @app.get("/backend/discord/plots/{name}")
-def read_root(name: str):
+def get_plot(name: str):
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():
