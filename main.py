@@ -4,6 +4,7 @@ import logging.handlers
 import os
 import os.path
 import sys
+import threading
 import time
 from typing import Any
 
@@ -13,7 +14,9 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice
+from discord.ext import commands as discordCommands
 
+from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper import ReadParameters
@@ -83,6 +86,10 @@ class MyClient(discord.Client):
         self.quotesManager = QuotesManager(self)
         self.processUserInput = ProcessUserInput(self)
         self.databaseRefreshService = DatabaseRefreshService(self)
+
+        thread = threading.Thread(target=FastAPI.run_server)
+        thread.daemon = True
+        thread.start()
 
     async def on_member_join(self, member: Member):
         """
@@ -955,6 +962,14 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def listQuests(ctx: discord.interactions.Interaction):
     await commandService.runCommand(Commands.LIST_QUESTS, ctx, member=ctx.user)
+
+
+@tree.command(name="experimental_leaderboard",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+@discordCommands.has_role("Administrator")
+@discordCommands.has_role("Moderator/innen")
+async def experimentalLeaderboard(ctx: discord.interactions.Interaction):
+    await commandService.runCommand(Commands.EXPERIMENTAL_LEADERBOARD, ctx)
 
 
 restartTrys = 5

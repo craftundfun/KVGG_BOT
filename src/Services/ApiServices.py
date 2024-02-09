@@ -1,8 +1,7 @@
 import json
 import logging
-from io import BytesIO
+from pathlib import Path
 
-import discord
 import httpx
 import requests
 
@@ -13,6 +12,7 @@ logger = logging.getLogger("KVGG_BOT")
 
 class ApiServices:
     url = "https://api.api-ninjas.com/v1/"
+    basepath = Path(__file__).parent.parent.parent
 
     def __init__(self):
         self.apiKey = getParameter(Parameters.API_KEY)
@@ -130,7 +130,7 @@ class ApiServices:
         return "%s %s sind %s %s." % (
             data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
 
-    async def generateQRCode(self, text: str) -> discord.File | str:
+    async def generateQRCode(self, text: str) -> Path | str:
         """
         Generates a QRCode from the given text
 
@@ -160,4 +160,14 @@ class ApiServices:
 
         logger.debug("retrieved data successfully")
 
-        return discord.File(BytesIO(answer.content), filename="qrcode.png")
+        path: Path = self.basepath.joinpath(f"data/qrcode/qrcode.png")
+
+        try:
+            with open(path, 'wb') as file:
+                file.write(answer.content)
+        except Exception as error:
+            logger.error("couldn't write qrcode content to file", exc_info=error)
+
+            return "Es ist ein Problem aufgetreten!"
+
+        return path

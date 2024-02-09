@@ -1,16 +1,27 @@
+import logging
 from datetime import datetime
+from enum import Enum
 
 import discord.ui
 
 from src.Id.GuildId import GuildId
 
+logger = logging.getLogger("API")
+
+
+class PaginationViewDataTypes(Enum):
+    TEXT = "str"
+    PICTURE = "url"
+
 
 class PaginationViewDataItem:
     field_name: str
     field_value: str
+    data_type: PaginationViewDataTypes
 
-    def __init__(self, field_name: str, field_value: str = ""):
+    def __init__(self, field_name: str, data_type: PaginationViewDataTypes, field_value: str = ""):
         self.field_name = field_name
+        self.data_type = data_type
         self.field_value = field_value
 
 
@@ -151,6 +162,12 @@ class PaginationView:
             embed.set_footer(text=f"KVGG")
 
         for item in data:
-            embed.add_field(name=item.field_name, value=item.field_value)
+            match item.data_type:
+                case PaginationViewDataTypes.TEXT:
+                    embed.add_field(name=item.field_name, value=item.field_value)
+                case PaginationViewDataTypes.PICTURE:
+                    embed.set_image(url=item.field_value)
+                case _:
+                    logger.error("unknown item type encountered")
 
         return embed

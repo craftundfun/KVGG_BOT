@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import discord
 from discord import Client
@@ -14,6 +15,7 @@ logger = logging.getLogger("KVGG_BOT")
 
 
 class GameDiscordService:
+    basepath = Path(__file__).parent.parent.parent
 
     def __init__(self, client: Client):
         self.client = client
@@ -56,14 +58,8 @@ class GameDiscordService:
 
                 continue
 
-    def getMostPlayedGamesForLeaderboard(self, limit: int = 3) -> str:
-        """
-        Returns the most played games sorted by time_played and returns a string to use it in the leaderboard
-
-        :param limit: Optional limit to receive more than three results
-        """
+    def getMostPlayedGames(self, limit: int = 3) -> list[dict] | None:
         database = Database()
-        answer = ""
         query = ("SELECT dg.name, SUM(gdm.time_played_online) + SUM(gdm.time_played_offline) AS time_played "
                  "FROM discord_game dg JOIN game_discord_mapping gdm ON dg.id = gdm.discord_game_id "
                  "GROUP BY gdm.discord_game_id "
@@ -73,9 +69,23 @@ class GameDiscordService:
         if not (games := database.fetchAllResults(query, (limit,))):
             logger.error("couldn't fetch any most played games from the database")
 
-            return "Es gab einen Fehler"
+            return None
 
         logger.debug("fetched most played games")
+
+        return games
+
+    def getMostPlayedGamesForLeaderboard(self, limit: int = 3) -> str:
+        """
+        Returns the most played games sorted by time_played and returns a string to use it in the leaderboard
+
+        :param limit: Optional limit to receive more than three results
+        """
+        answer = ""
+        games = self.getMostPlayedGames(limit)
+
+        if not games:
+            return "Es gab einen Fehler!"
 
         for index, game in enumerate(games, 1):
             answer += f"\t{index}: {game['name']} - {getFormattedTime(game['time_played'])} Stunden\n"
