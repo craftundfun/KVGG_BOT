@@ -1,6 +1,7 @@
 import inspect
 import logging
 from enum import Enum
+from pathlib import Path
 
 import discord.interactions
 from discord import HTTPException, InteractionResponded, Client
@@ -11,6 +12,7 @@ from src.Manager.QuotesManager import QuotesManager
 from src.Services.ApiServices import ApiServices
 from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
+from src.Services.LeaderboardService import LeaderboardService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.ReminderService import ReminderService
@@ -61,6 +63,7 @@ class Commands(Enum):
     CREATE_COUNTER = 35
     LIST_COUNTERS = 36
     CREATE_TIMER = 37
+    EXPERIMENTAL_LEADERBOARD = 38
 
 
 class CommandService:
@@ -122,9 +125,9 @@ class CommandService:
             logger.error("failure to start ProcessUserInput", exc_info=error)
 
         try:
-            # special case for QR-Codes
-            if isinstance(answer, discord.File):
-                await ctx.followup.send(file=answer)
+            # special case for images
+            if isinstance(answer, Path):
+                await ctx.followup.send(file=discord.File(answer))
             else:
                 for part in splitStringAtMaxLength(answer):
                     await ctx.followup.send(part)
@@ -266,6 +269,19 @@ class CommandService:
             case Commands.CREATE_TIMER:
                 function = self.reminderService.createTimer
 
+            case Commands.EXPERIMENTAL_LEADERBOARD:
+                data = LeaderboardService(self.client).getLeaderboard()
+
+                await PaginationView(
+                    ctx=interaction,
+                    data=data,
+                    client=self.client,
+                    title="Leaderboard",
+                    defer=False,
+                    seperator=1,
+                ).send()
+
+                function = "Pagination-View"
             case _:
                 logger.error("undefined enum entry was reached!")
 

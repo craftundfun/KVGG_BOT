@@ -30,7 +30,7 @@ def getDiscordGame(database: Database, activityName: str) -> dict | None:
 
     for name in names:
         # if the name is similar enough
-        if Levenshtein.distance(activityName, name['name'], score_cutoff=2) <= 2:
+        if Levenshtein.distance(activityName.lower(), name['name'].lower(), score_cutoff=2) <= 2:
             gameId = name['id']
 
             logger.debug(f"found game without exact name: {activityName} and {name['name']}")
