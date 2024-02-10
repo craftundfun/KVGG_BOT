@@ -53,9 +53,6 @@ class BackgroundServices(commands.Cog):
         self.minutely.start()
         logger.info("minutely-job started")
 
-        # self.runAnniversary.start()
-        # logger.info("anniversary-job started")
-
         self.refreshQuests.start()
         logger.info("refresh-quest-job started")
 
