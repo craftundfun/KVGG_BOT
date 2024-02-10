@@ -306,6 +306,7 @@ class ProcessUserInput:
         else:
             return time.getStringForTime(dcUserDb)
 
+    @DeprecationWarning
     async def sendLeaderboard(self, member: Member, type: str | None) -> string:
         """
         Returns the leaderboard of our stats in the database

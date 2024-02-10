@@ -22,6 +22,7 @@ logger = logging.getLogger("KVGG_BOT")
 class LeaderboardImageNames(Enum):
     ACTIVITIES = "top_5_activities.png"
     RELATIONS = "top_5_relations.png"
+    ONLINE_AND_STREAM = "top_5_online_stream.png"
 
     @classmethod
     def getNameForImage(cls, imageName: "LeaderboardImageNames"):
@@ -49,6 +50,9 @@ class LeaderboardService:
         availablePlots = []
         data = []
 
+        if self.createTopOnlineAndStreamDiagram():
+            availablePlots.append(LeaderboardImageNames.ONLINE_AND_STREAM)
+
         if self.createTopRelationDiagram():
             availablePlots.append(LeaderboardImageNames.RELATIONS)
 
@@ -65,7 +69,141 @@ class LeaderboardService:
                 )
             )
 
-        return data
+        return data if data else [PaginationViewDataItem(
+            field_name="FEHLER",
+            data_type=PaginationViewDataTypes.TEXT,
+        )]
+
+    def _createDoubleBarDiagram(self,
+                                firstBarValues: list[int],
+                                secondBarValues: list[int],
+                                firstBarLabel: str,
+                                secondBarLabel: str,
+                                namesOfFirstBar: list[str],
+                                namesOfSecondBar: list[str],
+                                title: str,
+                                path: LeaderboardImageNames,
+                                countOfEntries: int = 5):
+        # prepare usernames to fit in the bars
+        xLabelsFirstBar = [textwrap.fill(item, 30) for item in namesOfFirstBar]
+        xLabelsSecondBar = [textwrap.fill(item, 30) for item in namesOfSecondBar]
+
+        # create plot
+        fig, ax = plt.subplots()
+        bar_width = 0.4
+
+        # add bars
+        ax.bar(np.arange(len(firstBarValues)),
+               firstBarValues,
+               width=bar_width,
+               color=Colors.MAIN.value,
+               label=firstBarLabel)
+        ax.bar(np.arange(len(secondBarValues)) + bar_width,
+               secondBarValues,
+               width=bar_width,
+               color=Colors.SECONDARY_MAIN.value,
+               label=secondBarLabel)
+
+        # set things
+        ax.set_ylabel('Stunden', labelpad=8)
+        ax.set_title(title)
+
+        # empty x-ticks to insert our values into the bars
+        plt.gca().set_xticks([])
+        plt.gca().set_xticklabels([])
+
+        for i, label in enumerate(xLabelsFirstBar):
+            plt.text(x=i,
+                     y=max(firstBarValues) * .05,
+                     s=xLabelsFirstBar[i],
+                     ha='center',
+                     fontsize=12,
+                     color='white',
+                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
+                     rotation=90, )
+
+        for i, label in enumerate(xLabelsSecondBar):
+            plt.text(x=i + 0.4,
+                     # use online values here to have the texts on the same height
+                     y=max(firstBarValues) * .05,
+                     s=xLabelsSecondBar[i],
+                     ha='center',
+                     fontsize=12,
+                     color='white',
+                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
+                     rotation=90, )
+
+        for i in range(countOfEntries):
+            plt.text(x=i,
+                     y=-max(firstBarValues) * .05,
+                     s=f"Platz {i + 1}.",
+                     color='black', )
+
+        # extract the y-labels from the graph
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+
+        # calculate hours from minutes to display
+        for i in range(len(labels)):
+            labels[i] = getFormattedTime(int(labels[i]))
+
+        # insert values next to y-axis
+        ax.set_yticklabels(labels)
+
+        # show legend in the top right corner
+        ax.legend()
+
+        # adjust positioning
+        plt.subplots_adjust(left=0.15, right=0.95, top=0.90, bottom=0.1)
+
+        savePath: Path = self.basepath.joinpath(f"data/plots/{path.value}")
+
+        # save to disk
+        plt.savefig(savePath, dpi=250)
+
+    def createTopOnlineAndStreamDiagram(self) -> bool:
+        logger.debug("creating TopOnlineAndStreamDiagram")
+
+        countOfUsers = 5
+        database = Database()
+
+        query = ("SELECT username, time_online AS value "
+                 "FROM discord "
+                 "WHERE time_online IS NOT NULL "
+                 "ORDER BY time_online DESC "
+                 "LIMIT %s")
+
+        if not (onlineUsers := database.fetchAllResults(query, (countOfUsers,))):
+            logger.error("couldn't fetch data for top online users")
+
+            return False
+
+        query = ("SELECT username, time_streamed AS value "
+                 "FROM discord "
+                 "WHERE time_online IS NOT NULL "
+                 "ORDER BY time_streamed DESC "
+                 "LIMIT %s")
+
+        if not (streamUsers := database.fetchAllResults(query, (countOfUsers,))):
+            logger.error("couldn't fetch data for top stream users")
+
+            return False
+
+        # extracting the values
+        onlineValues = [user['value'] for user in onlineUsers]
+        onlineValues.sort(reverse=True)
+        streamValues = [user['value'] for user in streamUsers]
+        streamValues.sort(reverse=True)
+
+        self._createDoubleBarDiagram(onlineValues,
+                                     streamValues,
+                                     "Online",
+                                     "Stream",
+                                     [user['username'] for user in onlineUsers],
+                                     [user['username'] for user in streamUsers],
+                                     "Online- und Stream-Zeit",
+                                     LeaderboardImageNames.ONLINE_AND_STREAM)
+
+        return True
 
     def createTopRelationDiagram(self) -> bool:
         """
@@ -84,7 +222,6 @@ class LeaderboardService:
                  "ORDER BY dur.value DESC "
                  "LIMIT %s")
         database = Database()
-        path: Path = self.basepath.joinpath(f"data/plots/{LeaderboardImageNames.RELATIONS.value}")
 
         if not (onlineRelations := database.fetchAllResults(query, (RelationTypeEnum.ONLINE.value, countOfRelations,))):
             logger.error("couldn't fetch onlineRelations")
@@ -102,69 +239,16 @@ class LeaderboardService:
         streamValues = [relation['value'] for relation in streamRelations]
         streamValues.sort(reverse=True)
 
-        # prepare usernames to fit in the bars
-        xLabelsOnline = [textwrap.fill(f"{relation['username_1']} & {relation['username_2']}", 30)
-                         for relation in onlineRelations]
-        xLabelsStream = [textwrap.fill(f"{relation['username_1']} & {relation['username_2']}", 30)
-                         for relation in streamRelations]
-
-        # create plot
-        fig, ax = plt.subplots()
-        bar_width = 0.4
-
-        # add bars
-        ax.bar(np.arange(len(onlineValues)), onlineValues, width=bar_width, color=Colors.MAIN.value, label='Online')
-        ax.bar(np.arange(len(streamValues)) + bar_width, streamValues, width=bar_width,
-               color=Colors.SECONDARY_MAIN.value,
-               label='Stream')
-
-        # set things
-        ax.set_ylabel('Stunden', labelpad=8)
-        ax.set_title('Online- und Stream-Relationen')
-
-        # empty x-ticks to insert our values into the bars
-        plt.gca().set_xticks([])
-        plt.gca().set_xticklabels([])
-
-        for i, label in enumerate(xLabelsOnline):
-            plt.text(x=i,
-                     y=max(onlineValues) * .05,
-                     s=xLabelsOnline[i],
-                     ha='center',
-                     fontsize=12,
-                     color='white',
-                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
-                     rotation=90, )
-
-        for i, label in enumerate(xLabelsStream):
-            plt.text(x=i + 0.4,
-                     # use online values here to have the texts on the same height
-                     y=max(onlineValues) * .05,
-                     s=xLabelsStream[i],
-                     ha='center',
-                     fontsize=12,
-                     color='white',
-                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
-                     rotation=90, )
-
-        # extract the y-labels from the graph
-        labels = [item.get_text() for item in ax.get_yticklabels()]
-
-        # calculate hours from minutes to dispay
-        for i in range(len(labels)):
-            labels[i] = getFormattedTime(int(labels[i]))
-
-        # insert values next to y-axis
-        ax.set_yticklabels(labels)
-
-        # show legend in the top right corner
-        ax.legend()
-
-        # adjust positioning
-        plt.subplots_adjust(left=0.15, right=0.95, top=0.90, bottom=0.1)
-
-        # save to disk
-        plt.savefig(path, dpi=250)
+        self._createDoubleBarDiagram(onlineValues,
+                                     streamValues,
+                                     "Online",
+                                     "Stream",
+                                     [f"{relation['username_1']} & {relation['username_2']}" for relation in
+                                      onlineRelations],
+                                     [f"{relation['username_1']} & {relation['username_2']}" for relation in
+                                      streamRelations],
+                                     "Online- und Stream-Relationen",
+                                     LeaderboardImageNames.RELATIONS)
 
         return True
 
