@@ -19,7 +19,10 @@ class PaginationViewDataItem:
     field_value: str
     data_type: PaginationViewDataTypes
 
-    def __init__(self, field_name: str, data_type: PaginationViewDataTypes, field_value: str = ""):
+    def __init__(self,
+                 field_name: str,
+                 data_type: PaginationViewDataTypes = PaginationViewDataTypes.TEXT,
+                 field_value: str = ""):
         self.field_name = field_name
         self.data_type = data_type
         self.field_value = field_value
@@ -42,7 +45,7 @@ class PaginationView:
         self.member = ctx.user
         self.data = data
         self.ctx = ctx
-        self.view = discord.ui.View(timeout=20.0)
+        self.view = discord.ui.View(timeout=60)
         self.client = client
 
         if self.seperator > 1:
