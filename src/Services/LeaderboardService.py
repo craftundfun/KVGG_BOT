@@ -1,4 +1,5 @@
 import logging
+import random
 import textwrap
 from enum import Enum
 from pathlib import Path
@@ -59,7 +60,7 @@ class LeaderboardService:
                 PaginationViewDataItem(
                     field_name=LeaderboardImageNames.getNameForImage(plot),
                     data_type=PaginationViewDataTypes.PICTURE,
-                    field_value=self.url + plot.value,
+                    field_value=self.url + plot.value + f"/{random.randint(0, 10000000000)}",
                 )
             )
 
