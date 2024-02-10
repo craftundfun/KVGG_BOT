@@ -30,7 +30,9 @@ class LeaderboardImageNames(Enum):
             case LeaderboardImageNames.ACTIVITIES:
                 return "Aktivitäten"
             case LeaderboardImageNames.RELATIONS:
-                return "Relationen"
+                return "Online- und Stream-Relationen"
+            case LeaderboardImageNames.ONLINE_AND_STREAM:
+                return "Online- und Stream-Zeit"
             case _:
                 logger.error(f"Unknown image name: {imageName}")
 
