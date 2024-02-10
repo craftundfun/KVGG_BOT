@@ -24,6 +24,12 @@ class PaginationViewDataItem:
         self.data_type = data_type
         self.field_value = field_value
 
+    def __repr__(self):
+        return self.field_name
+
+    def __str__(self):
+        return self.field_name
+
 
 class PaginationView:
     current_page: int = 1
@@ -38,7 +44,12 @@ class PaginationView:
         self.ctx = ctx
         self.view = discord.ui.View(timeout=20.0)
         self.client = client
-        self.last_page = int(len(self.data) / self.seperator) + 1
+
+        if self.seperator > 1:
+            self.last_page = int(len(self.data) / self.seperator) + 1
+        else:
+            self.last_page = len(self.data)
+
         self.is_paginated = len(self.data) > self.seperator
         self.defer = defer
 

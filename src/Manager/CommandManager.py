@@ -270,7 +270,9 @@ class CommandService:
                 function = self.reminderService.createTimer
 
             case Commands.EXPERIMENTAL_LEADERBOARD:
-                data = LeaderboardService(self.client).getLeaderboard()
+                data = await LeaderboardService(self.client).getLeaderboard()
+
+                print("len", len(data))
 
                 await PaginationView(
                     ctx=interaction,
