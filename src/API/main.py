@@ -23,14 +23,15 @@ def run_server():
 
 @app.get("/backend/discord/plots/{name}/{random}")
 def get_plot(name: str, random):
+    """
+    Returns the given image
+
+    :param name: Name of the picture to export
+    :param random: Random number to avoid discord caching => ignore it
+    """
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():
         return JSONResponse(status_code=404, content={"message": f"{name} plot not found"})
 
     return FileResponse(path, media_type="image/png")
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello World"}

@@ -69,7 +69,7 @@ class PaginationView:
                 first_page_button.disabled = False
                 previous_button.disabled = False
 
-            if self.current_page == len(self.data) // self.seperator + 1:
+            if self.current_page == (len(self.data) // self.seperator + 1 if self.seperator > 1 else len(self.data)):
                 next_button.disabled = True
                 last_page_button.disabled = True
             else:

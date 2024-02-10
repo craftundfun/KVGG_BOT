@@ -63,7 +63,6 @@ class Commands(Enum):
     CREATE_COUNTER = 35
     LIST_COUNTERS = 36
     CREATE_TIMER = 37
-    EXPERIMENTAL_LEADERBOARD = 38
 
 
 class CommandService:
@@ -173,7 +172,18 @@ class CommandService:
                 function = self.userSettings.manageWhatsAppSettings
 
             case Commands.LEADERBOARD:
-                function = self.userInputService.sendLeaderboard
+                data = await LeaderboardService(self.client).getLeaderboard()
+
+                await PaginationView(
+                    ctx=interaction,
+                    data=data,
+                    client=self.client,
+                    title="Leaderboard",
+                    defer=False,
+                    seperator=1,
+                ).send()
+
+                function = "Pagination-View"
 
             case Commands.REGISTRATION:
                 function = self.userInputService.sendRegistrationLink
@@ -269,21 +279,6 @@ class CommandService:
             case Commands.CREATE_TIMER:
                 function = self.reminderService.createTimer
 
-            case Commands.EXPERIMENTAL_LEADERBOARD:
-                data = await LeaderboardService(self.client).getLeaderboard()
-
-                print("len", len(data))
-
-                await PaginationView(
-                    ctx=interaction,
-                    data=data,
-                    client=self.client,
-                    title="Leaderboard",
-                    defer=False,
-                    seperator=1,
-                ).send()
-
-                function = "Pagination-View"
             case _:
                 logger.error("undefined enum entry was reached!")
 
