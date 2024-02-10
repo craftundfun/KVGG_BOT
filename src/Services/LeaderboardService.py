@@ -195,24 +195,11 @@ class LeaderboardService:
         # sort games and values descending
         gameNames, values = zip(*sorted(zip(gameNames, values), key=lambda x: x[1], reverse=True))
 
-        yTicks = [0]
-        maxValue = max(values)
-        stepSize = maxValue // countOfGames
-        stepSizeBefore = 0
-        yTickLabels = []
-
-        # calculate steps of the y-axis
-        for _ in range(countOfGames):
-            stepSizeBefore += stepSize
-            yTicks.append(int(stepSizeBefore))
-
-        for yTick in yTicks:
-            yTickLabels.append(getFormattedTime(yTick))
-
         # prepare text for the x-axis
         xLabels = [textwrap.fill(xLabel[:40], 10) for xLabel in list(gameNames)]
 
-        plt.figure(dpi=250)
+        fig, ax = plt.subplots()
+
         plt.bar(gameNames,
                 values,
                 color=Colors.MAIN.value, )
@@ -220,15 +207,8 @@ class LeaderboardService:
         plt.ylabel("Stunden", labelpad=42)
         plt.title(f"Top {countOfGames} Aktivitäten")
 
-        plt.gca().set_yticks(yTicks)
-        plt.gca().set_yticklabels([])
         plt.gca().set_xticks(gameNames)
         plt.gca().set_xticklabels([])
-
-        # add labels manually => otherwise type incompatibility
-        for i, label in enumerate(yTickLabels):
-            # for x placement: -1.5 * countOfGames * (0.15 - (0.025 * (countOfGames // 5)))
-            plt.text(-1, yTicks[i], label, ha="center", va="center", fontsize=8)
 
         # add labels manually to have them in the bar
         for i, label in enumerate(xLabels):
@@ -241,7 +221,22 @@ class LeaderboardService:
                      color='white',
                      path_effects=[pe.withStroke(linewidth=1.5, foreground='black')])
 
+        # extract the y-labels from the graph
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+
+        # calculate hours from minutes to display
+        for i in range(len(labels)):
+            try:
+                labels[i] = getFormattedTime(int(labels[i]))
+            except ValueError:
+                logger.warning("encountered ValueError, inserting default value")
+
+                labels[i] = 0
+
+        # insert values next to y-axis
+        ax.set_yticklabels(labels)
+
         plt.subplots_adjust(left=0.15, right=0.95, top=0.90, bottom=0.1)
-        plt.savefig(path)
+        plt.savefig(path, dpi=250)
 
         return True
