@@ -49,11 +49,11 @@ class LeaderboardService:
         availablePlots = []
         data = []
 
-        if self.createTopGamesDiagram():
-            availablePlots.append(LeaderboardImageNames.ACTIVITIES)
-
         if self.createTopRelationDiagram():
             availablePlots.append(LeaderboardImageNames.RELATIONS)
+
+        if self.createTopGamesDiagram():
+            availablePlots.append(LeaderboardImageNames.ACTIVITIES)
 
         for plot in availablePlots:
             data.append(
@@ -65,11 +65,14 @@ class LeaderboardService:
                 )
             )
 
-        print("data", data)
-
         return data
 
     def createTopRelationDiagram(self) -> bool:
+        """
+        Creates the plot with the current data from the database
+
+        :return: Success or failure
+        """
         logger.debug("creating TopRelationDiagram")
 
         countOfRelations = 5
@@ -93,44 +96,35 @@ class LeaderboardService:
 
             return False
 
+        # extracting the values
         onlineValues = [relation['value'] for relation in onlineRelations]
         onlineValues.sort(reverse=True)
         streamValues = [relation['value'] for relation in streamRelations]
         streamValues.sort(reverse=True)
 
-        yTicks = [0]
-        maxValue = max(onlineValues)
-        stepSize = maxValue // countOfRelations
-        stepSizeBefore = 0
-        yTickLabels = []
-
-        # calculate steps of the y-axis
-        for _ in range(countOfRelations):
-            stepSizeBefore += stepSize
-            yTicks.append(int(stepSizeBefore))
-
-        for yTick in yTicks:
-            yTickLabels.append(getFormattedTime(yTick))
-
+        # prepare usernames to fit in the bars
         xLabelsOnline = [textwrap.fill(f"{relation['username_1']} & {relation['username_2']}", 30)
                          for relation in onlineRelations]
         xLabelsStream = [textwrap.fill(f"{relation['username_1']} & {relation['username_2']}", 30)
                          for relation in streamRelations]
 
+        # create plot
+        fig, ax = plt.subplots()
         bar_width = 0.4
 
-        fig, ax = plt.subplots()
-
+        # add bars
         ax.bar(np.arange(len(onlineValues)), onlineValues, width=bar_width, color=Colors.MAIN.value, label='Online')
         ax.bar(np.arange(len(streamValues)) + bar_width, streamValues, width=bar_width,
                color=Colors.SECONDARY_MAIN.value,
                label='Stream')
+
+        # set things
         ax.set_ylabel('Stunden', labelpad=8)
         ax.set_title('Online- und Stream-Relationen')
 
+        # empty x-ticks to insert our values into the bars
         plt.gca().set_xticks([])
         plt.gca().set_xticklabels([])
-        # plt.gca().set_yticklabels([])
 
         for i, label in enumerate(xLabelsOnline):
             plt.text(x=i,
@@ -153,20 +147,33 @@ class LeaderboardService:
                      path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
                      rotation=90, )
 
+        # extract the y-labels from the graph
         labels = [item.get_text() for item in ax.get_yticklabels()]
 
+        # calculate hours from minutes to dispay
         for i in range(len(labels)):
             labels[i] = getFormattedTime(int(labels[i]))
 
+        # insert values next to y-axis
         ax.set_yticklabels(labels)
+
+        # show legend in the top right corner
         ax.legend()
+
+        # adjust positioning
         plt.subplots_adjust(left=0.15, right=0.95, top=0.90, bottom=0.1)
 
-        plt.savefig(path, dpi=500)
+        # save to disk
+        plt.savefig(path, dpi=250)
 
         return True
 
     def createTopGamesDiagram(self) -> bool:
+        """
+        Creates the plot with the current data from the database
+
+        :return: Success or failure
+        """
         logger.debug("creating TopGamesDiagram")
 
         countOfGames = 5
@@ -185,7 +192,7 @@ class LeaderboardService:
             gameNames.append(game['name'])
             values.append(int(game['time_played']))
 
-        # sort games and values
+        # sort games and values descending
         gameNames, values = zip(*sorted(zip(gameNames, values), key=lambda x: x[1], reverse=True))
 
         yTicks = [0]

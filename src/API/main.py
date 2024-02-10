@@ -35,8 +35,3 @@ def get_plot(name: str, random):
         return JSONResponse(status_code=404, content={"message": f"{name} plot not found"})
 
     return FileResponse(path, media_type="image/png")
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Hello World"}
