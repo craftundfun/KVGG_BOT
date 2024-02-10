@@ -13,7 +13,11 @@ basepath = Path(__file__).parent.parent.parent
 def run_server():
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app,
+                host="0.0.0.0",
+                port=8000,
+                ssl_certfile=basepath.joinpath("Web/selfsigned.crt"),
+                ssl_keyfile=basepath.joinpath("Web/selfsigned.key").absolute().as_posix())
 
 
 @app.get("/backend/discord/plots/{name}")
