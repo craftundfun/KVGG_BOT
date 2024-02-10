@@ -60,6 +60,7 @@ class LeaderboardService:
                 PaginationViewDataItem(
                     field_name=LeaderboardImageNames.getNameForImage(plot),
                     data_type=PaginationViewDataTypes.PICTURE,
+                    # add random number to URL to avoid discords image caching, lol
                     field_value=self.url + plot.value + f"/{random.randint(0, 10000000000)}",
                 )
             )
