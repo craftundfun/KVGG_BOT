@@ -21,8 +21,8 @@ def run_server():
                 ssl_keyfile=basepath.joinpath("Web/selfsigned.key").absolute().as_posix())
 
 
-@app.get("/backend/discord/plots/{name}")
-def get_plot(name: str):
+@app.get("/backend/discord/plots/{name}/{random}")
+def get_plot(name: str, random):
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():
