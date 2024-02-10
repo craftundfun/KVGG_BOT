@@ -27,7 +27,7 @@ def get_plot(name: str, random):
     Returns the given image
 
     :param name: Name of the picture to export
-    :param random: Random number to avoid discord caching
+    :param random: Random number to avoid discord caching => ignore it
     """
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
