@@ -5,6 +5,7 @@ COPY main.py .
 COPY data ./data
 COPY src ./src
 COPY parameters.yaml .
+COPY Web ./Web
 
 RUN apt-get update && apt-get install -y ffmpeg
 RUN pip install -r requirements.txt

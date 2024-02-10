@@ -13,6 +13,7 @@ basepath = Path(__file__).parent.parent.parent
 def run_server():
     import uvicorn
 
+    # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-22-04
     uvicorn.run(app,
                 host="0.0.0.0",
                 port=8000,
