@@ -181,7 +181,6 @@ class CommandService:
                     title="Leaderboard",
                     defer=False,
                     seperator=1,
-
                 ).send()
 
                 function = "Pagination-View"
