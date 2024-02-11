@@ -10,6 +10,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
+from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -20,7 +21,9 @@ class GameDiscordService:
     def __init__(self, client: Client):
         self.client = client
 
-    def increaseGameRelationsForMember(self, member: Member, database: Database):
+        self.questService = QuestService(self.client)
+
+    async def increaseGameRelationsForMember(self, member: Member, database: Database):
         """
         Increases the value of all current activities from the given member.
 
@@ -41,6 +44,8 @@ class GameDiscordService:
             if relation := getGameDiscordRelation(database, member, activity.name):
                 if member.voice:
                     relation['time_played_online'] += 1
+
+                    await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
                 else:
                     relation['time_played_offline'] += 1
 
