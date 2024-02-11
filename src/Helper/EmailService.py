@@ -40,7 +40,7 @@ def send_exception_mail(message: str):
             with smtplib.SMTP_SSL(getParameter(param.EMAIL_HOST), getParameter(param.PORT)) as server:
                 server.login(getParameter(param.EMAIL_USER), getParameter(param.EMAIL_PASSWORD))
                 server.send_message(email)
-        except (Exception, smtplib.SMTPException) as e:
-            logger.critical(f"Failed to send the mail to {exception_recipient}: {str(e)}")
+        except Exception as error:
+            print("An error occurred while sending an email!\n", error)
 
             continue
