@@ -35,6 +35,8 @@ class DatabaseRefreshService:
         dcUsersDb = database.fetchAllResults(query)
 
         if dcUsersDb is None:
+            logger.error("couldn't fetch DiscordUsers")
+            
             return
 
         logger.debug("compare database against discord")
@@ -105,6 +107,7 @@ class DatabaseRefreshService:
                 user['id'],
                 user,
             )
+            
             if not database.runQueryOnDatabase(query, nones):
                 logger.critical("couldn't save changes to database")
 
