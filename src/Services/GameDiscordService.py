@@ -5,8 +5,10 @@ import discord
 from discord import Client
 from discord import Member
 
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
@@ -22,6 +24,7 @@ class GameDiscordService:
         self.client = client
 
         self.questService = QuestService(self.client)
+        self.statisticManager = StatisticManager(self.client)
 
     async def increaseGameRelationsForMember(self, member: Member, database: Database):
         """
@@ -46,6 +49,7 @@ class GameDiscordService:
                     relation['time_played_online'] += 1
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
+                    self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member)
                 else:
                     relation['time_played_offline'] += 1
 

@@ -47,7 +47,7 @@ class StatisticManager:
 
             # only create statistic log if the type is online
             if data['statistic_type'] == StatisticsParameter.ONLINE.value and data['value'] > 0:
-                if not database.runQueryOnDatabase(insertQuery,(data['value'], time, data['discord_id'], now)):
+                if not database.runQueryOnDatabase(insertQuery, (data['value'], time, data['discord_id'], now)):
                     logger.error(f"couldn't insert statistics for DiscordID: {data['discord_id']}")
 
                 listOfInsertedUsers.append(data['discord_id'])
@@ -146,15 +146,27 @@ class StatisticManager:
             streamStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.STREAM, member))
             messageStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.MESSAGE, member))
             commandStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.COMMAND, member))
+            activityStatistic = getStatisticForTime(
+                getStatisticsForUser(database, StatisticsParameter.ACTIVITY, member)
+            )
 
             # if the user has no statistics in any field
-            if not onlineStatistic and not streamStatistic and not messageStatistic and not commandStatistic:
+            if (not onlineStatistic
+                    and not streamStatistic
+                    and not messageStatistic
+                    and not commandStatistic
+                    and not activityStatistic
+            ):
                 logger.debug(f"{member.display_name} has no statistics this {time.value}")
 
                 continue
             # if the statistics were created but are all zero
-            elif (onlineStatistic['value'] == 0 and streamStatistic['value'] == 0
-                  and messageStatistic['value'] == 0 and commandStatistic['value'] == 0):
+            elif (onlineStatistic['value'] == 0
+                  and streamStatistic['value'] == 0
+                  and messageStatistic['value'] == 0
+                  and commandStatistic['value'] == 0
+                  and activityStatistic['value'] == 0
+            ):
                 logger.debug(f"{member.display_name} has no real values")
 
                 continue
@@ -180,6 +192,10 @@ class StatisticManager:
             if streamStatistic and streamStatistic['value'] > 0:
                 message += (f"-\tDu hast insgesamt {getFormattedTime(streamStatistic['value'])} Stunden "
                             f"gestreamt.\n")
+
+            if activityStatistic and activityStatistic['value'] > 0:
+                message += (f"-\tDu hast {getFormattedTime(activityStatistic['value'])} Stunden gespielt oder "
+                            f"Programme genutzt.\n")
 
             if messageStatistic and messageStatistic['value'] > 0:
                 message += f"-\tDu hast ganze {messageStatistic['value']} Nachrichten verfasst.\n"
