@@ -12,3 +12,4 @@ class StatisticsParameter(Enum):
     STREAM = "stream"
     MESSAGE = "message"
     COMMAND = "command"
+    ACTIVITY = "activity"
