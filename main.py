@@ -606,6 +606,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     Choice(name=NotificationType.XP_INVENTORY_SETTING_NAME.value, value=NotificationType.XP_INVENTORY.value),
     Choice(name=NotificationType.STATUS_SETTING_NAME.value, value=NotificationType.STATUS.value),
     Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
+    Choice(name=NotificationType.XP_SPIN_SETTING_NAME.value, value=NotificationType.XP_SPIN.value),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[

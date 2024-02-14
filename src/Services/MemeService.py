@@ -34,8 +34,6 @@ class MemeService:
         :param message: Message that was written
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
-
         if message.channel.id != ChannelId.CHANNEL_MEMES.value:
             return
 
@@ -59,6 +57,7 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
+        database = Database()
         dcUserDb = getDiscordUser(message.author, database)
 
         if not dcUserDb:
@@ -68,6 +67,12 @@ class MemeService:
 
         if not database.runQueryOnDatabase(query, (message.id, dcUserDb['id'], datetime.now(),)):
             logger.error("couldn't save meme to database")
+
+            await self.notificationService.sendStatusReport(message.author,
+                                                            "Es gab einen Fehler dein Meme zu speichern! "
+                                                            "Bitte lade es später noch einmal hoch.")
+
+            return
         else:
             logger.debug("saved new meme to database")
 
@@ -83,7 +88,6 @@ class MemeService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database()
-
         query = "SELECT * FROM meme WHERE message_id = %s"
 
         if not (meme := database.fetchOneResult(query, (message.id,))):
@@ -105,7 +109,6 @@ class MemeService:
                 continue
 
         meme['likes'] = upvotes - downvotes
-
         query, nones = writeSaveQuery('meme', meme['id'], meme)
 
         if not database.runQueryOnDatabase(query, nones):
@@ -121,9 +124,12 @@ class MemeService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database()
-
-        query = "SELECT * FROM meme WHERE created_at > %s ORDER BY likes DESC LIMIT 1 OFFSET %s"
-
+        query = ("SELECT * "
+                 "FROM meme "
+                 "WHERE created_at > %s "
+                 "ORDER BY likes DESC "
+                 "LIMIT 1 "
+                 "OFFSET %s")
         lastMonth = datetime.now() - dateutil.relativedelta.relativedelta(months=1)
         firstOfMonthCorrectTime = lastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -132,16 +138,12 @@ class MemeService:
 
             return
 
-        channel = self.client.get_channel(ChannelId.CHANNEL_MEMES.value)
-
-        if not channel:
+        if not (channel := self.client.get_channel(ChannelId.CHANNEL_MEMES.value)):
             logger.error("couldn't fetch channel to get message")
 
             return
 
-        message = await channel.fetch_message(meme['message_id'])
-
-        if not message:
+        if not (message := await channel.fetch_message(meme['message_id'])):
             logger.error("couldn't fetch message from channel, trying next one")
 
             await self.chooseWinner(offset + 1)

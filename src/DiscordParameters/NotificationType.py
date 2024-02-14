@@ -1,4 +1,7 @@
+import logging
 from enum import Enum
+
+logger = logging.getLogger("KVGG_BOT")
 
 
 class NotificationType(Enum):
@@ -16,6 +19,9 @@ class NotificationType(Enum):
 
     XP_INVENTORY = "xp_inventory"
     XP_INVENTORY_SETTING_NAME = "XP-Inventar"
+
+    XP_SPIN = "xp_spin"
+    XP_SPIN_SETTING_NAME = "XP-Spin"
 
     STATUS = "status_report"
     STATUS_SETTING_NAME = "Statusmeldungen"
@@ -51,5 +57,10 @@ class NotificationType(Enum):
             case cls.RETROSPECT:
                 return cls.RETROSPECT_SETTING_NAME
 
+            case cls.XP_SPIN:
+                return cls.XP_SPIN_SETTING_NAME
+
             case _:
+                logger.error(f"undefined enum entry was reached: {settingType}")
+
                 return None
