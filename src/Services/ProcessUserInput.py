@@ -31,7 +31,7 @@ from src.Services.RelationService import RelationService, RelationTypeEnum
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
-SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+ARE_WE_IN_DOCKER = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 def getUserIdByTag(tag: string) -> int | None:
@@ -105,7 +105,7 @@ class ProcessUserInput:
         :param channel: Channel, where the interaction was used
         :param command: Whether the message was a command.
         If yes, the Quest won't be checked for a message.
-        :raise ConnectionError: If the database connection cant be established
+        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         logger.debug("increasing message-count for %s" % member.name)
@@ -113,32 +113,41 @@ class ProcessUserInput:
         database = Database()
         dcUserDb = getDiscordUser(member, database)
 
-        if dcUserDb is None:
-            logger.warning("couldn't fetch DiscordUser!")
+        if member.bot:
+            logger.debug(f"{member.display_name} was a bot")
 
             return
-        elif channel is None:
-            logger.warning("no channel provided")
+
+        if dcUserDb is None:
+            logger.error("couldn't fetch DiscordUser!")
+
+            return
+
+        if not channel:
+            logger.error("no channel provided")
 
             return
 
         # if we are in docker, don't count a message from the test environment
-        if channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value and SECRET_KEY:
+        if (channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value
+                or (not ARE_WE_IN_DOCKER and channel.id == ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)):
             logger.debug("can grant an increase of the message counter")
-
-            # message_count_all_time can be None -> None-safe operation
-            if dcUserDb['message_count_all_time']:
-                dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
-            else:
-                dcUserDb['message_count_all_time'] = 1
 
             if not command:
                 await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
                 self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member)
+                await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+
+                # message_count_all_time can be None -> None-safe operation
+                if dcUserDb['message_count_all_time']:
+                    dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
+                else:
+                    dcUserDb['message_count_all_time'] = 1
             else:
                 self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member)
 
-            await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+                # default is 0
+                dcUserDb['command_count_all_time'] += 1
 
         if self._saveDiscordUserToDatabase(dcUserDb, database):
             logger.debug("saved changes to database")
