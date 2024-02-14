@@ -11,7 +11,7 @@ from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
 from src.Repository.NotificationSettingRepository import getNotificationSettings
 from src.Services.Database import Database
-from src.Services.ExperienceService import ExperienceService, isDoubleWeekend
+from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -23,6 +23,8 @@ class NotificationService:
         :param client:
         """
         self.client = client
+
+        self.xpService = ExperienceService(self.client)
 
     async def _sendMessage(self, member: Member,
                            content: str,
@@ -234,14 +236,7 @@ class NotificationService:
 
         onlineTime: str | None = dcUserDb['formated_time']
         streamTime: str | None = dcUserDb['formatted_stream_time']
-
-        try:
-            xpService = ExperienceService(self.client)
-            xp: dict | None = xpService.getXpValue(dcUserDb)
-        except ConnectionError as error:
-            logger.error("failure to start ExperienceService", exc_info=error)
-
-            xp = None
+        xp: dict | None = self.xpService.getXpValue(dcUserDb)
 
         try:
             # circular import
@@ -368,3 +363,9 @@ class NotificationService:
         :param message: The message (status report) to send
         """
         await self._sendMessage(member, message, NotificationType.RETROSPECT)
+
+    async def sendXpSpinNotification(self, member: Member, message: str):
+        """
+        Checks and send the xp-spin reminder
+        """
+        await self._sendMessage(member, message, NotificationType.XP_SPIN)

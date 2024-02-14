@@ -11,6 +11,7 @@ from src.Manager.AchievementManager import AchievementService
 from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
+from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationService
 from src.Services.ReminderService import ReminderService
@@ -30,6 +31,7 @@ class MinutelyJobRunner:
         self.reminderService = ReminderService(self.client)
         self.relationService = RelationService(self.client)
         self.achievementService = AchievementService(self.client)
+        self.experienceService = ExperienceService(self.client)
 
     async def run(self):
         database = Database()
@@ -78,6 +80,10 @@ class MinutelyJobRunner:
         # check reminder
         await self.reminderService.manageReminders()
         logger.debug("ran reminder update")
+
+        # check xp-spin reminder
+        await self.experienceService.runExperienceReminder()
+        logger.debug("ran xp-spin reminder")
 
     async def _runAnniversaryCheck(self, member: Member):
         """

@@ -13,6 +13,7 @@ from discord import Client, Member
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
 from src.Services.Database import Database
@@ -38,6 +39,7 @@ class ExperienceService:
         :raise ConnectionError:
         """
         self.client = client
+
         self.achievementService = AchievementService(self.client)
 
     def _getDoubleXpWeekendInformation(self) -> string:
@@ -435,6 +437,8 @@ class ExperienceService:
 
             xp['xp_boosts_inventory'] = json.dumps(inventory)
             xp['last_spin_for_boost'] = datetime.now()
+            xp['time_to_send_spin_reminder'] = (datetime.now()
+                                                + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
             query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
@@ -457,7 +461,8 @@ class ExperienceService:
 
             days = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value
             xp['last_spin_for_boost'] = datetime.now()
-
+            xp['time_to_send_spin_reminder'] = (datetime.now()
+                                                + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
             query, nones = writeSaveQuery(
                 'experience',
                 xp['id'],
@@ -470,6 +475,51 @@ class ExperienceService:
                 logger.critical("couldn't save changes to database")
 
             return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
+
+    async def runExperienceReminder(self):
+        """
+        Searches the database for open xp-spin reminders and notifies the member
+        """
+        database = Database()
+        query = ("SELECT e.*, d.user_id "
+                 "FROM experience e INNER JOIN discord d ON d.id = e.discord_user_id "
+                 "WHERE e.time_to_send_spin_reminder IS NOT NULL "
+                 "AND e.time_to_send_spin_reminder <= SYSDATE()")
+
+        if not (xps := database.fetchAllResults(query)):
+            logger.debug("no xp-spin reminders to run")
+
+            return
+
+        if not (guild := self.client.get_guild(GuildId.GUILD_KVGG.value)):
+            logger.error("couldn't fetch guild")
+
+            return
+
+        # circular import
+        from src.Manager.NotificationManager import NotificationService
+
+        notificationService = NotificationService(self.client)
+
+        for xp in xps:
+            if not (member := guild.get_member(int(xp['user_id']))):
+                logger.error(f"couldn't fetch member for DiscordID: {xp['discord_user_id']}")
+
+                continue
+
+            await notificationService.sendXpSpinNotification(member, "Du kannst wieder den XP-Spin nutzen!")
+            logger.debug(f"informed DiscordID: {xp['discord_user_id']} about the xp-spin")
+
+            # delete foreign column to save to database
+            del xp['user_id']
+
+            xp['time_to_send_spin_reminder'] = None
+            query, nones = writeSaveQuery("experience", xp['id'], xp)
+
+            if not database.runQueryOnDatabase(query, nones):
+                logger.error(f"couldn't save experience to database for DiscordID: {xp['discord_user_id']}")
+
+                continue
 
     def getXpValue(self, dcUserDb: dict) -> dict | None:
         """
