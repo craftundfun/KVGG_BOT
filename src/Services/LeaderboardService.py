@@ -23,6 +23,7 @@ class LeaderboardImageNames(Enum):
     ACTIVITIES = "top_5_activities.png"
     RELATIONS = "top_5_relations.png"
     ONLINE_AND_STREAM = "top_5_online_stream.png"
+    MESSAGES_AND_COMMANDS = "top_5_message_command.png"
 
     @classmethod
     def getNameForImage(cls, imageName: "LeaderboardImageNames"):
@@ -33,6 +34,8 @@ class LeaderboardImageNames(Enum):
                 return "Online- und Stream-Relationen"
             case LeaderboardImageNames.ONLINE_AND_STREAM:
                 return "Online- und Stream-Zeit"
+            case LeaderboardImageNames.MESSAGES_AND_COMMANDS:
+                return "gesendete Nachrichten und Commands"
             case _:
                 logger.error(f"Unknown image name: {imageName}")
 
@@ -54,6 +57,9 @@ class LeaderboardService:
 
         if self.createTopOnlineAndStreamDiagram():
             availablePlots.append(LeaderboardImageNames.ONLINE_AND_STREAM)
+
+        if self.createTopMessagesAndCommandsDiagram():
+            availablePlots.append(LeaderboardImageNames.MESSAGES_AND_COMMANDS)
 
         if self.createTopRelationDiagram():
             availablePlots.append(LeaderboardImageNames.RELATIONS)
@@ -162,6 +168,123 @@ class LeaderboardService:
         # save to disk
         plt.savefig(savePath, dpi=250)
 
+    def createTopMessagesAndCommandsDiagram(self) -> bool:
+        logger.debug("creating createTopMessagesAndCommandsDiagram")
+
+        countOfEntries = 5
+        database = Database()
+        messageQuery = ("SELECT username, message_count_all_time AS value "
+                        "FROM discord "
+                        "ORDER BY message_count_all_time DESC "
+                        "LIMIT %s")
+        commandQuery = ("SELECT username, command_count_all_time AS value "
+                        "FROM discord "
+                        "ORDER BY command_count_all_time DESC "
+                        "LIMIT %s")
+
+        if not (messageUsers := database.fetchAllResults(messageQuery, (countOfEntries,))):
+            logger.error("couldn't fetch messageUsers")
+
+            return False
+
+        if not (commandUsers := database.fetchAllResults(commandQuery, (countOfEntries,))):
+            logger.error("couldn't fetch commandUsers")
+
+            return False
+
+        messageValues = [user['value'] if user['value'] else 0 for user in messageUsers]
+        messageValues.sort(reverse=True)
+        commandValues = [user['value'] if user['value'] else 0 for user in commandUsers]
+        commandValues.sort(reverse=True)
+
+        # TODO maybe edit the doubleBarDiagramMethod, but idk
+        # self._createDoubleBarDiagram(messageValues,
+        #                              commandValues,
+        #                              "Nachrichten",
+        #                              "Commands",
+        #                              [user['username'] for user in messageUsers],
+        #                              [user['username'] for user in commandUsers],
+        #                              "gesendete Nachrichten und Commands",
+        #                              LeaderboardImageNames.MESSAGES_AND_COMMANDS, )
+
+        # prepare usernames to fit in the bars
+        xLabelsFirstBar = [textwrap.fill(item, 30) for item in [user['username'] for user in messageUsers]]
+        xLabelsSecondBar = [textwrap.fill(item, 30) for item in [user['username'] for user in commandUsers]]
+
+        # create plot
+        fig, ax = plt.subplots()
+        bar_width = 0.4
+
+        # add bars
+        ax.bar(np.arange(len(messageValues)),
+               messageValues,
+               width=bar_width,
+               color=Colors.MAIN.value,
+               label="Nachrichten")
+        ax.bar(np.arange(len(commandValues)) + bar_width,
+               commandValues,
+               width=bar_width,
+               color=Colors.SECONDARY_MAIN.value,
+               label="Commands")
+
+        # set things
+        ax.set_ylabel('Menge', labelpad=8)
+        ax.set_title("gesendete Nachrichten und Commands")
+
+        # empty x-ticks to insert our values into the bars
+        plt.gca().set_xticks([])
+        plt.gca().set_xticklabels([])
+
+        for i, label in enumerate(xLabelsFirstBar):
+            plt.text(x=i,
+                     y=max(messageValues) * .05,
+                     s=xLabelsFirstBar[i],
+                     ha='center',
+                     fontsize=12,
+                     color='white',
+                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
+                     rotation=90, )
+
+        for i, label in enumerate(xLabelsSecondBar):
+            plt.text(x=i + 0.4,
+                     # use online values here to have the texts on the same height
+                     y=max(messageValues) * .05,
+                     s=xLabelsSecondBar[i],
+                     ha='center',
+                     fontsize=12,
+                     color='white',
+                     path_effects=[pe.withStroke(linewidth=1.5, foreground='black')],
+                     rotation=90, )
+
+        for i in range(countOfEntries):
+            plt.text(x=i,
+                     y=-max(messageValues) * .05,
+                     s=f"Platz {i + 1}.",
+                     color='black', )
+
+        # extract the y-labels from the graph
+        labels = [item.get_text() for item in ax.get_yticklabels()]
+
+        # calculate hours from minutes to display
+        for i in range(len(labels)):
+            labels[i] = int(labels[i])
+
+        # insert values next to y-axis
+        ax.set_yticklabels(labels)
+
+        # show legend in the top right corner
+        ax.legend()
+
+        # adjust positioning
+        plt.subplots_adjust(left=0.15, right=0.95, top=0.90, bottom=0.1)
+
+        savePath: Path = self.basepath.joinpath(f"data/plots/{LeaderboardImageNames.MESSAGES_AND_COMMANDS.value}")
+
+        # save to disk
+        plt.savefig(savePath, dpi=250)
+
+        return True
+
     def createTopOnlineAndStreamDiagram(self) -> bool:
         logger.debug("creating TopOnlineAndStreamDiagram")
 
@@ -241,14 +364,31 @@ class LeaderboardService:
         streamValues = [relation['value'] for relation in streamRelations]
         streamValues.sort(reverse=True)
 
+        def sortNames(name1: str, name2: str, position: int) -> str:
+            """
+            Returns the name depending on the value and the position in the string
+            """
+            if name1 > name2:
+                if position == 1:
+                    return name1
+                else:
+                    return name2
+            else:
+                if position == 1:
+                    return name2
+                else:
+                    return name1
+
         self._createDoubleBarDiagram(onlineValues,
                                      streamValues,
                                      "Online",
                                      "Stream",
-                                     [f"{relation['username_1']} & {relation['username_2']}" for relation in
-                                      onlineRelations],
-                                     [f"{relation['username_1']} & {relation['username_2']}" for relation in
-                                      streamRelations],
+                                     [f"{sortNames(relation['username_1'], relation['username_2'], 1)} & "
+                                      f"{sortNames(relation['username_1'], relation['username_2'], 2)}"
+                                      for relation in onlineRelations],
+                                     [f"{sortNames(relation['username_1'], relation['username_2'], 1)} & "
+                                      f"{sortNames(relation['username_1'], relation['username_2'], 2)}"
+                                      for relation in streamRelations],
                                      "Online- und Stream-Relationen",
                                      LeaderboardImageNames.RELATIONS)
 
