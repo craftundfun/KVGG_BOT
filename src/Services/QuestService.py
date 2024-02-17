@@ -93,6 +93,12 @@ class QuestService:
 
                     # if the difference is too big, the progress will be lost
                     if lastUpdated and datetime.now().day - lastUpdated.day > 1:
+                        # if the streak was broken and the value fulfilled, don't reset to zero and continue
+                        if quest['current_value'] >= quest['value_to_reach']:
+                            logger.debug("streak broken, saving current state")
+
+                            continue
+
                         # reset value due to loss in streak
                         quest['current_value'] = 0
                         quest['time_updated'] = None
