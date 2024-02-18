@@ -327,9 +327,15 @@ class ExperienceService:
                 }
             case AchievementParameter.BEST_MEME_OF_THE_MONTH:
                 boost = {
-                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_MEME.value,
-                    'remaining': ExperienceParameter.XP_BOOST_MEME_DURATION.value,
-                    'description': ExperienceParameter.DESCRIPTION_MEME.value,
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_BEST_MEME.value,
+                    'remaining': ExperienceParameter.XP_BOOST_BEST_MEME_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_BEST_MEME.value,
+                }
+            case AchievementParameter.WORST_MEME_OF_THE_MONTH:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_WORST_MEME.value,
+                    'remaining': ExperienceParameter.XP_BOOST_WORST_MEME_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_WORST_MEME.value,
                 }
             case _:
                 logger.critical("undefined enum entry was reached")
