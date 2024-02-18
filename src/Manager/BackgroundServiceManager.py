@@ -56,7 +56,7 @@ class BackgroundServices(commands.Cog):
         self.refreshQuests.start()
         logger.info("refresh-quest-job started")
 
-        self.chooseWinnerOfMemes.start()
+        self.chooseWinnerAndLoserOfMemes.start()
         logger.info("choose-winner-job started")
 
         self.createStatistics.start()
@@ -182,14 +182,14 @@ class BackgroundServices(commands.Cog):
             logger.debug("reset monthly quests")
 
     @tasks.loop(time=midnight)
-    async def chooseWinnerOfMemes(self):
+    async def chooseWinnerAndLoserOfMemes(self):
         if datetime.datetime.now().day != 1:
             logger.debug("not first of the month, dont choose winner for memes")
 
             return
 
         try:
-            await self.memeService.chooseWinner()
+            await self.memeService.chooseWinnerAndLoser()
         except Exception as error:
             logger.error("error while running chooseWinner", exc_info=error)
 

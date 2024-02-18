@@ -12,6 +12,7 @@ class AchievementParameter(Enum):
     WEEKLY_QUEST_AMOUNT = -1
     MONTHLY_QUEST_AMOUNT = -1
     BEST_MEME_OF_THE_MONTH_AMOUNT = -1
+    WORST_MEME_OF_THE_MONTH_AMOUNT = -1
 
     ONLINE = "online"
     STREAM = "stream"
@@ -24,4 +25,4 @@ class AchievementParameter(Enum):
     WEEKLY_QUEST = "weekly_quest"
     MONTHLY_QUEST = "monthly_quest"
     BEST_MEME_OF_THE_MONTH = "best_meme"
-
+    WORST_MEME_OF_THE_MONTH = "worst_meme"
