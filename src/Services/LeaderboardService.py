@@ -429,12 +429,18 @@ class LeaderboardService:
         plt.bar(gameNames,
                 values,
                 color=Colors.MAIN.value, )
-        plt.xlabel("Aktivitäten")
+        plt.xlabel("Aktivitäten", labelpad=10)
         plt.ylabel("Stunden", labelpad=42)
         plt.title(f"Top {countOfGames} Aktivitäten")
 
         plt.gca().set_xticks(gameNames)
         plt.gca().set_xticklabels([])
+
+        for i in range(countOfGames):
+            plt.text(x=i - .25,
+                     y=-max(values) * .05,
+                     s=f"Platz {i + 1}.",
+                     color='black', )
 
         # add labels manually to have them in the bar
         for i, label in enumerate(xLabels):
