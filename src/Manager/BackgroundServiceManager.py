@@ -240,3 +240,4 @@ class BackgroundServices(commands.Cog):
                 self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY.value)
             except Exception as error:
                 logger.error("couldn't save weekly statistics", exc_info=error)
+
