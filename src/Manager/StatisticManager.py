@@ -117,10 +117,15 @@ class StatisticManager:
 
             return
 
+        if not (guild := self.client.get_guild(GuildId.GUILD_KVGG.value)):
+            logger.error("couldn't fetch guild")
+
+            return
+
         for user in users:
             logger.debug(f"creating retrospect for user_id: {user['user_id']}")
 
-            member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user['user_id']))
+            member = guild.get_member(int(user['user_id']))
 
             if not member:
                 logger.warning("couldn't fetch member from guild")
@@ -142,32 +147,36 @@ class StatisticManager:
 
                 return None
 
-            onlineStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.ONLINE, member))
-            streamStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.STREAM, member))
-            messageStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.MESSAGE, member))
-            commandStatistic = getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.COMMAND, member))
-            activityStatistic = getStatisticForTime(
-                getStatisticsForUser(database, StatisticsParameter.ACTIVITY, member)
+            statistics = dict()
+            statistics[StatisticsParameter.ONLINE.value] = (
+                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.ONLINE, member))
+            )
+            statistics[StatisticsParameter.STREAM.value] = (
+                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.STREAM, member))
+            )
+            statistics[StatisticsParameter.MESSAGE.value] = (
+                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.MESSAGE, member))
+            )
+            statistics[StatisticsParameter.COMMAND.value] = (
+                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.COMMAND, member))
+            )
+            statistics[StatisticsParameter.ACTIVITY.value] = (
+                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.ACTIVITY, member))
             )
 
-            # if the user has no statistics in any field
-            if (not onlineStatistic
-                    and not streamStatistic
-                    and not messageStatistic
-                    and not commandStatistic
-                    and not activityStatistic
-            ):
-                logger.debug(f"{member.display_name} has no statistics this {time.value}")
+            allNone = True
+            allZero = True
 
-                continue
-            # if the statistics were created but are all zero
-            elif (onlineStatistic['value'] == 0
-                  and streamStatistic['value'] == 0
-                  and messageStatistic['value'] == 0
-                  and commandStatistic['value'] == 0
-                  and activityStatistic['value'] == 0
-            ):
-                logger.debug(f"{member.display_name} has no real values")
+            for key in statistics.keys():
+                if statistics[key]:
+                    allNone = False
+
+                    if statistics[key]['value'] != 0:
+                        allZero = False
+
+            if allNone or allZero:
+                logger.debug(f"{member.display_name} has no statistics this {time.value}: "
+                             f"allNone = {allNone}, allZero = {allZero}")
 
                 continue
 
@@ -186,21 +195,23 @@ class StatisticManager:
 
             message = f"__**Hey {member.display_name}, hier ist dein Rückblick für {getCorrectTimePeriod()}!**__\n\n"
 
-            if onlineStatistic and onlineStatistic['value'] > 0:
-                message += f"-\tDu warst {getFormattedTime(onlineStatistic['value'])} Stunden online.\n"
+            if (online := statistics[StatisticsParameter.ONLINE.value]) and online['value'] > 0:
+                message += f"-\tDu warst {getFormattedTime(online['value'])} Stunden online.\n"
 
-            if streamStatistic and streamStatistic['value'] > 0:
-                message += (f"-\tDu hast insgesamt {getFormattedTime(streamStatistic['value'])} Stunden "
+            if (stream := statistics[StatisticsParameter.STREAM.value]) and stream['value'] > 0:
+                message += (f"-\tDu hast insgesamt {getFormattedTime(stream['value'])} Stunden "
                             f"gestreamt.\n")
 
-            if activityStatistic and activityStatistic['value'] > 0:
-                message += (f"-\tDu hast {getFormattedTime(activityStatistic['value'])} Stunden gespielt oder "
+            if (activity := statistics[StatisticsParameter.ACTIVITY.value]) and activity['value'] > 0:
+                message += (f"-\tDu hast {getFormattedTime(activity['value'])} Stunden gespielt oder "
                             f"Programme genutzt.\n")
 
-            if messageStatistic and messageStatistic['value'] > 0:
+            if (messageStatistic := statistics[StatisticsParameter.MESSAGE.value]) and messageStatistic['value'] > 0:
                 message += f"-\tDu hast ganze {messageStatistic['value']} Nachrichten verfasst.\n"
 
-            if commandStatistic and commandStatistic['value'] > 0:
-                message += f"-\tDu hast mich {commandStatistic['value']} Mal genutzt (aka. Commands genutzt).\n"
+            if (command := statistics[StatisticsParameter.COMMAND.value]) and command['value'] > 0:
+                message += f"-\tDu hast mich {command['value']} Mal genutzt (aka. Commands genutzt).\n"
 
             await self.notificationService.sendRetrospect(member, message.rstrip("\n"))
+
+            logger.debug(f"sent retrospect to {member.display_name}")
