@@ -205,9 +205,13 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY.value)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
+
+            try:
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY.value)
+            except Exception as error:
+                logger.error("couldn't save weekly statistics", exc_info=error)
 
         # 1st day of the month
         if now.day == 1:
@@ -215,9 +219,13 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
+            except Exception as error:
+                logger.error("couldn't run weekly statistics", exc_info=error)
+
+            try:
                 self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.MONTHLY.value)
             except Exception as error:
-                logger.error("couldn't run yearly statistics", exc_info=error)
+                logger.error("couldn't save weekly statistics", exc_info=error)
 
         # 1st day of the year
         if now.month == 1 and now.day == 1:
@@ -225,6 +233,10 @@ class BackgroundServices(commands.Cog):
 
             try:
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
+            except Exception as error:
+                logger.error("couldn't run weekly statistics", exc_info=error)
+
+            try:
                 self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY.value)
             except Exception as error:
-                logger.error("couldn't run monthly statistics", exc_info=error)
+                logger.error("couldn't save weekly statistics", exc_info=error)
