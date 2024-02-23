@@ -516,18 +516,17 @@ async def sendLeaderboard(interaction: discord.Interaction):
 
 """SEND REGISTRATION"""
 
-
-@tree.command(name="registration",
-              description="Sendet dir einen Link um einen Account auf unserer Website erstellen zu können.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def sendRegistration(interaction: discord.Interaction):
-    """
-    Calls the send registration from ProcessUserInput from this interaction
-
-    :param interaction: Interaction object of the call
-    :return:
-    """
-    await commandService.runCommand(Commands.REGISTRATION, interaction, member=interaction.user)
+# @tree.command(name="registration",
+#               description="Sendet dir einen Link um einen Account auf unserer Website erstellen zu können.",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+# async def sendRegistration(interaction: discord.Interaction):
+#     """
+#     Calls the send registration from ProcessUserInput from this interaction
+#
+#     :param interaction: Interaction object of the call
+#     :return:
+#     """
+#     await commandService.runCommand(Commands.REGISTRATION, interaction, member=interaction.user)
 
 
 """XP SPIN"""

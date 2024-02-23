@@ -34,7 +34,7 @@ class Commands(Enum):
     COUNTER = 6
     WHATSAPP = 7
     LEADERBOARD = 8
-    REGISTRATION = 9
+    # REGISTRATION = 9
     XP_SPIN = 10
     XP_INVENTORY = 11
     XP = 12
@@ -184,9 +184,6 @@ class CommandService:
                 ).send()
 
                 function = "Pagination-View"
-
-            case Commands.REGISTRATION:
-                function = self.userInputService.sendRegistrationLink
 
             case Commands.XP_SPIN:
                 function = self.experienceService.spinForXpBoost
