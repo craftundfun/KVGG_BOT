@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from pathlib import Path
 
 import discord
@@ -10,7 +11,6 @@ from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
-from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database import Database
 from src.Services.QuestService import QuestService, QuestType
 
@@ -33,6 +33,8 @@ class GameDiscordService:
         :param member: The member to increase the values
         :param database:
         """
+        now = datetime.now()
+
         for activity in member.activities:
             if isinstance(activity, discord.CustomActivity):
                 logger.debug(f"{member.display_name} had an custom activity: {activity.name} => dont count it")
@@ -53,6 +55,7 @@ class GameDiscordService:
                 else:
                     relation['time_played_offline'] += 1
 
+                relation['last_played'] = now
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 
                 if not database.runQueryOnDatabase(saveQuery, nones):
@@ -103,11 +106,3 @@ class GameDiscordService:
                    "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
 
         return answer
-
-    @DeprecationWarning
-    async def runIncreaseGameRelationForEveryone(self):
-        database = Database()
-
-        for member in self.client.get_all_members():
-            if getDiscordUser(member, database):
-                self.increaseGameRelationsForMember(member, database)

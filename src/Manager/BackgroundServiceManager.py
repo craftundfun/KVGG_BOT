@@ -23,18 +23,18 @@ logger = logging.getLogger("KVGG_BOT")
 loggerTime = logging.getLogger("TIME")
 fileHandlerTime = logging.handlers.TimedRotatingFileHandler(filename='Logs/times.txt', when='midnight', backupCount=5)
 
-loggerThread = logging.getLogger("THREAD")
-fileHandlerThread = logging.handlers.TimedRotatingFileHandler(filename='Logs/thread.txt', when='midnight',
-                                                              backupCount=5)
+loggerMinutelyJob = logging.getLogger("MINUTELY_JOB")
+fileHandlerMinutelyJob = logging.handlers.TimedRotatingFileHandler(filename='Logs/minutelyJob.txt', when='midnight',
+                                                                   backupCount=5)
 
 fileHandlerTime.setFormatter(CustomFormatterFile())
-fileHandlerThread.setFormatter(CustomFormatterFile())
+fileHandlerMinutelyJob.setFormatter(CustomFormatterFile())
 
 loggerTime.addHandler(fileHandlerTime)
 loggerTime.setLevel(logging.INFO)
 
-loggerThread.addHandler(fileHandlerThread)
-loggerThread.setLevel(logging.INFO)
+loggerMinutelyJob.addHandler(fileHandlerMinutelyJob)
+loggerMinutelyJob.setLevel(logging.DEBUG)
 
 tz = datetime.datetime.now().astimezone().tzinfo
 midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
@@ -43,6 +43,8 @@ midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 class BackgroundServices(commands.Cog):
     def __init__(self, client: discord.Client):
         self.client = client
+        self.lastTimeMinutely = None
+        self.minutelyErrorCount = 0
 
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
@@ -64,6 +66,33 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
+        # first execution
+        if not self.lastTimeMinutely:
+            loggerMinutelyJob.info("no last execution time for minutely job")
+        # too many errors, abort minutely
+        elif self.minutelyErrorCount >= 5:
+            logger.warning(f"skipping minutely job")
+            loggerMinutelyJob.error(f"skipping minutely job")
+
+            return
+        # too fast
+        elif (difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000:
+            self.minutelyErrorCount += 1
+
+            if self.minutelyErrorCount == 5:
+                logger.error("⚠️ CANCELLING MINUTELY JOB FROM NOW ON ⚠️")
+                loggerMinutelyJob.error("STOPPING MINUTELY JOB")
+
+                return
+            else:
+                logger.error(f"minutely job started too early: waited only {difference} microseconds, "
+                             f"current errors: {self.minutelyErrorCount}")
+                loggerMinutelyJob.error(f"minutely job started too early: waited only {difference} microseconds, "
+                                        f"current errors: {self.minutelyErrorCount}")
+
+        self.lastTimeMinutely = datetime.datetime.now()
+
+        loggerMinutelyJob.info("execute")
         loggerTime.info("start")
 
         # double wrapped -> maybe look into it again in the future
@@ -102,7 +131,6 @@ class BackgroundServices(commands.Cog):
         await functionWrapper(self.minutelyJobRunner.run)
 
         loggerTime.info("end")
-        loggerThread.info("minutely task ended")
 
     @DeprecationWarning
     @tasks.loop(time=midnight)
