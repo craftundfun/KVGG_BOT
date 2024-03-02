@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import random
 import textwrap
@@ -52,35 +53,46 @@ class LeaderboardService:
         self.gameDiscordService = GameDiscordService(self.client)
 
     async def getLeaderboard(self) -> list[PaginationViewDataItem]:
-        availablePlots = []
-        data = []
+        async def fetch_leaderboard():
+            availablePlots = []
+            data = []
 
-        if self.createTopOnlineAndStreamDiagram():
-            availablePlots.append(LeaderboardImageNames.ONLINE_AND_STREAM)
+            if self.createTopOnlineAndStreamDiagram():
+                availablePlots.append(LeaderboardImageNames.ONLINE_AND_STREAM)
 
-        if self.createTopMessagesAndCommandsDiagram():
-            availablePlots.append(LeaderboardImageNames.MESSAGES_AND_COMMANDS)
+            if self.createTopMessagesAndCommandsDiagram():
+                availablePlots.append(LeaderboardImageNames.MESSAGES_AND_COMMANDS)
 
-        if self.createTopRelationDiagram():
-            availablePlots.append(LeaderboardImageNames.RELATIONS)
+            if self.createTopRelationDiagram():
+                availablePlots.append(LeaderboardImageNames.RELATIONS)
 
-        if self.createTopGamesDiagram():
-            availablePlots.append(LeaderboardImageNames.ACTIVITIES)
+            if self.createTopGamesDiagram():
+                availablePlots.append(LeaderboardImageNames.ACTIVITIES)
 
-        for plot in availablePlots:
-            data.append(
-                PaginationViewDataItem(
-                    field_name=LeaderboardImageNames.getNameForImage(plot),
-                    data_type=PaginationViewDataTypes.PICTURE,
-                    # add random number to URL to avoid discords image caching, lol
-                    field_value=self.url + plot.value + f"/{random.randint(0, 10000000000)}",
+            for plot in availablePlots:
+                data.append(
+                    PaginationViewDataItem(
+                        field_name=LeaderboardImageNames.getNameForImage(plot),
+                        data_type=PaginationViewDataTypes.PICTURE,
+                        # add random number to URL to avoid discords image caching, lol
+                        field_value=self.url + plot.value + f"/{random.randint(0, 10000000000)}",
+                    )
                 )
-            )
 
-        return data if data else [PaginationViewDataItem(
-            field_name="FEHLER",
-            data_type=PaginationViewDataTypes.TEXT,
-        )]
+            return data if data else [PaginationViewDataItem(
+                field_name="FEHLER",
+                data_type=PaginationViewDataTypes.TEXT,
+            )]
+
+        try:
+            result = await asyncio.wait_for(fetch_leaderboard(), timeout=10.0)
+            return result
+        except asyncio.TimeoutError:
+            return [PaginationViewDataItem(
+                field_name="TIMEOUT",
+                data_type=PaginationViewDataTypes.TEXT,
+                field_value="Die Anfrage dauerte zu lange.",
+            )]
 
     def _createDoubleBarDiagram(self,
                                 firstBarValues: list[int],

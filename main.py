@@ -505,7 +505,6 @@ async def sendLeaderboard(interaction: discord.Interaction):
     """
     Calls the send leaderboard from ProcessUserInput from this interaction
 
-    :param typ:
     :param interaction: Interaction object of the call
     :return:
     """
