@@ -881,10 +881,13 @@ class ExperienceService:
             else:
                 xp['xp_amount'] = xpAmountBefore + toBeAddedXpAmount
 
+        # convert to int because of worst meme boost
+        xp['xp_amount'] = int(xp['xp_amount'])
+
         query, nones = writeSaveQuery(
             'experience',
             xp['id'],
-            xp
+            xp,
         )
 
         if not database.runQueryOnDatabase(query, nones):
