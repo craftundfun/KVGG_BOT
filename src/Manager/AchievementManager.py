@@ -65,8 +65,13 @@ class AchievementService:
                            + ", du bist nun schon seit "
                            + str(value)
                            + f" {'Jahren' if value > 1 else 'Jahr'} auf unserem Server! :fireworks: :fireworks:")
+            case AchievementParameter.TIME_PLAYED:
+                message = (f"{tag}, du hast schon insgesamt {hours} Stunden Spiele gespielt / Programme genutzt, "
+                           f"während du online warst. Viel Spaß beim Weiterspielen!\n\nDafür hast du einen XP-Boost "
+                           f"bekommen, schau mal nach!")
+                await xpService.grantXpBoost(member, AchievementParameter.TIME_PLAYED)
             case _:
-                logger.critical("reached undefined enum entry")
+                logger.error("reached undefined enum entry")
 
                 return
 

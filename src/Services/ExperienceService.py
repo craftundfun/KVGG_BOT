@@ -337,6 +337,12 @@ class ExperienceService:
                     'remaining': ExperienceParameter.XP_BOOST_WORST_MEME_DURATION.value,
                     'description': ExperienceParameter.DESCRIPTION_WORST_MEME.value,
                 }
+            case AchievementParameter.TIME_PLAYED:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_TIME_PLAYED.value,
+                    'remaining': ExperienceParameter.XP_BOOST_TIME_PLAYED_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_TIME_PLAYED.value,
+                }
             case _:
                 logger.critical("undefined enum entry was reached")
 
