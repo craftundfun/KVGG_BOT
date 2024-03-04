@@ -6,9 +6,11 @@ import discord
 from discord import Client
 from discord import Member
 
+from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Services.Database import Database
@@ -25,6 +27,7 @@ class GameDiscordService:
 
         self.questService = QuestService(self.client)
         self.statisticManager = StatisticManager(self.client)
+        self.achievementService = AchievementService(self.client)
 
     async def increaseGameRelationsForMember(self, member: Member, database: Database):
         """
@@ -52,6 +55,11 @@ class GameDiscordService:
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
                     self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member)
+
+                    if (relation['time_played_online'] % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievementAndGrantBoost(member,
+                                                                                   AchievementParameter.TIME_PLAYED,
+                                                                                   relation['time_played_online'])
                 else:
                     relation['time_played_offline'] += 1
 
