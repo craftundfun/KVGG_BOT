@@ -16,13 +16,18 @@ class AchievementService:
         self.client = client
         self.channel = self.client.get_channel(ChannelId.CHANNEL_ACHIEVEMENTS.value)
 
-    async def sendAchievementAndGrantBoost(self, member: Member, kind: AchievementParameter, value: int):
+    async def sendAchievementAndGrantBoost(self,
+                                           member: Member,
+                                           kind: AchievementParameter,
+                                           value: int,
+                                           gameName: str = None, ):
         """
         Sends the achievement message into our achievement channel and grants the corresponding xp boost
 
-        :param member: List of members, who reached the achievement and to be tagged
+        :param member: List of members who reached the achievement and to be tagged
         :param kind: ONLINE, STREAM or XP
-        :param value: Value of the achievement, for example 300 minutes online -> will be calculated into hours
+        :param value: Value of the achievement, for example, 300 minutes online -> will be calculated into hours
+        :param gameName: Optional name of the game to mention it in the message
         :return:
         """
         # import here to avoid circular import
@@ -66,9 +71,13 @@ class AchievementService:
                            + str(value)
                            + f" {'Jahren' if value > 1 else 'Jahr'} auf unserem Server! :fireworks: :fireworks:")
             case AchievementParameter.TIME_PLAYED:
-                message = (f"{tag}, du hast schon insgesamt {hours} Stunden Spiele gespielt / Programme genutzt, "
-                           f"während du online warst. Viel Spaß beim Weiterspielen!\n\nDafür hast du einen XP-Boost "
-                           f"bekommen, schau mal nach!")
+                if not gameName:
+                    logger.error("gameName is missing")
+
+                message = (f"Während du online warst, hast du insgesamt schon {hours} Stunden "
+                           f"{gameName if gameName else 'FEHLER'} gespielt, {tag}. Viel Spaß beim Weiterspielen!\n\n"
+                           f"Dafür hast du einen XP-Boost bekommen, schau mal nach!")
+
                 await xpService.grantXpBoost(member, AchievementParameter.TIME_PLAYED)
             case _:
                 logger.error("reached undefined enum entry")
