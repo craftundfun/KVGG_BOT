@@ -67,7 +67,8 @@ def getDiscordGame(database: Database, activityName: str) -> dict | None:
 
 def getGameDiscordRelation(database: Database,
                            member: Member,
-                           activityName: str) -> dict | None:
+                           activityName: str,
+                           includeGameInformation: bool = False) -> dict | None:
     insertQuery = ("INSERT INTO game_discord_mapping (discord_id, discord_game_id) "
                    "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s)")
     game: dict | None = getDiscordGame(database, activityName)
@@ -77,7 +78,7 @@ def getGameDiscordRelation(database: Database,
 
         return None
 
-    getQuery = ("SELECT gdm.* "
+    getQuery = (f"SELECT gdm.*{', dg.application_id, dg.name' if includeGameInformation else ''} "
                 "FROM game_discord_mapping gdm INNER JOIN discord_game dg ON gdm.discord_game_id = dg.id "
                 "WHERE dg.id = %s "
                 "AND gdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")

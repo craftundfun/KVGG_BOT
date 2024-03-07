@@ -49,7 +49,7 @@ class GameDiscordService:
 
                 continue
 
-            if relation := getGameDiscordRelation(database, member, activity.name):
+            if relation := getGameDiscordRelation(database, member, activity.name, includeGameInformation=True):
                 if member.voice:
                     relation['time_played_online'] += 1
 
@@ -59,11 +59,16 @@ class GameDiscordService:
                     if (relation['time_played_online'] % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
                         await self.achievementService.sendAchievementAndGrantBoost(member,
                                                                                    AchievementParameter.TIME_PLAYED,
-                                                                                   relation['time_played_online'])
+                                                                                   relation['time_played_online'],
+                                                                                   gameName=relation['name'], )
                 else:
                     relation['time_played_offline'] += 1
 
                 relation['last_played'] = now
+
+                relation.pop('name', None)
+                relation.pop('application_id', None)
+
                 saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
 
                 if not database.runQueryOnDatabase(saveQuery, nones):
