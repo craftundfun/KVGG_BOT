@@ -11,3 +11,4 @@ levenshtein
 matplotlib
 fastapi
 uvicorn
+sqlalchemy

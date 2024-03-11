@@ -10,7 +10,7 @@ from src.Repository.BaseClass import Base
 
 
 class Experience(Base):
-    __tablename__ = 'experience'
+    __tablename__ = "experience"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     xp_amount: Mapped[Optional[int]]
