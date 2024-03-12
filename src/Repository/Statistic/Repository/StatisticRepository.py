@@ -1,0 +1,115 @@
+import logging
+
+from discord import Member
+from sqlalchemy import select, insert
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
+
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
+
+logger = logging.getLogger("KVGG_BOT")
+
+
+# TODO simplify
+def getStatisticsForUser(type: StatisticsParameter,
+                         member: Member,
+                         session: Session) -> list[CurrentDiscordStatistic] | None:
+    getQuery = (select(CurrentDiscordStatistic)
+                .where(CurrentDiscordStatistic.statistic_type == type.value
+                       and CurrentDiscordStatistic.discord_id == (select(DiscordUser.id)
+                                                                  .where(DiscordUser.user_id == str(member.id))
+                                                                  .scalar_subquery())
+                       )
+                )
+
+    try:
+        statistics = session.scalars(getQuery).all()
+    except NoResultFound:
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.WEEKLY.value, member, session):
+            # errors are thrown in the function
+            return None
+
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.MONTHLY.value, member, session):
+            return None
+
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.YEARLY.value, member, session):
+            return None
+
+        try:
+            statistics = session.scalars(getQuery).all()
+        except NoResultFound as error:
+            logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
+                         exc_info=error, )
+
+            return None
+
+    if len(statistics) != 3:
+        logger.debug("less then 3 statistics, searching missing one and creating it")
+
+        times = [StatisticsParameter.WEEKLY.value,
+                 StatisticsParameter.MONTHLY.value,
+                 StatisticsParameter.YEARLY.value, ]
+
+        for stat in list(statistics):
+            if stat.statistic_time in times:
+                times.remove(stat.statistic_time)
+
+        if StatisticsParameter.WEEKLY.value in times:
+            if not _insertStatistic(type, StatisticsParameter.WEEKLY.value, member, session):
+                # errors are thrown in the function
+                return None
+
+        if StatisticsParameter.MONTHLY.value in times:
+            # monthly
+            if not _insertStatistic(type, StatisticsParameter.MONTHLY.value, member, session):
+                # errors are thrown in the function
+                return None
+
+        if StatisticsParameter.YEARLY.value in times:
+            # yearly
+            if not _insertStatistic(type, StatisticsParameter.YEARLY.value, member, session):
+                # errors are thrown in the function
+                return None
+
+        try:
+            statistics = session.scalars(getQuery).all()
+        except NoResultFound as error:
+            logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
+                         exc_info=error, )
+
+            return None
+
+    return list(statistics)
+
+
+def _insertStatistic(type: StatisticsParameter,
+                     statistic_time: StatisticsParameter,
+                     member: Member,
+                     session: Session) -> bool:
+    insertQuery = (insert(CurrentDiscordStatistic)
+                   .values(statistic_type=type.value,
+                           statistic_time=statistic_time,
+                           value=0,
+                           discord_id=(select(DiscordUser.id)
+                                       .where(DiscordUser.user_id == str(member.id))
+                                       .subquery()),
+                           ))
+
+    try:
+        session.execute(insertQuery)
+        session.commit()
+
+        logger.debug(f"inserted new current discord statistics for {member.display_name} "
+                     f"and time: {statistic_time.value}")
+
+        return True
+    except Exception as error:
+        logger.error(f"couldn't insert or commit current discord statistics for {member.display_name}",
+                     exc_info=error, )
+
+        return False
