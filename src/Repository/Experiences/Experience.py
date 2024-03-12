@@ -24,4 +24,4 @@ class Experience(Base):
     discord_user: Mapped[Optional["DiscordUser"]] = relationship("DiscordUser")
 
     def __repr__(self):
-        return f"Experience(id={self.id}, DiscordUser={self.discord_user_id})"
+        return f"Experience(id={self.id}, DiscordUser={self.discord_user})"

@@ -3,8 +3,10 @@ from typing import Optional
 
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
+from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
+from src.Repository.Experiences.Experience import Experience
 
 
 class DiscordUser(Base):
@@ -34,8 +36,8 @@ class DiscordUser(Base):
     command_count_all_time: Mapped[int]
     felix_counter: Mapped[Optional[int]]
 
-    # user: Mapped["User"] = relationship("User", back_populates="discord_user_id")
-    # experience: Mapped["Experience"] = relationship(back_populates="discord_user_id")
+    user: Mapped["User"] = relationship("User", back_populates="discord_user")
+    experience: Mapped["Experience"] = relationship("Experience", back_populates="discord_user")
 
     def __repr__(self):
         return f"DiscordUser(id={self.id}, username={self.username})"
