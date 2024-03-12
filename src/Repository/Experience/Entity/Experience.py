@@ -20,8 +20,8 @@ class Experience(Base):
     last_cookie_boost: Mapped[Optional[datetime]]
     time_to_send_spin_reminder: Mapped[Optional[datetime]]
 
-    discord_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("discord.id"))
-    discord_user: Mapped[Optional["DiscordUser"]] = relationship("DiscordUser")
+    discord_user_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
+    discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
 
     def __repr__(self):
         return f"Experience(id={self.id}, DiscordUser={self.discord_user})"

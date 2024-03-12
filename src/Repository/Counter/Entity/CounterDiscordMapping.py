@@ -4,7 +4,8 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
-from src.Repository.DiscordUsers.DiscordUser import DiscordUser
+# from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.Counter.Entity.Counter import Counter
 
 
 class CounterDiscordMapping(Base):

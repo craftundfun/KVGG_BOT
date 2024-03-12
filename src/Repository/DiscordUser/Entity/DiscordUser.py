@@ -6,8 +6,8 @@ from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
-from src.Repository.Experiences.Experience import Experience
-from src.Repository.Users.User import User
+from src.Repository.Experience.Entity.Experience import Experience
+from src.Repository.User.Entity.User import User
 
 
 class DiscordUser(Base):
