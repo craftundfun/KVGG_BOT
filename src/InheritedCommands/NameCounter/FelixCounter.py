@@ -46,6 +46,7 @@ class FelixCounter(Counter):
             return self.dcUserDb['felix_counter_start']
         return None
 
+    # TODO increase counter in correct table
     async def updateFelixCounter(self, member: Member, dcUserDb: dict):
         """
         Increases the Felix-Counter of members with an active timer
