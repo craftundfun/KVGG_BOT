@@ -12,7 +12,6 @@ from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDisco
 logger = logging.getLogger("KVGG_BOT")
 
 
-# TODO simplify
 def getStatisticsForUser(type: StatisticsParameter,
                          member: Member,
                          session: Session) -> list[CurrentDiscordStatistic] | None:
@@ -27,17 +26,19 @@ def getStatisticsForUser(type: StatisticsParameter,
     try:
         statistics = session.scalars(getQuery).all()
     except NoResultFound:
+        logger.debug(f"no current statistics found for {member.display_name}, creating new ones")
+
         # weekly
-        if not _insertStatistic(type, StatisticsParameter.WEEKLY.value, member, session):
+        if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
             # errors are thrown in the function
             return None
 
         # weekly
-        if not _insertStatistic(type, StatisticsParameter.MONTHLY.value, member, session):
+        if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
             return None
 
         # weekly
-        if not _insertStatistic(type, StatisticsParameter.YEARLY.value, member, session):
+        if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
             return None
 
         try:
@@ -60,19 +61,19 @@ def getStatisticsForUser(type: StatisticsParameter,
                 times.remove(stat.statistic_time)
 
         if StatisticsParameter.WEEKLY.value in times:
-            if not _insertStatistic(type, StatisticsParameter.WEEKLY.value, member, session):
+            if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
                 # errors are thrown in the function
                 return None
 
         if StatisticsParameter.MONTHLY.value in times:
             # monthly
-            if not _insertStatistic(type, StatisticsParameter.MONTHLY.value, member, session):
+            if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
                 # errors are thrown in the function
                 return None
 
         if StatisticsParameter.YEARLY.value in times:
             # yearly
-            if not _insertStatistic(type, StatisticsParameter.YEARLY.value, member, session):
+            if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
                 # errors are thrown in the function
                 return None
 
@@ -93,11 +94,11 @@ def _insertStatistic(type: StatisticsParameter,
                      session: Session) -> bool:
     insertQuery = (insert(CurrentDiscordStatistic)
                    .values(statistic_type=type.value,
-                           statistic_time=statistic_time,
+                           statistic_time=statistic_time.value,
                            value=0,
                            discord_id=(select(DiscordUser.id)
                                        .where(DiscordUser.user_id == str(member.id))
-                                       .subquery()),
+                                       .scalar_subquery()),
                            ))
 
     try:
@@ -111,5 +112,6 @@ def _insertStatistic(type: StatisticsParameter,
     except Exception as error:
         logger.error(f"couldn't insert or commit current discord statistics for {member.display_name}",
                      exc_info=error, )
+        session.rollback()
 
         return False

@@ -139,6 +139,24 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
+        # TODO remove - for testing only
+        from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
+        from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+        from sqlalchemy import create_engine, MetaData
+        from sqlalchemy.orm import Session
+        from src.Helper.ReadParameters import Parameters, getParameter
+
+        engine = create_engine(
+            f'mysql+mysqlconnector://{getParameter(Parameters.USER)}:{getParameter(Parameters.PASSWORD)}@{getParameter(Parameters.HOST)}/{getParameter(Parameters.NAME)}',
+            echo=False)
+
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
+
+        print(getStatisticsForUser(StatisticsParameter.STREAM, self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), Session(engine)))
+
+        sys.exit(0)
+
         try:
             await self.databaseRefreshService.startUp()
         except ConnectionError as error:

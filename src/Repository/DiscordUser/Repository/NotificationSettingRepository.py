@@ -57,6 +57,7 @@ def getNotificationSetting(member: Member, session: Session) -> NotificationSett
         except Exception as error:
             logger.error("could not insert (or commit) notification setting for {member.display_name}",
                          exc_info=error)
+            session.rollback()
 
             return None
 
