@@ -7,6 +7,7 @@ from src.Services.Database import Database
 logger = logging.getLogger("KVGG_BOT")
 
 
+@DeprecationWarning
 def getNotificationSettings(member: Member, database: Database) -> dict | None:
     """
     Fetches the notification settings of the given Member from our database.
