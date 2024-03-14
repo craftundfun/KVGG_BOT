@@ -7,6 +7,7 @@ from discord import Member
 
 from src.Helper.SendDM import sendDM, separator
 from src.InheritedCommands.NameCounter.Counter import Counter
+from src.Services.Database import Database
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -62,9 +63,27 @@ class FelixCounter(Counter):
         if dcUserDb['felix_counter_start'] > datetime.now():
             return
 
+        database = Database()
+
+        query = "SELECT * FROM counter WHERE name like 'felix'"
+        felixCounter = database.fetchOneResult(query)
+
+        if felixCounter is None:
+            logger.error('felixCounter wurde nicht gefunden')
+
+        query = "SELECT * FROM counter_discord_mapping WHERE counter_id = %s AND discord_id = %s"
+
+        if not (felixCounterUser := database.fetchOneResult(query, (felixCounter['id'], member.id))):
+            query = "INSERT INTO counter_discord_mapping (counter_id, discord_id, value) VALUES (%s, %s, %s)"
+            database.runQueryOnDatabase(query, (felixCounter['id'], member.id, 0))
+            felixCounterValue = 0
+        else:
+            felixCounterValue = felixCounterUser['value']
+
         # timer still active
         if (datetime.now() - dcUserDb['felix_counter_start']).seconds // 60 <= 20:
-            dcUserDb['felix_counter'] = dcUserDb['felix_counter'] + 1
+            query = "UPDATE counter_discord_mapping SET value = %s WHERE counter_id = %s AND discord_id = %s"
+            database.runQueryOnDatabase(query, (felixCounterValue + 1, felixCounter['id'], member.id))
         else:
             dcUserDb['felix_counter_start'] = None
 
