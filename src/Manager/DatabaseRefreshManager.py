@@ -101,6 +101,7 @@ class DatabaseRefreshService:
             # update nick
             if member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user['user_id'])):
                 user['username'] = member.nick if member.nick else member.name
+                user['discord_name'] = member.name
 
             query, nones = writeSaveQuery(
                 'discord',
