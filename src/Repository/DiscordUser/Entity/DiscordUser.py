@@ -20,9 +20,8 @@ class DiscordUser(Base):
     username: Mapped[str]
     joined_at: Mapped[Optional[datetime]]
     last_online: Mapped[Optional[datetime]]
-    time_online: Mapped[Optional[int]]
+    time_online: Mapped[int]
     created_at: Mapped[datetime]
-    formated_time: Mapped[Optional[str]]
     message_count_all_time: Mapped[Optional[int]]
     muted_at: Mapped[Optional[datetime]]
     full_muted_at: Mapped[Optional[datetime]]
@@ -31,11 +30,10 @@ class DiscordUser(Base):
     formatted_stream_time: Mapped[Optional[str]]
     started_webcam_at: Mapped[Optional[datetime]]
     university_time_online: Mapped[Optional[int]]
-    formated_university_time: Mapped[Optional[str]]
     profile_picture_discord: Mapped[Optional[str]]
     felix_counter_start: Mapped[Optional[datetime]]
     command_count_all_time: Mapped[int]
-    felix_counter: Mapped[Optional[int]]
+    discord_name: Mapped[Optional[str]]
 
     user: Mapped["User"] = relationship("User", back_populates="discord_user")
     experience: Mapped["Experience"] = relationship("Experience", back_populates="discord_user")

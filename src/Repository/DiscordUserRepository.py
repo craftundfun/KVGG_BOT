@@ -12,6 +12,7 @@ logger = logging.getLogger("KVGG_BOT")
 basepath = Path(__file__).parent.parent.parent
 
 
+@DeprecationWarning
 def getDiscordUser(member: Member, database: Database) -> dict | None:
     """
     Returns the user from the database.
@@ -72,6 +73,7 @@ def getDiscordUser(member: Member, database: Database) -> dict | None:
     return dcUserDb
 
 
+@DeprecationWarning
 def getDiscordUserById(userId: int, database: Database) -> dict | None:
     """
     Returns a discord user from the database.

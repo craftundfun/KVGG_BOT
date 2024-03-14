@@ -21,6 +21,7 @@ class StatisticManager:
 
         self.notificationService = NotificationService(self.client)
 
+    # TODO save also activity and stream times (add statistic_type column first)
     def saveStatisticsToStatisticLog(self, time: StatisticsParameter):
         """
         Saves the statistics (currently only online statistic) to the statistic-log database.
