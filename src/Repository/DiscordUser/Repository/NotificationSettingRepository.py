@@ -72,5 +72,9 @@ def getNotificationSetting(member: Member, session: Session) -> NotificationSett
             logger.error(f"found no notification setting for {member.display_name} after inserting", exc_info=error)
 
             return None
+    except Exception as error:
+        logger.error(f"an error occurred while fetching NotificationSettings for {member.display_name}", exc_info=error)
+
+        return None
 
     return settings

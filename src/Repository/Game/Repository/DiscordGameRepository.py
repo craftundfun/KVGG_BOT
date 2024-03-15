@@ -60,6 +60,10 @@ def getDiscordGame(activityName: str, session: Session) -> Game | None:
             return None
 
         logger.debug(f"successfully fetched new inserted game with name: {activityName}")
+    except Exception as error:
+        logger.error(f"an error occurred while fetching discord game: {activityName}", exc_info=error)
+
+        return None
     else:
         logger.debug("found activity with exact name")
 
@@ -118,6 +122,12 @@ def getGameDiscordRelation(session: Session,
                          exc_info=error, )
 
             return None
+    except Exception as error:
+        logger.debug(
+            f"an error occurred while fetching DiscordGameRelation for {member.display_name} and {activityName}",
+            exc_info=error, )
+
+        return None
 
     logger.debug(f"fetched game relation for {member.display_name} and {activityName}")
 

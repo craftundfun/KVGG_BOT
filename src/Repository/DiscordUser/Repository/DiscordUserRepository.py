@@ -58,6 +58,10 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
             logger.error(f"couldn't fetch newly inserted DiscordUser for {member.display_name}", exc_info=error)
 
             return None
+    except Exception as error:
+        logger.error(f"an error occurred while fetching DiscordUser for {member.display_name}", exc_info=error)
+
+        return None
 
     # update quickly changing attributes
     dcUserDb.profile_picture_discord = member.display_avatar

@@ -48,6 +48,10 @@ def getStatisticsForUser(type: StatisticsParameter,
                          exc_info=error, )
 
             return None
+    except Exception as error:
+        logger.error(f"an error occurred while fetching statistics for {member.display_name}", exc_info=error)
+
+        return None
 
     if len(statistics) != 3:
         logger.debug("less then 3 statistics, searching missing one and creating it")
@@ -79,7 +83,7 @@ def getStatisticsForUser(type: StatisticsParameter,
 
         try:
             statistics = session.scalars(getQuery).all()
-        except NoResultFound as error:
+        except Exception as error:
             logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
                          exc_info=error, )
 
