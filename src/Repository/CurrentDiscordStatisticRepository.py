@@ -3,13 +3,13 @@ import logging
 from discord import Member
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 @DeprecationWarning
-def getStatisticsForUser(database: Database, type: StatisticsParameter, member: Member) -> list[dict] | None:
+def getStatisticsForUser(database: Database_Old, type: StatisticsParameter, member: Member) -> list[dict] | None:
     """
     Returns the statistics of all time-types from the database.
     If they don't exist yet, a new entry is created

@@ -11,7 +11,7 @@ from src.Manager.ChannelManager import ChannelService
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
 
@@ -40,7 +40,7 @@ class VoiceStateUpdateService:
         """
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
         voiceStates = (voiceStateBefore, voiceStateAfter)
 
         logger.debug("%s raised a VoiceStateUpdate" % member.name)
@@ -266,7 +266,7 @@ class VoiceStateUpdateService:
         else:
             logger.warning("unexpected voice state update from %s" % member.name)
 
-    def _saveDiscordUser(self, dcUserDb: dict, database: Database):
+    def _saveDiscordUser(self, dcUserDb: dict, database: Database_Old):
         """
         Saves the given DiscordUser to our database
 

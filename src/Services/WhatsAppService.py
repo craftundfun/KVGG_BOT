@@ -15,7 +15,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -28,7 +28,7 @@ class WhatsAppHelper:
     def __init__(self, client: Client):
         self.client = client
 
-    def _getUsersForMessage(self, database: Database) -> List[Dict[str, Any]] | None:
+    def _getUsersForMessage(self, database: Database_Old) -> List[Dict[str, Any]] | None:
         """
         Returns all Users with phone number and api key including their whatsapp settings
 
@@ -67,7 +67,7 @@ class WhatsAppHelper:
 
             return
 
-        database = Database()
+        database = Database_Old()
 
         # gaming channel => true, university => false, other channels => function will return
         if update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
@@ -127,7 +127,7 @@ class WhatsAppHelper:
         """
         logger.debug("creating Offline-Notification for %s" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         if lastOnline := dcUserDb['joined_at']:
             diff: timedelta = datetime.now() - lastOnline
@@ -187,7 +187,7 @@ class WhatsAppHelper:
 
             return
 
-        database = Database()
+        database = Database_Old()
 
         for message in messages:
             message['message'] = (f"{member.nick if member.nick else member.name} "
@@ -225,7 +225,7 @@ class WhatsAppHelper:
 
         return True
 
-    def _retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool, database: Database):
+    def _retractMessagesFromMessageQueue(self, dcUserDb: dict, isJoinMessage: bool, database: Database_Old):
         """
         Retract messages from the queue if user left a channel fast enough
 
@@ -253,7 +253,7 @@ class WhatsAppHelper:
                               channel: VoiceChannel | None,
                               whatsappSetting: dict,
                               usernameFromTriggerUser: str,
-                              database: Database):
+                              database: Database_Old):
         """
         Saves the message into the queue
 
@@ -330,7 +330,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
 
@@ -418,7 +418,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT * " \
                 "FROM whatsapp_setting " \
                 "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
@@ -503,7 +503,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
         whatsappSetting = database.fetchOneResult(query, (member.id,))
 

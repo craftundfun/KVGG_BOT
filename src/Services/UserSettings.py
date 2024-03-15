@@ -5,7 +5,7 @@ from discord import Member
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -15,7 +15,7 @@ class UserSettings:
     def __init__(self):
         pass
 
-    def _saveToDatabase(self, param: dict, tableName: str, database: Database) -> bool:
+    def _saveToDatabase(self, param: dict, tableName: str, database: Database_Old) -> bool:
         """
         Saves the changes to the database.
         """
@@ -28,7 +28,7 @@ class UserSettings:
 
         return True
 
-    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
+    def _getNotificationSettings(self, member: Member, database: Database_Old) -> dict | None:
         """
         Returns the notification settings from the given Member.
 
@@ -53,7 +53,7 @@ class UserSettings:
         :raise ConnectionError: if the database connection cant be established
         :return: Answer
         """
-        database = Database()
+        database = Database_Old()
         settings = getNotificationSettings(member, database)
 
         if not settings:
@@ -93,7 +93,7 @@ class UserSettings:
         """
         logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT * " \
                 "FROM whatsapp_setting " \

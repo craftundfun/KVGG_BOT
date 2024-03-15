@@ -29,7 +29,7 @@ from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.MemeService import MemeService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService
@@ -138,24 +138,6 @@ class MyClient(discord.Client):
         :return:
         """
         logger.info("Logged in as: " + str(self.user))
-
-        # TODO remove - for testing only
-        from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
-        from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-        from sqlalchemy import create_engine, MetaData
-        from sqlalchemy.orm import Session
-        from src.Helper.ReadParameters import Parameters, getParameter
-
-        engine = create_engine(
-            f'mysql+mysqlconnector://{getParameter(Parameters.USER)}:{getParameter(Parameters.PASSWORD)}@{getParameter(Parameters.HOST)}/{getParameter(Parameters.NAME)}',
-            echo=False)
-
-        metadata = MetaData()
-        metadata.reflect(bind=engine)
-
-        print(getStatisticsForUser(StatisticsParameter.STREAM, self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), Session(engine)))
-
-        sys.exit(0)
 
         try:
             await self.databaseRefreshService.startUp()
@@ -402,7 +384,7 @@ async def listCounters(interaction: discord.Interaction, current: str) -> list[C
     choices = []
 
     try:
-        database = Database()
+        database = Database_Old()
     except Exception as error:
         logger.error("couldn't create database connection", exc_info=error)
     else:

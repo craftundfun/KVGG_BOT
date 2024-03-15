@@ -13,7 +13,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordGameRepository import getGameDiscordRelation
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -29,7 +29,7 @@ class GameDiscordService:
         self.statisticManager = StatisticManager(self.client)
         self.achievementService = AchievementService(self.client)
 
-    async def increaseGameRelationsForMember(self, member: Member, database: Database):
+    async def increaseGameRelationsForMember(self, member: Member, database: Database_Old):
         """
         Increases the value of all current activities from the given member.
 
@@ -84,7 +84,7 @@ class GameDiscordService:
                 continue
 
     def getMostPlayedGames(self, limit: int = 3) -> list[dict] | None:
-        database = Database()
+        database = Database_Old()
         query = ("SELECT dg.name, SUM(gdm.time_played_online) + SUM(gdm.time_played_offline) AS time_played "
                  "FROM discord_game dg JOIN game_discord_mapping gdm ON dg.id = gdm.discord_game_id "
                  "GROUP BY gdm.discord_game_id "

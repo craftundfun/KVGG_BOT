@@ -9,7 +9,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType
@@ -57,7 +57,7 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
-        database = Database()
+        database = Database_Old()
         dcUserDb = getDiscordUser(message.author, database)
 
         if not dcUserDb:
@@ -87,7 +87,7 @@ class MemeService:
         :param message: Message that was reacted to
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT * FROM meme WHERE message_id = %s"
 
         if not (meme := database.fetchOneResult(query, (message.id,))):
@@ -120,7 +120,7 @@ class MemeService:
         """
         Chooses both winner and loser for meme.
         """
-        database = Database()
+        database = Database_Old()
         lastMonth = datetime.now() - dateutil.relativedelta.relativedelta(months=1)
         sinceTime = lastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -132,7 +132,7 @@ class MemeService:
         await self._chooseLoser(database, sinceTime, channel)
         await self._chooseWinner(database, sinceTime, channel)
 
-    async def _chooseWinner(self, database: Database, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseWinner(self, database: Database_Old, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a winner for the last month, notifies, pins and grants an XP-Boost.
 
@@ -174,7 +174,7 @@ class MemeService:
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
         logger.debug("choose meme winner and granted boost")
 
-    async def _chooseLoser(self, database: Database, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseLoser(self, database: Database_Old, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a loser for the last month, notifies and grants an XP-Boost.
         :param database: Database instance
@@ -226,7 +226,7 @@ class MemeService:
 
             return
 
-        database = Database()
+        database = Database_Old()
 
         if len(message.attachments) == 0:
             logger.debug(f"removing meme from {message.author.display_name}")

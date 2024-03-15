@@ -14,7 +14,7 @@ from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 
@@ -143,7 +143,7 @@ class BackgroundServices(commands.Cog):
         query = "SELECT user_id FROM discord"
 
         try:
-            database = Database()
+            database = Database_Old()
         except ConnectionError as error:
             logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
 

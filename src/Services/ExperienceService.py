@@ -16,7 +16,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Repository.DiscordUserRepository import getDiscordUser, getDiscordUserById
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -76,7 +76,7 @@ class ExperienceService:
 
             return nextNextSaturday - now
 
-    def _getExperience(self, userId: int, database: Database) -> dict | None:
+    def _getExperience(self, userId: int, database: Database_Old) -> dict | None:
         """
         Returns the Experience from the given user. If no entry exists, it will create one
 
@@ -109,7 +109,7 @@ class ExperienceService:
 
         return xp
 
-    def _createExperience(self, userId: int, database: Database) -> bool:
+    def _createExperience(self, userId: int, database: Database_Old) -> bool:
         """
         Creates an Experience for the given user
 
@@ -132,7 +132,7 @@ class ExperienceService:
 
         return database.runQueryOnDatabase(query, (xpAmount, dcUserDb['id'], xpBoosts,))
 
-    def _calculateXpBoostsFromPreviousData(self, dcUserDbId: int, database: Database) -> str | None:
+    def _calculateXpBoostsFromPreviousData(self, dcUserDbId: int, database: Database_Old) -> str | None:
         """
         Calculates the XP-Boosts earned until now
 
@@ -210,7 +210,7 @@ class ExperienceService:
 
         return json.dumps(boosts)
 
-    def _calculateXpFromPreviousData(self, userId: int, database: Database) -> int:
+    def _calculateXpFromPreviousData(self, userId: int, database: Database_Old) -> int:
         """
         Calculates the XP earned until now
 
@@ -250,7 +250,7 @@ class ExperienceService:
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         # import and instantiate here due to avoiding circular import
         from src.Manager.NotificationManager import NotificationService
@@ -386,7 +386,7 @@ class ExperienceService:
         """
         logger.debug("%s requested XP-SPIN." % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         if (dcUserDb := getDiscordUser(member, database)) is None:
             logger.warning("couldn't fetch DiscordUser!")
@@ -492,7 +492,7 @@ class ExperienceService:
         """
         Searches the database for open xp-spin reminders and notifies the member
         """
-        database = Database()
+        database = Database_Old()
         query = ("SELECT e.*, d.user_id "
                  "FROM experience e INNER JOIN discord d ON d.id = e.discord_user_id "
                  "WHERE e.time_to_send_spin_reminder IS NOT NULL "
@@ -543,7 +543,7 @@ class ExperienceService:
         """
         logger.debug("requested xp from %s" % dcUserDb['username'])
 
-        return self._getExperience(dcUserDb['user_id'], Database())
+        return self._getExperience(dcUserDb['user_id'], Database_Old())
 
     def handleXpRequest(self, member: Member, user: Member) -> string:
         """
@@ -559,7 +559,7 @@ class ExperienceService:
 
         logger.debug("%s requested XP" % member.name)
 
-        database = Database()
+        database = Database_Old()
         dcUserDb = getDiscordUser(user, database)
 
         if dcUserDb is None:
@@ -594,7 +594,7 @@ class ExperienceService:
         """
         logger.debug("%s requested a change of his / her double-xp-weekend notification" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         if setting == 'on':
             dcUserDb = getDiscordUser(member, database)
@@ -642,7 +642,7 @@ class ExperienceService:
         """
         logger.debug("%s requested Xp-Inventory" % member.name)
 
-        database = Database()
+        database = Database_Old()
         dcUserDb: dict | None = getDiscordUser(member, database)
 
         if dcUserDb is None:
@@ -850,7 +850,7 @@ class ExperienceService:
         """
         logger.debug("%s gets XP" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         xp = self._getExperience(member.id, database)
 
@@ -916,7 +916,7 @@ class ExperienceService:
         """
         logger.debug("%s requested XP-Leaderboard" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT d.username, e.xp_amount " \
                 "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
@@ -947,7 +947,7 @@ class ExperienceService:
         :param member:
         :raise ConnectionError: If the database connection can't be established
         """
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT * " \
                 "FROM experience " \

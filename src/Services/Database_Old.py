@@ -11,7 +11,7 @@ from src.Helper.ReadParameters import getParameter, Parameters
 logger = logging.getLogger("KVGG_BOT")
 
 
-class Database:
+class Database_Old:
 
     def __init__(self):
         self.connection = self._createConnection()

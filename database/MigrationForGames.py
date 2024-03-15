@@ -1,8 +1,8 @@
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 
 def main():
-    database = Database()
+    database = Database_Old()
     getUsersQuery = "SELECT id FROM discord"
     users = database.fetchAllResults(getUsersQuery)
     getGameQuery = "SELECT id FROM discord_game"

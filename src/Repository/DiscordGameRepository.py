@@ -3,13 +3,13 @@ import logging
 import Levenshtein
 from discord import Member
 
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 @DeprecationWarning
-def getDiscordGame(database: Database, activityName: str) -> dict | None:
+def getDiscordGame(database: Database_Old, activityName: str) -> dict | None:
     insertQuery = "INSERT INTO discord_game (name) VALUES (%s)"
     getQuery = "SELECT * FROM discord_game WHERE name = %s"
     game = database.fetchOneResult(getQuery, (activityName,))
@@ -67,7 +67,7 @@ def getDiscordGame(database: Database, activityName: str) -> dict | None:
 
 
 @DeprecationWarning
-def getGameDiscordRelation(database: Database,
+def getGameDiscordRelation(database: Database_Old,
                            member: Member,
                            activityName: str,
                            includeGameInformation: bool = False) -> dict | None:

@@ -2,13 +2,13 @@ import logging
 
 from discord import Member
 
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 @DeprecationWarning
-def getNotificationSettings(member: Member, database: Database) -> dict | None:
+def getNotificationSettings(member: Member, database: Database_Old) -> dict | None:
     """
     Fetches the notification settings of the given Member from our database.
 

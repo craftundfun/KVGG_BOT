@@ -11,7 +11,7 @@ from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
@@ -26,7 +26,7 @@ class ReminderService:
         self.client = client
 
     def createTimer(self, member: Member, name: str, minutes: int) -> str:
-        database = Database()
+        database = Database_Old()
 
         if not (dcUserDb := getDiscordUser(member, database)):
             logger.debug("cant proceed, no DiscordUser")
@@ -88,7 +88,7 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         if not checkDateAgainstRegex(date):
             logger.debug("the given date had a incorrect format")
@@ -207,7 +207,7 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT * " \
                 "FROM reminder " \
                 "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
@@ -262,7 +262,7 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT r.*, d.user_id " \
                 "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
@@ -303,7 +303,7 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         try:
             id = int(id)
@@ -345,7 +345,7 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         member: Member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(reminder["user_id"]))
 

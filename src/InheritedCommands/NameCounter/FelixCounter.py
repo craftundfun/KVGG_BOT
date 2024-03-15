@@ -7,7 +7,7 @@ from discord import Member
 
 from src.Helper.SendDM import sendDM, separator
 from src.InheritedCommands.NameCounter.Counter import Counter
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -64,7 +64,7 @@ class FelixCounter(Counter):
         if dcUserDb['felix_counter_start'] > datetime.now():
             return
 
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT * FROM counter WHERE name like 'felix'"
         felixCounter = database.fetchOneResult(query)

@@ -12,7 +12,7 @@ from discord import Client
 
 from src.DiscordParameters.Colors import Colors
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationTypeEnum
 from src.View.PaginationView import PaginationViewDataItem, PaginationViewDataTypes
@@ -184,7 +184,7 @@ class LeaderboardService:
         logger.debug("creating createTopMessagesAndCommandsDiagram")
 
         countOfEntries = 5
-        database = Database()
+        database = Database_Old()
         messageQuery = ("SELECT username, message_count_all_time AS value "
                         "FROM discord "
                         "ORDER BY message_count_all_time DESC "
@@ -301,7 +301,7 @@ class LeaderboardService:
         logger.debug("creating TopOnlineAndStreamDiagram")
 
         countOfUsers = 5
-        database = Database()
+        database = Database_Old()
 
         query = ("SELECT username, time_online AS value "
                  "FROM discord "
@@ -358,7 +358,7 @@ class LeaderboardService:
                  "WHERE dur.type = %s "
                  "ORDER BY dur.value DESC "
                  "LIMIT %s")
-        database = Database()
+        database = Database_Old()
 
         if not (onlineRelations := database.fetchAllResults(query, (RelationTypeEnum.ONLINE.value, countOfRelations,))):
             logger.error("couldn't fetch onlineRelations")

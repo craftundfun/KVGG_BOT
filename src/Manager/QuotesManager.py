@@ -9,7 +9,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -46,7 +46,7 @@ class QuotesManager:
         """
         logger.debug("%s requested a quote" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         query = "SELECT quote FROM quotes"
 
@@ -69,7 +69,7 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
         channel = getQuotesChannel(self.client)
 
         if channel is not None and (channel.id == message.channel.id):
@@ -92,7 +92,7 @@ class QuotesManager:
         :return:
         """
         channel = getQuotesChannel(self.client)
-        database = Database()
+        database = Database_Old()
 
         if channel is not None and channel.id == message.channel_id:
             logger.debug("new quote detected")
@@ -140,7 +140,7 @@ class QuotesManager:
         :return:
         """
         channel = getQuotesChannel(self.client)
-        database = Database()
+        database = Database_Old()
 
         if channel is not None and channel.id == message.channel_id:
             logger.debug("delete quote from database")

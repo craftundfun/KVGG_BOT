@@ -23,7 +23,7 @@ from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
@@ -110,7 +110,7 @@ class ProcessUserInput:
         """
         logger.debug("increasing message-count for %s" % member.name)
 
-        database = Database()
+        database = Database_Old()
         dcUserDb = getDiscordUser(member, database)
 
         if member.bot:
@@ -152,7 +152,7 @@ class ProcessUserInput:
         if self._saveDiscordUserToDatabase(dcUserDb, database):
             logger.debug("saved changes to database")
 
-    def _saveDiscordUserToDatabase(self, data: dict, database: Database) -> bool:
+    def _saveDiscordUserToDatabase(self, data: dict, database: Database_Old) -> bool:
         """
         Helper to save a DiscordUser from this class into the database
 
@@ -252,7 +252,7 @@ class ProcessUserInput:
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         if timeName == "online":
             time = OnlineTime.OnlineTime()
@@ -327,7 +327,7 @@ class ProcessUserInput:
         """
         logger.debug("%s requested our leaderboard" % member.name)
 
-        database = Database()
+        database = Database_Old()
 
         if type == "xp":
             return self.experienceService.sendXpLeaderboard(member=member)
@@ -470,7 +470,7 @@ class ProcessUserInput:
         """
         logger.debug("handling Felix-Timer by %s" % member.name)
 
-        database = Database()
+        database = Database_Old()
         dcUserDb = getDiscordUser(user, database)
 
         if not dcUserDb:

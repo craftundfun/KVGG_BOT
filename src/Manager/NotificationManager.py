@@ -10,7 +10,7 @@ from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
 from src.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -38,7 +38,7 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        settings = getNotificationSettings(member, Database())
+        settings = getNotificationSettings(member, Database_Old())
 
         if not settings:
             logger.critical(f"no notification settings for {member.display_name}, aborting sending message")
@@ -109,7 +109,7 @@ class NotificationService:
         :param questId: Primary-Key of the completed quest
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT description, time_type FROM quest WHERE id = %s"
 
         if not (quest := database.fetchOneResult(query, (questId,))):
@@ -165,7 +165,7 @@ class NotificationService:
         :return:
         """
         answer = ""
-        database = Database()
+        database = Database_Old()
 
         query = ("SELECT n.* "
                  "FROM newsletter n "
@@ -315,7 +315,7 @@ class NotificationService:
         return "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen."
 
     @DeprecationWarning  # moved to repository
-    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
+    def _getNotificationSettings(self, member: Member, database: Database_Old) -> dict | None:
         """
         Fetches the notification settings of the given Member from our database.
 

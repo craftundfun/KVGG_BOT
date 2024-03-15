@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -18,7 +18,7 @@ def getUnsentMessagesFromTriggerUser(dcUserDb: dict, isJoinMessage: bool) -> lis
     :return:
     """
     try:
-        database = Database()
+        database = Database_Old()
     except ConnectionError as error:
         logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
 

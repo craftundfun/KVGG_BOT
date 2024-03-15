@@ -9,7 +9,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.RoleId import RoleId
 from src.Manager.TTSManager import TTSService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
 from src.Services.VoiceClientService import VoiceClientService
@@ -36,7 +36,7 @@ class CounterService:
         :param voiceLine: eventual tts voice line
         :param member: Member who creates the counter
         """
-        database = Database()
+        database = Database_Old()
 
         if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             logger.debug(f"{member.display_name} has no rights to create counters")
@@ -99,7 +99,7 @@ class CounterService:
         Returns a list of all counters currently existing
         """
         query = "SELECT * FROM counter"
-        database = Database()
+        database = Database_Old()
 
         if not (counters := database.fetchAllResults(query)):
             logger.debug("couldn't fetch counter from database")
@@ -130,7 +130,7 @@ class CounterService:
         # whole name with description is given -> split to get name
         counterName = counterName.split(" ")[0]
 
-        database = Database()
+        database = Database_Old()
 
         logger.debug("%s requested %s-Counter" % (member.name, counterName))
 
@@ -258,7 +258,7 @@ class CounterService:
                 + answerAppendix)
 
     @staticmethod
-    def leaderboardForCounter(database: Database) -> str:
+    def leaderboardForCounter(database: Database_Old) -> str:
         """
         Sort all counters and list the top three per counter
 

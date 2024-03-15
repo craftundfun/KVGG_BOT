@@ -9,7 +9,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -36,7 +36,7 @@ class StatisticManager:
         deleteQuery = "DELETE FROM current_discord_statistic WHERE id = %s"
         now = datetime.now()
         listOfInsertedUsers = []
-        database = Database()
+        database = Database_Old()
 
         if not (userStatistics := database.fetchAllResults(query, (time,))):
             logger.error(f"couldn't fetch all statistics for {time}")
@@ -86,7 +86,7 @@ class StatisticManager:
         """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
 
-        database = Database()
+        database = Database_Old()
         statistics: list[dict] = getStatisticsForUser(database, type, member)
 
         if not statistics:
@@ -109,7 +109,7 @@ class StatisticManager:
 
         :param time: Time period to send the retrospect for
         """
-        database = Database()
+        database = Database_Old()
         query = ("SELECT DISTINCT d.id, d.user_id "
                  "FROM discord d INNER JOIN current_discord_statistic cds ON cds.discord_id = d.id")
 

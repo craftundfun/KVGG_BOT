@@ -8,7 +8,7 @@ from discord import Client, ChannelType
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -30,7 +30,7 @@ class DatabaseRefreshService:
         """
         logger.debug("beginning fetching data")
 
-        database = Database()
+        database = Database_Old()
         query = "SELECT * FROM discord"
         dcUsersDb = database.fetchAllResults(query)
 
@@ -130,7 +130,7 @@ class DatabaseRefreshService:
 
         :return:
         """
-        database = Database()
+        database = Database_Old()
         query = "SELECT * FROM discord"
         dcUsersDb = database.fetchAllResults(query)
 

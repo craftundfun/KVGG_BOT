@@ -13,7 +13,7 @@ from src.Id.Categories import TrackedCategories
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -50,7 +50,7 @@ class QuestService:
         :param value: Optional value to overwrite the standard increase of one
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
         query = ("SELECT qdm.*, q.value_to_reach, q.time_type "
                  "FROM quest_discord_mapping qdm INNER JOIN quest q ON quest_id = q.id "
                  "WHERE quest_id IN "
@@ -155,7 +155,7 @@ class QuestService:
         :param time: Time to reset the quests and create new ones
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
 
         query = "DELETE FROM quest_discord_mapping " \
                 "WHERE quest_id IN " \
@@ -170,7 +170,7 @@ class QuestService:
 
         await self._createQuestsForAllUsers(time, database)
 
-    async def _informMemberAboutNewQuests(self, member: Member, time: QuestDates, database: Database):
+    async def _informMemberAboutNewQuests(self, member: Member, time: QuestDates, database: Database_Old):
         """
         Fetches all current quests from the given time and informs user about them.
 
@@ -194,7 +194,7 @@ class QuestService:
 
         await self.notificationService.informAboutNewQuests(member, time, quests)
 
-    async def _createQuestsForAllUsers(self, time: QuestDates, database: Database):
+    async def _createQuestsForAllUsers(self, time: QuestDates, database: Database_Old):
         """
         Creates new quests for all online users, so they have new ones right at zero 'o clock.
 
@@ -242,7 +242,7 @@ class QuestService:
         :param member: Member, who joined the VoiceChat
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
         dcUserDb = getDiscordUser(member, database)
 
         if not dcUserDb:
@@ -273,13 +273,13 @@ class QuestService:
         """
         Creates all quest typs for the newly joined member.
         """
-        database: Database = Database()
+        database: Database_Old = Database_Old()
 
         await self._createQuestForMember(member, QuestDates.DAILY, database)
         await self._createQuestForMember(member, QuestDates.WEEKLY, database)
         await self._createQuestForMember(member, QuestDates.MONTHLY, database)
 
-    async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database):
+    async def _createQuestForMember(self, member: Member, time: QuestDates, database: Database_Old):
         """
         Creates new quests for the given member and time.
 
@@ -335,7 +335,7 @@ class QuestService:
         :param member: Member, who requested his quests
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
+        database = Database_Old()
 
         query = ("SELECT q.*, qdm.current_value "
                  "FROM quest q INNER JOIN quest_discord_mapping qdm ON q.id = qdm.quest_id "
@@ -399,7 +399,7 @@ class QuestService:
 
         :param questDate: The date of the quest to remind
         """
-        database = Database()
+        database = Database_Old()
 
         def _getChannels():
             for voiceChannel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:

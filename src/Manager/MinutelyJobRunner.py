@@ -10,7 +10,7 @@ from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.UpdateTimeManager import UpdateTimeService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationService
@@ -34,7 +34,7 @@ class MinutelyJobRunner:
         self.experienceService = ExperienceService(self.client)
 
     async def run(self):
-        database = Database()
+        database = Database_Old()
 
         for member in self.client.get_all_members():
             dcUserDb = getDiscordUser(member, database)

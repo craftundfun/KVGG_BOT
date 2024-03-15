@@ -13,7 +13,7 @@ from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -37,7 +37,7 @@ class RelationService:
         """
         self.client = client
 
-    def _createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, database: Database) -> bool:
+    def _createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, database: Database_Old) -> bool:
         """
         Creates a new relation between the two given members
 
@@ -77,7 +77,7 @@ class RelationService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         if member_1.id == member_2.id:
             logger.debug("same member for relation")
@@ -138,7 +138,7 @@ class RelationService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
             relation['value'] = relation['value'] + value
@@ -223,7 +223,7 @@ class RelationService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        database = Database_Old()
 
         answer = ""
         query = "SELECT * " \

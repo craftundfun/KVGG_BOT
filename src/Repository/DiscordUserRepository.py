@@ -6,14 +6,14 @@ from pathlib import Path
 
 from discord import Member, User
 
-from src.Services.Database import Database
+from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 basepath = Path(__file__).parent.parent.parent
 
 
 @DeprecationWarning
-def getDiscordUser(member: Member, database: Database) -> dict | None:
+def getDiscordUser(member: Member, database: Database_Old) -> dict | None:
     """
     Returns the user from the database.
     If he doesn't exist yet, a new entry is created (only if a member was given)
@@ -74,7 +74,7 @@ def getDiscordUser(member: Member, database: Database) -> dict | None:
 
 
 @DeprecationWarning
-def getDiscordUserById(userId: int, database: Database) -> dict | None:
+def getDiscordUserById(userId: int, database: Database_Old) -> dict | None:
     """
     Returns a discord user from the database.
     Doesn't create one if missing or else.
