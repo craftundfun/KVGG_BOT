@@ -9,10 +9,6 @@ from sqlalchemy.orm import relationship
 from src.Repository.BaseClass import Base
 
 
-# from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-# from src.Repository.Users.Entity.User import User
-
-
 class MessageQueue(Base):
     __tablename__ = "message_queue"
 
@@ -25,10 +21,10 @@ class MessageQueue(Base):
     is_join_message: Mapped[Optional[bool]]
 
     trigger_user_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
-    discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
+    trigger_discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
 
     user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
     user: Mapped["User"] = relationship("User")
 
     def __repr__(self):
-        return f"MessageQueue(id={self.id}, DiscordUser={self.discord_user}, User={self.user})"
+        return f"MessageQueue(id={self.id}, DiscordUser={self.trigger_discord_user}, User={self.user})"
