@@ -5,7 +5,8 @@ from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 
 
-def getVoiceChannelsFromCategory(client: Client, *wantedCategories: TrackedCategories | UniversityCategory) \
+def getVoiceChannelsFromCategory(client: Client,
+                                 *wantedCategories: TrackedCategories | UniversityCategory) \
         -> list[VoiceChannel] | None:
     serverCategories = client.get_guild(GuildId.GUILD_KVGG.value).categories
     channels = []
