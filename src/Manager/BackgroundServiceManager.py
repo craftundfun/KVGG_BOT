@@ -3,18 +3,14 @@ import datetime
 import logging.handlers
 
 import discord
-from dateutil.relativedelta import relativedelta
 from discord.ext import tasks, commands
 
-from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Id.GuildId import GuildId
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
-from src.Services.Database_Old import Database_Old
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 
@@ -131,64 +127,6 @@ class BackgroundServices(commands.Cog):
         await functionWrapper(self.minutelyJobRunner.run)
 
         loggerTime.info("end")
-
-    @DeprecationWarning
-    @tasks.loop(time=midnight)
-    async def runAnniversary(self):
-        """
-        Iterates at midnight through all database members to check for their anniversary.
-        """
-        loggerTime.info("running runAnniversary")
-
-        query = "SELECT user_id FROM discord"
-
-        try:
-            database = Database_Old()
-        except ConnectionError as error:
-            logger.error("couldn't connect to MySQL, aborting task", exc_info=error)
-
-            return
-
-        if not (users := database.fetchAllResults(query)):
-            logger.error("couldn't fetch any users from the database")
-
-            return
-
-        guild = self.client.get_guild(GuildId.GUILD_KVGG.value)
-
-        if not guild:
-            logger.error("couldn't fetch guild")
-
-            return
-
-        for user in users:
-            member = guild.get_member(int(user['user_id']))
-
-            if not member:
-                logger.warning(f"couldn't fetch member for id: {str(user['user_id'])}")
-
-                continue
-
-            if member.bot:
-                continue
-
-            if not member.joined_at:
-                continue
-
-            utcJoinedAt = member.joined_at
-            joinedAt = utcJoinedAt.replace(tzinfo=tz)
-            now = datetime.datetime.now().replace(tzinfo=tz)
-
-            logger.debug(f"checking anniversary for: {member.display_name}")
-            logger.debug(f"comparing dates - joined at: {joinedAt} vs now: {now}")
-
-            if not (joinedAt.month == now.month and joinedAt.day == now.day):
-                continue
-
-            difference = relativedelta(now, joinedAt)
-            years = difference.years + 1
-
-            await self.achievementService.sendAchievementAndGrantBoost(member, AchievementParameter.ANNIVERSARY, years)
 
     @tasks.loop(time=midnight)
     async def refreshQuests(self):

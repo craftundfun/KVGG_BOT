@@ -2,13 +2,13 @@ import asyncio
 import logging
 import os
 import threading
-from asyncio import sleep, AbstractEventLoop
+from asyncio import AbstractEventLoop
 from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
 import requests
-from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
+from discord import Client, Member, Message
 from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
@@ -253,79 +253,3 @@ class SoundboardService:
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."
-
-    @DeprecationWarning
-    async def __playSound(self, channel: VoiceChannel, filepath: str, ctx: discord.interactions.Interaction) -> bool:
-        """
-        Tries to play the sound in the given channel.
-
-        :param channel: Channel to play the sound in
-        :param filepath: sound to play
-        :param ctx: Interaction to tell the user the sound is playing
-        :return:
-        """
-        try:
-            voiceClient: VoiceClient = await channel.connect()
-        except ClientException:
-            logger.warning("already connected to a voicechannel")
-
-            return False
-        except Exception as error:
-            logger.error("an error occurred while joining a voice channel", exc_info=error)
-
-            return False
-
-        if voiceClient.is_playing():
-            logger.debug("currently playing a sound")
-
-            return False
-
-        file = FFmpegPCMAudio(source=(filepath := self.path + filepath))
-        duration = MP3(filepath).info.length
-
-        try:
-            voiceClient.play(file)
-            await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
-
-            await sleep(duration)
-        except Exception as error:
-            logger.error("a problem occurred during playing a sound in %s" % channel.name, exc_info=error)
-
-            return False
-        else:
-            return True
-        finally:
-            await voiceClient.disconnect()
-
-    @DeprecationWarning
-    async def stop(self, member: Member) -> str:
-        """
-        If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the
-        channel.
-
-        :param member:
-        :return:
-        """
-        if not (voiceState := member.voice):
-            logger.debug("%s was not in a channel" % member.name)
-
-            return "Du befindest dich aktuell in keinem VoiceChannel!"
-
-        voiceClient = self.client.get_guild(GuildId.GUILD_KVGG.value).voice_client
-
-        if not voiceClient:
-            logger.debug("bot is not connected to a voice channel")
-
-            return "Der Bot ist aktuell in keinem Channel aktiv."
-
-        channelBot = voiceClient.channel
-
-        if voiceState.channel != channelBot:
-            logger.debug("%s and the bot are not connected to the same channel" % member.name)
-
-            return "Du befindest nicht im selben Channel wie der Bot!"
-
-        await voiceClient.disconnect(force=True)
-        logger.debug("sound was stopped by %s" % member.name)
-
-        return "Das Abspielen des Sounds wurde beendet."

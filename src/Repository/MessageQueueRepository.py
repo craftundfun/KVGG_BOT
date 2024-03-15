@@ -8,7 +8,6 @@ from src.Services.Database_Old import Database_Old
 logger = logging.getLogger("KVGG_BOT")
 
 
-@DeprecationWarning
 def getUnsentMessagesFromTriggerUser(dcUserDb: dict, isJoinMessage: bool) -> list | None:
     """
     Returns all messages from the message queue which weren't sent yet.

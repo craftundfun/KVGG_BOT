@@ -582,54 +582,6 @@ class ExperienceService:
 
         return reply
 
-    @DeprecationWarning
-    def handleXpNotification(self, member: Member, setting: string) -> string:
-        """
-        Lets the user choose his / her double-xp-weekend notification
-
-        :param member:
-        :param setting:
-        :raise ConnectionError: If the database connection can't be established
-        :return:
-        """
-        logger.debug("%s requested a change of his / her double-xp-weekend notification" % member.name)
-
-        database = Database_Old()
-
-        if setting == 'on':
-            dcUserDb = getDiscordUser(member, database)
-
-            if dcUserDb is None:
-                logger.warning("couldn't fetch DiscordUser!")
-
-                return "Es ist ein Fehler aufgetreten!"
-
-            dcUserDb['double_xp_notification'] = 1
-        else:
-            dcUserDb = getDiscordUser(member, database)
-
-            if dcUserDb is None:
-                logger.warning("Couldn't fetch DiscordUser!")
-
-                return "Es ist ein Fehler aufgetreten!"
-
-            dcUserDb['double_xp_notification'] = 0
-
-        query, nones = writeSaveQuery(
-            'discord',
-            dcUserDb['id'],
-            dcUserDb
-        )
-
-        if database.runQueryOnDatabase(query, nones):
-            logger.debug("saved setting to database")
-
-            return "Deine Einstellungen wurden gespeichert!"
-        else:
-            logger.critical("couldn't save changes to database")
-
-            return "Es ist leider ein Fehler aufgetreten."
-
     def handleXpInventory(self, member: Member, action: str, row: str = None) -> str:
         """
         Handles the XP-Inventory

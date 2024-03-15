@@ -8,7 +8,6 @@ from src.Services.Database_Old import Database_Old
 logger = logging.getLogger("KVGG_BOT")
 
 
-@DeprecationWarning
 def getStatisticsForUser(database: Database_Old, type: StatisticsParameter, member: Member) -> list[dict] | None:
     """
     Returns the statistics of all time-types from the database.

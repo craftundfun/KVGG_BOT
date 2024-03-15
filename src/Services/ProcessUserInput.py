@@ -27,7 +27,7 @@ from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
-from src.Services.RelationService import RelationService, RelationTypeEnum
+from src.Services.RelationService import RelationService
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -314,125 +314,6 @@ class ProcessUserInput:
                     + time.getStringForTime(dcUserDb))
         else:
             return time.getStringForTime(dcUserDb)
-
-    @DeprecationWarning
-    async def sendLeaderboard(self, member: Member, type: str | None) -> string:
-        """
-        Returns the leaderboard of our stats in the database
-
-        :param type:
-        :param member: Member, who requested the leaderboard
-        :raise ConnectionError: If the database connection cant be established
-        :return:
-        """
-        logger.debug("%s requested our leaderboard" % member.name)
-
-        database = Database_Old()
-
-        if type == "xp":
-            return self.experienceService.sendXpLeaderboard(member=member)
-
-        if type == "relations":
-            logger.debug("leaderboard for relations")
-
-            answer = "----------------------------\n"
-            answer += "__**Leaderboard - Relationen**__\n"
-            answer += "----------------------------\n\n"
-
-            if online := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE, 10):
-                answer += "- __Online-Pärchen__:\n"
-                answer += online
-                answer += "\n"
-
-            if stream := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM, 10):
-                answer += "- __Stream-Pärchen__:\n"
-                answer += stream
-                answer += "\n"
-
-            if university := await self.relationService.getLeaderboardFromType(RelationTypeEnum.UNIVERSITY, 10):
-                answer += "- __Lern-Pärchen__:\n"
-                answer += university
-                answer += "\n"
-
-            return answer
-
-        if type == "games":
-            logger.debug("leaderboard for games")
-
-            answer = "---------------------------\n"
-            answer += "__**Leaderboard - Activities**__\n"
-            answer += "---------------------------\n\n"
-            answer += self.gameDiscordService.getMostPlayedGamesForLeaderboard(limit=10)
-
-            return answer
-
-        # online time
-        query = "SELECT username, formated_time " \
-                "FROM discord " \
-                "WHERE time_online IS NOT NULL " \
-                "ORDER BY time_online DESC " \
-                "LIMIT 3"
-
-        usersOnlineTime = database.fetchAllResults(query)
-
-        # stream time
-        query = "SELECT username, formatted_stream_time " \
-                "FROM discord " \
-                "ORDER BY time_streamed DESC " \
-                "LIMIT 3"
-
-        usersStreamTime = database.fetchAllResults(query)
-
-        # message count
-        query = "SELECT username, message_count_all_time " \
-                "FROM discord " \
-                "WHERE message_count_all_time != 0 " \
-                "ORDER BY message_count_all_time DESC " \
-                "LIMIT 3"
-
-        usersMessageCount = database.fetchAllResults(query)
-
-        answer = "--------------\n"
-        answer += "__**Leaderboard**__\n"
-        answer += "--------------\n\n"
-
-        if usersOnlineTime and len(usersOnlineTime) != 0:
-            answer += "- __Online-Zeit__:\n"
-
-            for index, user in enumerate(usersOnlineTime):
-                answer += "\t%d: %s - %s Stunden\n" % (index + 1, user['username'], user['formated_time'])
-
-        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.ONLINE):
-            answer += "\n- __Online-Pärchen__:\n"
-            answer += relationAnswer
-
-        if usersStreamTime and len(usersStreamTime) != 0:
-            answer += "\n- __Stream-Zeit__:\n"
-
-            for index, user in enumerate(usersStreamTime):
-                answer += "\t%d: %s - %s Stunden\n" % (index + 1, user['username'], user['formatted_stream_time'])
-
-        if relationAnswer := await self.relationService.getLeaderboardFromType(RelationTypeEnum.STREAM):
-            answer += "\n- __Stream-Pärchen__:\n"
-            answer += relationAnswer
-
-        if usersMessageCount and len(usersMessageCount) != 0:
-            answer += "\n- __Anzahl an gesendeten Nachrichten__:\n"
-
-            for index, user in enumerate(usersMessageCount):
-                answer += "\t%d: %s - %s\n" % (index + 1, user['username'], user['message_count_all_time'])
-
-        if mostPlayedGames := self.gameDiscordService.getMostPlayedGamesForLeaderboard():
-            answer += "\n- __Die meist gespielten Spiele__:\n"
-            answer += mostPlayedGames
-
-        # circular import
-        from src.Services.CounterService import CounterService
-        answer += CounterService.leaderboardForCounter(database)
-
-        logger.debug("sending leaderboard")
-
-        return answer
 
     async def sendRegistrationLink(self, member: Member):
         """

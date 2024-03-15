@@ -2,7 +2,6 @@ import string
 from datetime import datetime
 
 
-@DeprecationWarning
 # writes the update SQL statement for the given data
 def writeSaveQuery(table_name: string, primary_key: string, data: dict) -> (str, None):
     set_clauses = []

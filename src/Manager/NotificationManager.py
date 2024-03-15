@@ -314,23 +314,6 @@ class NotificationService:
 
         return "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen."
 
-    @DeprecationWarning  # moved to repository
-    def _getNotificationSettings(self, member: Member, database: Database_Old) -> dict | None:
-        """
-        Fetches the notification settings of the given Member from our database.
-
-        :param member: Member, whose settings will be fetched
-        :return: None if no settings were found, dict otherwise
-        """
-        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
-
-        if not (settings := database.fetchOneResult(query, (member.id,))):
-            logger.error("couldn't fetch results from database")
-
-            return None
-
-        return settings
-
     async def notifyAboutUnfinishedQuests(self, questDate: QuestDates, quests: list, member: Member):
         """
         Sends a message to the member about the unfinished quests.

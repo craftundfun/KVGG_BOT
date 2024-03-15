@@ -8,7 +8,6 @@ from src.Services.Database_Old import Database_Old
 logger = logging.getLogger("KVGG_BOT")
 
 
-@DeprecationWarning
 def getDiscordGame(database: Database_Old, activityName: str) -> dict | None:
     insertQuery = "INSERT INTO discord_game (name) VALUES (%s)"
     getQuery = "SELECT * FROM discord_game WHERE name = %s"
@@ -66,7 +65,6 @@ def getDiscordGame(database: Database_Old, activityName: str) -> dict | None:
     return game
 
 
-@DeprecationWarning
 def getGameDiscordRelation(database: Database_Old,
                            member: Member,
                            activityName: str,
