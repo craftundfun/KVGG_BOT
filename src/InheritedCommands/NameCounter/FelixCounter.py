@@ -74,9 +74,9 @@ class FelixCounter(Counter):
 
         query = "SELECT * FROM counter_discord_mapping WHERE counter_id = %s AND discord_id = %s"
 
-        if not (felixCounterUser := database.fetchOneResult(query, (felixCounter['id'], member.id))):
+        if not (felixCounterUser := database.fetchOneResult(query, (felixCounter['id'], dcUserDb['id']))):
             query = "INSERT INTO counter_discord_mapping (counter_id, discord_id, value) VALUES (%s, %s, %s)"
-            database.runQueryOnDatabase(query, (felixCounter['id'], member.id, 0))
+            database.runQueryOnDatabase(query, (felixCounter['id'], dcUserDb['id'], 0))
             felixCounterValue = 0
         else:
             felixCounterValue = felixCounterUser['value']
@@ -84,7 +84,7 @@ class FelixCounter(Counter):
         # timer still active
         if (datetime.now() - dcUserDb['felix_counter_start']).seconds // 60 <= 20:
             query = "UPDATE counter_discord_mapping SET value = %s WHERE counter_id = %s AND discord_id = %s"
-            database.runQueryOnDatabase(query, (felixCounterValue + 1, felixCounter['id'], member.id))
+            database.runQueryOnDatabase(query, (felixCounterValue + 1, felixCounter['id'], dcUserDb['id']))
         else:
             dcUserDb['felix_counter_start'] = None
 
