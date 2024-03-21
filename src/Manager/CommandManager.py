@@ -163,7 +163,7 @@ class CommandService:
                 function = self.userInputService.accessTimeAndEdit
 
             case Commands.COUNTER:
-                function = self.counterService.accessNameCounterAndEdit  # TODO
+                function = self.counterService.accessNameCounterAndEdit
 
             case Commands.WHATSAPP:
                 function = self.userSettings.manageWhatsAppSettings  # TODO

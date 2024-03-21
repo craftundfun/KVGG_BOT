@@ -24,7 +24,6 @@ from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
-from src.Manager.BackgroundServiceManager import BackgroundServices
 from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
@@ -139,8 +138,16 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
+        # from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
+        # from src.Manager.DatabaseManager import getSession
+
+        # print(getCounterDiscordMapping(self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), "Test", getSession()))
+
+        # sys.exit(0)
+
         try:
-            await self.databaseRefreshService.startUp()
+            # await self.databaseRefreshService.startUp() # TODO enable again
+            pass
         except ConnectionError as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
@@ -194,7 +201,7 @@ class MyClient(discord.Client):
 
         global backgroundServices
 
-        backgroundServices = BackgroundServices(self)
+        # backgroundServices = BackgroundServices(self) # TODO enable again
 
     async def on_message(self, message: discord.Message):
         """
@@ -425,8 +432,8 @@ async def counter(interaction: discord.Interaction, counter: str, user: Member,
     await commandService.runCommand(Commands.COUNTER,
                                     interaction,
                                     counterName=counter,
-                                    user=user,
-                                    member=interaction.user,
+                                    requestedUser=user,
+                                    requestingMember=interaction.user,
                                     param=counter_hinzufuegen, )
 
 

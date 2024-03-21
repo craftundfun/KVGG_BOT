@@ -3,12 +3,16 @@ from pathlib import Path
 
 from discord import Client
 from discord import Member
+from sqlalchemy import select
+from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.RoleId import RoleId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.TTSManager import TTSService
-from src.Repository.DiscordUserRepository import getDiscordUserOld
+from src.Repository.Counter.Entity.Counter import Counter
+from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
+from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
@@ -114,66 +118,56 @@ class CounterService:
         return answer
 
     async def accessNameCounterAndEdit(self, counterName: str,
-                                       user: Member,
-                                       member: Member,
+                                       requestedUser: Member,
+                                       requestingMember: Member,
                                        param: int | None) -> str:
         """
         Answering given Counter from given User or adds (subtracts) given amount
 
-        :param user: User which counter was requested
+        :param requestedUser: User which counter was requested
         :param counterName: Chosen counter-type
-        :param member: Member who requested the counter
+        :param requestingMember: Member who requested the counter
         :param param: Optional amount of time to add / subtract
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
         # whole name with description is given -> split to get name
         counterName = counterName.split(" ")[0]
-
-        database = Database_Old()
-
-        logger.debug("%s requested %s-Counter" % (member.name, counterName))
-
-        dcUserDb = getDiscordUserOld(user, database)
         answerAppendix = ""
 
-        if not dcUserDb:
-            logger.warning("couldn't fetch DiscordUser!")
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-            return "Dieser Benutzer existiert (noch) nicht!"
+        logger.debug(f"{requestingMember.display_name} requested {counterName}-Counter")
 
-        query = "SELECT * FROM counter WHERE name = %s"
+        if not (dcUserDb := getDiscordUser(requestedUser, session)):
+            logger.error(f"couldn't fetch DiscordUser for {requestedUser.display_name}")
 
-        if not (database.fetchOneResult(query, (counterName.lower(),))):
+            return "Es gab einen Fehler!"
+
+        getQuery = select(Counter).where(Counter.name == counterName.lower())
+
+        try:
+            session.scalars(getQuery).one()
+        except NoResultFound:
             return "Es gibt diesen Counter nicht."
+        except Exception as error:
+            logger.error(f"couldn't fetch counter: {counterName}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        query = ("SELECT cdm.*, c.tts_voice_line "
-                 "FROM counter_discord_mapping cdm INNER JOIN counter c ON cdm.counter_id = c.id "
-                 "WHERE discord_id = %s AND counter_id = "
-                 "(SELECT id FROM counter WHERE name = %s)")
+            return "Es gab einen Fehler!"
 
-        # when there is no mapping, create one
-        if not (counterDiscordMapping := database.fetchOneResult(query, (dcUserDb['id'], counterName.lower(),))):
-            insertQuery = ("INSERT INTO counter_discord_mapping (counter_id, discord_id) "
-                           "VALUES ((SELECT id FROM counter WHERE name = %s), %s)")
+        if not (counterDiscordMapping := getCounterDiscordMapping(requestedUser, counterName, session)):
+            logger.error(f"no CounterDiscordMapping for {requestedUser.display_name} and {counterName}")
+            session.rollback()
+            session.close()
 
-            # create new mapping
-            if not database.runQueryOnDatabase(insertQuery, (counterName.lower(), dcUserDb['id'])):
-                logger.error(f"couldn't create new counter mapping for {counterName}-Counter "
-                             f"and {dcUserDb['username']}!")
-            else:
-                # fetch newly created mapping
-                if not (counterDiscordMapping := database.fetchOneResult(query,
-                                                                         (dcUserDb['id'], counterName.lower(),))):
-                    logger.error(f"couldn't fetch new counter-discord-mapping ({counterName, dcUserDb['username']} "
-                                 f"after creating it ")
-
-                    return "Es gab einen Fehler!"
+            return "Es gab einen Fehler!"
 
         if not param:
-            return "%s hat einen %s-Counter von %d." % (getTagStringFromId(str(user.id)),
-                                                        counterName.capitalize(),
-                                                        counterDiscordMapping['value'],)
+            return (f"<@{requestedUser.id}> hat einen {counterName.capitalize()}-Counter von "
+                    f"{counterDiscordMapping.value}.")
 
         try:
             value = int(param)
@@ -183,78 +177,77 @@ class CounterService:
             return "Dein eingegebener Parameter war ungültig! Bitte gib eine (korrekte) Zahl ein!"
 
         # user trying to add his own counters
-        if int(dcUserDb['user_id']) == member.id:
+        if int(dcUserDb.user_id) == requestingMember.id:
             # don't allow increasing cookie counter
             if counterName.lower() == "cookie" and value > 0:
-                logger.debug("%s tried to increase his / her own cookie-counter" % member.name)
+                logger.debug(f"{requestingMember.display_name} tried to increase his / her own cookie-counter")
 
                 return "Du darfst deinen eigenen Cookie-Counter nicht erhöhen!"
 
             # don't allow reducing any counter
             if value < 0:
-                logger.debug("%s tried to reduce his / her own counter")
+                logger.debug(f"{requestingMember.display_name} tried to reduce his / her own counter")
 
                 return "Du darfst deinen Counter nicht selber verringern!"
 
         # only allow privileged users to increase counter by great amounts
-        if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD) and not -1 <= value <= 1:
-            logger.debug("%s wanted to edit the counter to greatly" % member.name)
+        if not hasUserWantedRoles(requestingMember, RoleId.ADMIN, RoleId.MOD) and not -1 <= value <= 1:
+            logger.debug("%s wanted to edit the counter to greatly" % requestingMember.name)
 
             return "Du darfst einen Counter nur um -1 verringern oder +1 erhöhen!"
 
-        counterDiscordMapping['value'] = counterDiscordMapping['value'] + value
+        counterDiscordMapping.value += value
 
         # special case for cookie-counter due to xp-boost
         if counterName.lower() == "cookie" and value >= 1:
             try:
-                await self.experienceService.grantXpBoost(user, AchievementParameter.COOKIE)
+                await self.experienceService.grantXpBoost(requestedUser, AchievementParameter.COOKIE)
             except Exception as error:
-                logger.error("failure to run grantXpBoost", exc_info=error)
+                logger.error(f"failure to run grantXpBoost for {requestedUser.display_name}", exc_info=error)
+                session.rollback()
+                session.close()
 
-            answerAppendix = "\n\n" + getTagStringFromId(str(user.id)) + (", du hast für deinen Keks evtl. einen neuen "
-                                                                          "XP-Boost erhalten.")
+                return "Es gab einen Fehler!"
+
+            answerAppendix = "\n\n" + getTagStringFromId(str(requestedUser.id)) + (
+                ", du hast für deinen Keks evtl. einen neuen "
+                "XP-Boost erhalten.")
 
         # dont decrease to counter into negative
-        if counterDiscordMapping['value'] < 0:
-            counterDiscordMapping['value'] = 0
+        if counterDiscordMapping.value < 0:
+            counterDiscordMapping.value = 0
 
-        if counterDiscordMapping['tts_voice_line'] and value >= 1:
+        if counterDiscordMapping.counter.tts_voice_line and value >= 1:
             try:
-                tts = counterDiscordMapping['tts_voice_line'].format(name=user.display_name)
+                tts = counterDiscordMapping.counter.tts_voice_line.format(name=requestedUser.display_name)
             except KeyError as error:
-                logger.error(f"KeyError in '{counterDiscordMapping['tts_voice_line']}' von "
-                             f"ID: {counterDiscordMapping['counter_id']} Quest.", exc_info=error)
+                logger.error(f"KeyError in '{counterDiscordMapping.counter.tts_voice_line}' von "
+                             f"ID: {counterDiscordMapping.counter_id} Counter.", exc_info=error, )
 
                 tts = None
         else:
             tts = None
 
-        # remove key here to save mapping to the database
-        counterDiscordMapping.pop('tts_voice_line')
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't commit changes for CounterService", exc_info=error)
+            session.rollback()
+            session.close()
 
-        query, nones = writeSaveQuery(
-            'counter_discord_mapping',
-            counterDiscordMapping['id'],
-            counterDiscordMapping,
-        )
+            return "Es gab einen Fehler!"
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.critical("couldn't save changes to database")
-
-            return "Es ist ein Fehler aufgetreten."
-
-        if user.voice and tts:
-            logger.debug(f"playing TTS for {user.name}, because {member.name} increased the {counterName}-Counter")
+        if requestedUser.voice and tts:
+            logger.debug(f"playing TTS for {requestedUser.name}, because {requestingMember.name} increased "
+                         f"the {counterName}-Counter")
 
             if await self.ttsService.generateTTS(tts):
-                await self.voiceClientService.play(user.voice.channel,
+                await self.voiceClientService.play(requestedUser.voice.channel,
                                                    "./data/sounds/tts.mp3",
                                                    None,
                                                    True, )
 
-        return ("Der %s-Counter von %s wurde um %d erhöht!" % (counterName.capitalize(),
-                                                               getTagStringFromId(str(user.id)),
-                                                               value,)
+        return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht!"
                 + answerAppendix)
 
     @staticmethod
