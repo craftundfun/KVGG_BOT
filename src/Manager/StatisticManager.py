@@ -98,7 +98,7 @@ class StatisticManager:
 
             return
 
-        # increase weekly, monthly and yearly  # TODO check if all statistics are committed
+        # increase weekly, monthly and yearly
         for statistic in statistics:
             statistic.value += value
 

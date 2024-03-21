@@ -4,11 +4,14 @@ import logging
 import random
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
+from sqlalchemy import select
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
+from src.Repository.DiscordUser.Entity.Quote import Quote
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -37,29 +40,32 @@ class QuotesManager:
         self.client = client
         self.notificationService = NotificationService(self.client)
 
-    def answerQuote(self, member: Member) -> str | None:
+    def answerQuote(self, member: Member) -> str:
         """
         Returns a random quote from our database
 
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        logger.debug("%s requested a quote" % member.name)
+        logger.debug(f"{member.display_name} requested a quote")
 
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab ein Problem!"
 
-        query = "SELECT quote FROM quotes"
+        getQuery = select(Quote)
 
-        quotes = database.fetchAllResults(query)
+        try:
+            quotes = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("no quotes found in database", exc_info=error)
 
-        if not quotes:
-            logger.critical("no qoutes were found in the database")
+            return "Es gab ein Problem!"
+        finally:
+            session.close()
 
-            return "Ich habe kein Zitat für dich :/"
+        logger.debug("returning random quote")
 
-        logger.debug("random quote returned")
-
-        return quotes[random.randint(0, len(quotes) - 1)]['quote']
+        return quotes[random.randint(0, len(quotes) - 1)].quote
 
     async def checkForNewQuote(self, message: Message):
         """

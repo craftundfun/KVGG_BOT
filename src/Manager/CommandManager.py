@@ -133,7 +133,7 @@ class CommandService:
 
         logger.debug("sent webhook-answer")
 
-        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)  # TODO
+        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -151,13 +151,13 @@ class CommandService:
 
         match command:
             case Commands.JOKE:
-                function = self.apiService.getJoke  # TODO
+                function = self.apiService.getJoke
 
             case Commands.MOVE:
-                function = self.userInputService.moveUsers  # TODO
+                function = self.userInputService.moveUsers
 
             case Commands.QUOTE:
-                function = self.quotesManager.answerQuote  # TODO
+                function = self.quotesManager.answerQuote
 
             case Commands.TIME:
                 function = self.userInputService.accessTimeAndEdit  # TODO

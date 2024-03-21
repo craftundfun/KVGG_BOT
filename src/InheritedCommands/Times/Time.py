@@ -3,6 +3,8 @@ from __future__ import annotations
 import string
 from abc import ABC, abstractmethod
 
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+
 
 class Time(ABC):
 
@@ -10,23 +12,15 @@ class Time(ABC):
         self.name = name
 
     @abstractmethod
-    def increaseTime(self, dcUserDb: dict, value: int, updateFormattedTime: bool = True):
+    def increaseTime(self, dcUserDb: DiscordUser, value: int):
         pass
 
     @abstractmethod
-    def getTime(self, dcUserDb: dict) -> int | None:
+    def getTime(self, dcUserDb: DiscordUser) -> int:
         pass
 
     @abstractmethod
-    def setFormattedTime(self, dcUserDb: dict, time: string):
-        pass
-
-    @abstractmethod
-    def getFormattedTime(self, dcUserDb: dict) -> string:
-        pass
-
-    @abstractmethod
-    def getStringForTime(self, dcUserDb: dict) -> string:
+    def getStringForTime(self, dcUserDb: DiscordUser) -> string:
         pass
 
     def getName(self) -> string:

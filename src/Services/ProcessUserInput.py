@@ -186,14 +186,14 @@ class ProcessUserInput:
         :param member: Member who initiated the move
         :return:
         """
-        logger.debug("%s requested to move users into %s" % (member.name, channel.name))
+        logger.debug(f"{member.display_name} requested to move users into {channel.name}")
 
         if not member.voice or not (channelStart := member.voice.channel):
-            logger.debug("member is not connected to a voice channel")
+            logger.debug(f"{member.display_name} is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
         elif channelStart not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
-            logger.debug("starting channel is not allowed to be moved")
+            logger.debug(f"{channelStart.name} is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
@@ -203,7 +203,7 @@ class ProcessUserInput:
             return "Alle befinden sich bereits in diesem Channel!"
 
         if channel not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
-            logger.debug("destination channel is outside of the allowed moving range")
+            logger.debug(f"{channel.name} is outside of the allowed moving range")
 
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
 
@@ -218,7 +218,7 @@ class ProcessUserInput:
                 break
 
         if not canProceed:
-            logger.debug("user has no rights to use the move command")
+            logger.debug(f"{member.display_name} has no rights to use the move command")
 
             return "Du hast keine Berechtigung in diesen Channel zu moven!"
 
@@ -255,38 +255,42 @@ class ProcessUserInput:
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
-        database = Database_Old()
-
         if timeName == "online":
             time = OnlineTime.OnlineTime()
-        elif timeName == "stream":
+        elif timeName == "stream":  # TODO like OnlineTime
             time = StreamTime.StreamTime()
-        elif timeName == "uni":
+        elif timeName == "uni":     # TODO like OnlineTime
             time = UniversityTime.UniversityTime()
         else:
-            logger.critical("undefined entry was reached!")
+            logger.error("undefined entry was reached!")
 
-            return "Es gab ein Problem"
+            return "Es gab ein Problem!"
 
-        logger.debug("%s requested %s-Time" % (member.name, time.getName()))
+        logger.debug(f"{member.name} requested {time.getName()}-Time from {user.display_name}")
 
-        dcUserDb = getDiscordUserOld(user, database)
+        if not (session := getSession()):
+            return "Es gab ein Problem!"
 
-        if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
-            if not dcUserDb:
-                logger.warning("couldn't fetch DiscordUser!")
+        if not (dcUserDb := getDiscordUser(user, session)):
+            logger.error(f"couldn't fetch DiscordUser for {user.display_name}")
+            session.close()
 
-            logger.debug("user has not been online yet")
+            return "Es gab ein Problem!"
+
+        if time.getTime(dcUserDb) == 0:
+            logger.debug(f"{user.display_name} has not been online yet")
+            session.close()
 
             return "Dieser Benutzer war noch nie online!"
 
         if param and hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            logger.debug("has permission to increase time")
+            logger.debug(f"{member.display_name} has permission to increase time")
 
             try:
                 correction = int(param)
             except ValueError:
                 logger.debug("parameter was not convertable to int")
+                session.close()
 
                 return "Deine Korrektur war keine Zahl!"
 
@@ -295,9 +299,23 @@ class ProcessUserInput:
             time.increaseTime(dcUserDb, correction)
 
             onlineAfter = time.getTime(dcUserDb)
-            self._saveDiscordUserToDatabase(dcUserDb, database)
 
-            logger.debug("saved changes to database")
+            if onlineAfter < 0:
+                logger.debug("value after increase was < 0, rollbacking")
+                session.rollback()
+                session.close()
+
+                return "Die korrigierte Zahl ist kleiner als 0! Bitte verwende eine andere Korrektur!"
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"could not commit DiscordUser of {user.display_name}", exc_info=error)
+                session.rollback()
+
+                return "Es gab ein Problem!"
+            finally:
+                session.close()
 
             if isinstance(time, OnlineTime.OnlineTime):
                 self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, user, correction)
@@ -308,14 +326,17 @@ class ProcessUserInput:
 
                 logger.debug(f"increased statistics for {user.display_name}")
 
-            return ("Die %s-Zeit von <@%s> wurde von %s Minuten auf %s Minuten korrigiert!"
-                    % (time.getName(), dcUserDb['user_id'], onlineBefore, onlineAfter))
+            return (f"Die {time.getName()}-Zeit von <@{user.id}> wurde von {onlineBefore} Minuten auf "
+                    f"{onlineAfter} Minuten korrigiert!")
         elif param and not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
-            logger.debug("returning time")
+            logger.debug(f"returning time for {user.display_name} because {member.display_name} has no rights to "
+                         f"increase")
+            session.close()
 
             return ("Du hast nicht die benötigten Rechte um Zeit hinzuzufügen!\n\n"
                     + time.getStringForTime(dcUserDb))
         else:
+            session.close()
             return time.getStringForTime(dcUserDb)
 
     async def sendRegistrationLink(self, member: Member):
