@@ -9,7 +9,9 @@ from src.DiscordParameters.NotificationType import NotificationType
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
-from src.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Repository.Quest.Entity.Quest import Quest
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
@@ -38,13 +40,17 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        settings = getNotificationSettings(member, Database_Old())
+        if not (session := getSession()):
+            return
+
+        settings = getNotificationSettings(member, session)
 
         if not settings:
-            logger.critical(f"no notification settings for {member.display_name}, aborting sending message")
+            logger.error(f"no notification settings for {member.display_name}, aborting sending message")
 
             return
-        elif not settings[typeOfMessage.value] or not settings['notifications']:
+        # TODO look if it really works
+        elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
             logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
             return
@@ -62,6 +68,8 @@ class NotificationService:
             logger.warning(f"couldn't send DM to {member.name}: Forbidden")
         except Exception as error:
             logger.error(f"couldn't send DM to {member.name}", exc_info=error)
+        finally:
+            session.close()
 
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
         """
@@ -101,29 +109,22 @@ class NotificationService:
 
         await self._sendMessage(member, message, NotificationType.QUEST)
 
-    async def sendQuestFinishNotification(self, member: Member, questId: int):
+    async def sendQuestFinishNotification(self, member: Member, quest: Quest):
         """
         Informs the member about a completed quest.
 
         :param member: Member, who will be notified
-        :param questId: Primary-Key of the completed quest
+        :param quest: Quest to notify about
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
-        query = "SELECT description, time_type FROM quest WHERE id = %s"
+        time: str = quest.time_type
 
-        if not (quest := database.fetchOneResult(query, (questId,))):
-            logger.error("couldn't fetch data from database")
-
-            return
-
-        time: str = quest['time_type']
-
-        await self._sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
-                                        f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
-                                        f"{quest['description']}\n\n"
-                                        f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
-                                NotificationType.QUEST)
+        await self._sendMessage(member,
+                                f"__**Hey {member.nick if member.nick else member.name}, "
+                                f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
+                                f"{quest.description}\n\n"
+                                f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
+                                NotificationType.QUEST, )
 
     async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
         """

@@ -9,7 +9,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.UpdateTimeManager import UpdateTimeService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
@@ -37,7 +37,7 @@ class MinutelyJobRunner:
         database = Database_Old()
 
         for member in self.client.get_all_members():
-            dcUserDb = getDiscordUser(member, database)
+            dcUserDb = getDiscordUserOld(member, database)
 
             if not dcUserDb:
                 logger.warning(f"couldn't fetch DiscordUser for {member.display_name} from the database")

@@ -12,7 +12,7 @@ from src.Repository.DiscordUser.Entity.NotificationSetting import NotificationSe
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getNotificationSetting(member: Member, session: Session) -> NotificationSetting | None:
+def getNotificationSettings(member: Member, session: Session) -> NotificationSetting | None:
     """
     Fetches the notification settings of the given Member from our database.
 
@@ -55,7 +55,7 @@ def getNotificationSetting(member: Member, session: Session) -> NotificationSett
             session.execute(insertQuery)
             session.commit()
         except Exception as error:
-            logger.error("could not insert (or commit) notification setting for {member.display_name}",
+            logger.error(f"could not insert (or commit) notification setting for {member.display_name}",
                          exc_info=error)
             session.rollback()
 

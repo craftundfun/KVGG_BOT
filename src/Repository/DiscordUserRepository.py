@@ -12,7 +12,7 @@ logger = logging.getLogger("KVGG_BOT")
 basepath = Path(__file__).parent.parent.parent
 
 
-def getDiscordUser(member: Member, database: Database_Old) -> dict | None:
+def getDiscordUserOld(member: Member, database: Database_Old) -> dict | None:
     """
     Returns the user from the database.
     If he doesn't exist yet, a new entry is created (only if a member was given)

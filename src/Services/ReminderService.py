@@ -10,7 +10,7 @@ from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAga
 from src.Helper.SendDM import sendDM, separator
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.View.PaginationView import PaginationViewDataItem
 
@@ -28,7 +28,7 @@ class ReminderService:
     def createTimer(self, member: Member, name: str, minutes: int) -> str:
         database = Database_Old()
 
-        if not (dcUserDb := getDiscordUser(member, database)):
+        if not (dcUserDb := getDiscordUserOld(member, database)):
             logger.debug("cant proceed, no DiscordUser")
 
             return "Es gab ein Problem!"
@@ -156,7 +156,7 @@ class ReminderService:
 
         minutesLeft = __getMinutesLeft()
 
-        if not (dcUserDb := getDiscordUser(member, database)):
+        if not (dcUserDb := getDiscordUserOld(member, database)):
             logger.debug("cant proceed, no DiscordUser")
 
             return "Es gab ein Problem!"

@@ -7,7 +7,7 @@ from discord import Client, ChannelType
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -119,7 +119,7 @@ class DatabaseRefreshService:
                     continue
 
                 for member in channel.members:
-                    dcUserDb = getDiscordUser(member, database)
+                    dcUserDb = getDiscordUserOld(member, database)
 
                     if dcUserDb is None:
                         logger.error("couldn't create new entry for %s!" % member.name)

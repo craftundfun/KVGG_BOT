@@ -13,7 +13,7 @@ from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Services.Database_Old import Database_Old
 
@@ -79,7 +79,7 @@ class WhatsAppHelper:
 
             return
 
-        triggerDcUserDb = getDiscordUser(member, database)
+        triggerDcUserDb = getDiscordUserOld(member, database)
 
         if not triggerDcUserDb:
             logger.warning("couldn't fetch DiscordUser!")

@@ -22,7 +22,7 @@ class DiscordUser(Base):
     last_online: Mapped[Optional[datetime]]
     time_online: Mapped[int]
     created_at: Mapped[datetime]
-    message_count_all_time: Mapped[Optional[int]]
+    message_count_all_time: Mapped[int]
     muted_at: Mapped[Optional[datetime]]
     full_muted_at: Mapped[Optional[datetime]]
     time_streamed: Mapped[datetime]

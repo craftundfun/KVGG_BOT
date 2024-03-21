@@ -8,7 +8,7 @@ from src.Services.Database_Old import Database_Old
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getStatisticsForUser(database: Database_Old, type: StatisticsParameter, member: Member) -> list[dict] | None:
+def getStatisticsForUser_OLD(database: Database_Old, type: StatisticsParameter, member: Member) -> list[dict] | None:
     """
     Returns the statistics of all time-types from the database.
     If they don't exist yet, a new entry is created

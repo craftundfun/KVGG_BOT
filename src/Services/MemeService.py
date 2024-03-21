@@ -8,7 +8,7 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
@@ -58,7 +58,7 @@ class MemeService:
             logger.debug("added reactions to meme")
 
         database = Database_Old()
-        dcUserDb = getDiscordUser(message.author, database)
+        dcUserDb = getDiscordUserOld(message.author, database)
 
         if not dcUserDb:
             logger.warning("no dcUserDb, cant save meme to database")

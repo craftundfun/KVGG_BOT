@@ -2,9 +2,10 @@ from enum import Enum
 
 
 class ExperienceParameter(Enum):
-    XP_FOR_MESSAGE = 1
+    XP_FOR_MESSAGE = 2
     XP_FOR_ONLINE = 10
     XP_FOR_STREAMING = 5
+    XP_FOR_COMMAND = 1  # TODO implement this everywhere
 
     XP_BOOST_MULTIPLIER_ONLINE = 2
     XP_BOOST_MULTIPLIER_SPIN = 2

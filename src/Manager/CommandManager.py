@@ -118,10 +118,7 @@ class CommandService:
         :return:
         """
         # increase command counter
-        try:
-            await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
-        except ConnectionError as error:
-            logger.error("failure to start ProcessUserInput", exc_info=error)
+        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
 
         try:
             # special case for images
@@ -136,7 +133,7 @@ class CommandService:
 
         logger.debug("sent webhook-answer")
 
-        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
+        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)  # TODO
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -154,25 +151,25 @@ class CommandService:
 
         match command:
             case Commands.JOKE:
-                function = self.apiService.getJoke
+                function = self.apiService.getJoke  # TODO
 
             case Commands.MOVE:
-                function = self.userInputService.moveUsers
+                function = self.userInputService.moveUsers  # TODO
 
             case Commands.QUOTE:
-                function = self.quotesManager.answerQuote
+                function = self.quotesManager.answerQuote  # TODO
 
             case Commands.TIME:
-                function = self.userInputService.accessTimeAndEdit
+                function = self.userInputService.accessTimeAndEdit  # TODO
 
             case Commands.COUNTER:
-                function = self.counterService.accessNameCounterAndEdit
+                function = self.counterService.accessNameCounterAndEdit  # TODO
 
             case Commands.WHATSAPP:
-                function = self.userSettings.manageWhatsAppSettings
+                function = self.userSettings.manageWhatsAppSettings  # TODO
 
             case Commands.LEADERBOARD:
-                data = await LeaderboardService(self.client).getLeaderboard()
+                data = await LeaderboardService(self.client).getLeaderboard()  # TODO
 
                 await PaginationView(
                     ctx=interaction,
@@ -186,43 +183,43 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.XP_SPIN:
-                function = self.experienceService.spinForXpBoost
+                function = self.experienceService.spinForXpBoost  # TODO
 
             case Commands.XP_INVENTORY:
-                function = self.experienceService.handleXpInventory
+                function = self.experienceService.handleXpInventory  # TODO
 
             case Commands.XP:
-                function = self.experienceService.handleXpRequest
+                function = self.experienceService.handleXpRequest  # TODO
 
             case Commands.NOTIFICATION_SETTING:
-                function = self.userSettings.changeNotificationSetting
+                function = self.userSettings.changeNotificationSetting  # TODO
 
             case Commands.FELIX_TIMER:
-                function = self.userInputService.handleFelixTimer
+                function = self.userInputService.handleFelixTimer  # TODO
 
             case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.addOrEditSuspendDay
+                function = self.whatsappHelper.addOrEditSuspendDay  # TODO
 
             case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.resetSuspendSetting
+                function = self.whatsappHelper.resetSuspendSetting  # TODO
 
             case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.listSuspendSettings
+                function = self.whatsappHelper.listSuspendSettings  # TODO
 
             case Commands.WEATHER:
-                function = self.apiService.getWeather
+                function = self.apiService.getWeather  # TODO
 
             case Commands.CURRENCY_CONVERTER:
-                function = self.apiService.convertCurrency
+                function = self.apiService.convertCurrency  # TODO
 
             case Commands.QRCODE:
-                function = self.apiService.generateQRCode
+                function = self.apiService.generateQRCode  # TODO
 
             case Commands.CREATE_REMINDER:
-                function = self.reminderService.createReminder
+                function = self.reminderService.createReminder  # TODO
 
             case Commands.LIST_REMINDERS:
-                data = self.reminderService.listReminders(**kwargs)
+                data = self.reminderService.listReminders(**kwargs)  # TODO
 
                 await PaginationView(
                     ctx=interaction,
@@ -236,19 +233,19 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_REMINDER:
-                function = self.reminderService.deleteReminder
+                function = self.reminderService.deleteReminder  # TODO
 
             case Commands.PLAY_SOUND:
-                function = self.soundboardService.playSound
+                function = self.soundboardService.playSound  # TODO
 
             case Commands.STOP_SOUND:
-                function = self.voiceClientService.stop
+                function = self.voiceClientService.stop  # TODO
 
             case Commands.KNEIPE:
-                function = self.channelService.createKneipe
+                function = self.channelService.createKneipe  # TODO
 
             case Commands.LIST_SOUNDS:
-                data = await self.soundboardService.listPersonalSounds(**kwargs)
+                data = await self.soundboardService.listPersonalSounds(**kwargs)  # TODO
 
                 await PaginationView(
                     ctx=interaction,
@@ -262,19 +259,19 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_SOUND:
-                function = self.soundboardService.deletePersonalSound
+                function = self.soundboardService.deletePersonalSound  # TODO
 
             case Commands.LIST_QUESTS:
-                function = self.questService.listQuests
+                function = self.questService.listQuests  # TODO
 
             case Commands.CREATE_COUNTER:
-                function = self.counterService.createNewCounter
+                function = self.counterService.createNewCounter  # TODO
 
             case Commands.LIST_COUNTERS:
-                function = self.counterService.listAllCounters
+                function = self.counterService.listAllCounters  # TODO
 
             case Commands.CREATE_TIMER:
-                function = self.reminderService.createTimer
+                function = self.reminderService.createTimer  # TODO
 
             case _:
                 logger.error("undefined enum entry was reached!")

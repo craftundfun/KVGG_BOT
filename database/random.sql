@@ -114,3 +114,9 @@ INSERT INTO beta.reminder (id, discord_user_id, content, sent_at, error, repeat_
 INSERT INTO beta.reminder (id, discord_user_id, content, sent_at, error, repeat_in_minutes, whatsapp, time_to_sent, is_timer) VALUES (51, 12, 'Cookie 24 Stunden testen', '2023-09-25 21:00:43', 0, null, 0, null, 0);
 INSERT INTO beta.reminder (id, discord_user_id, content, sent_at, error, repeat_in_minutes, whatsapp, time_to_sent, is_timer) VALUES (55, 12, 'Rene´s Felix-Timer um 23:59 anmachen', '2023-09-29 23:55:33', 0, null, 1, null, 0);
 INSERT INTO beta.reminder (id, discord_user_id, content, sent_at, error, repeat_in_minutes, whatsapp, time_to_sent, is_timer) VALUES (62, 12, 'Titanfall 3', null, 0, null, 1, '2026-01-01 00:00:00', 0);
+
+ALTER TABLE discord
+ADD COLUMN formated_time VARCHAR(255);
+
+ALTER TABLE discord
+ADD COLUMN formated_university_time VARCHAR(255);

@@ -10,7 +10,7 @@ from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.ChannelManager import ChannelService
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
@@ -54,7 +54,7 @@ class VoiceStateUpdateService:
 
             return
 
-        dcUserDb = getDiscordUser(member, database)
+        dcUserDb = getDiscordUserOld(member, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser for %s!" % member.name)

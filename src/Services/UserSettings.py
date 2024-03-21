@@ -4,7 +4,7 @@ from discord import Member
 
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Repository.NotificationSettingRepository import getNotificationSettings_OLD
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -54,7 +54,7 @@ class UserSettings:
         :return: Answer
         """
         database = Database_Old()
-        settings = getNotificationSettings(member, database)
+        settings = getNotificationSettings_OLD(member, database)
 
         if not settings:
             logger.error("couldn't fetch settings")

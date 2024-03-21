@@ -8,7 +8,7 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.RoleId import RoleId
 from src.Manager.TTSManager import TTSService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
@@ -134,7 +134,7 @@ class CounterService:
 
         logger.debug("%s requested %s-Counter" % (member.name, counterName))
 
-        dcUserDb = getDiscordUser(user, database)
+        dcUserDb = getDiscordUserOld(user, database)
         answerAppendix = ""
 
         if not dcUserDb:

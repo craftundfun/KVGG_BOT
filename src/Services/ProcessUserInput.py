@@ -21,8 +21,10 @@ from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
+from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld as getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
@@ -110,21 +112,21 @@ class ProcessUserInput:
         """
         logger.debug("increasing message-count for %s" % member.name)
 
-        database = Database_Old()
-        dcUserDb = getDiscordUser(member, database)
+        if not channel:
+            logger.error("no channel provided")
+
+            return
 
         if member.bot:
             logger.debug(f"{member.display_name} was a bot")
 
             return
 
-        if dcUserDb is None:
-            logger.error("couldn't fetch DiscordUser!")
-
+        if not (session := getSession()):
             return
 
-        if not channel:
-            logger.error("no channel provided")
+        if not (dcUserDb := getDiscordUser(member, session)):
+            logger.error("couldn't fetch DiscordUser!")
 
             return
 
@@ -136,21 +138,22 @@ class ProcessUserInput:
             if not command:
                 await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
                 self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member)
-                await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value, member=member)
+                await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value,
+                                                           member=member, )
 
-                # message_count_all_time can be None -> None-safe operation
-                if dcUserDb['message_count_all_time']:
-                    dcUserDb['message_count_all_time'] = dcUserDb['message_count_all_time'] + 1
-                else:
-                    dcUserDb['message_count_all_time'] = 1
+                dcUserDb.message_count_all_time += 1
             else:
                 self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member)
 
                 # default is 0
-                dcUserDb['command_count_all_time'] += 1
+                dcUserDb.command_count_all_time += 1
 
-        if self._saveDiscordUserToDatabase(dcUserDb, database):
-            logger.debug("saved changes to database")
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"could not commit: {dcUserDb}", exc_info=error)
+        finally:
+            session.close()
 
     def _saveDiscordUserToDatabase(self, data: dict, database: Database_Old) -> bool:
         """
@@ -267,7 +270,7 @@ class ProcessUserInput:
 
         logger.debug("%s requested %s-Time" % (member.name, time.getName()))
 
-        dcUserDb = getDiscordUser(user, database)
+        dcUserDb = getDiscordUserOld(user, database)
 
         if not dcUserDb or not time.getTime(dcUserDb) or time.getTime(dcUserDb) == 0:
             if not dcUserDb:
@@ -352,7 +355,7 @@ class ProcessUserInput:
         logger.debug("handling Felix-Timer by %s" % member.name)
 
         database = Database_Old()
-        dcUserDb = getDiscordUser(user, database)
+        dcUserDb = getDiscordUserOld(user, database)
 
         if not dcUserDb:
             logger.warning("couldn't fetch DiscordUser!")

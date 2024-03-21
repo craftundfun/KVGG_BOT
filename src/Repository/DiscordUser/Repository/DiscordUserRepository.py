@@ -64,7 +64,7 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
         return None
 
     # update quickly changing attributes
-    dcUserDb.profile_picture_discord = member.display_avatar
+    dcUserDb.profile_picture_discord = member.display_avatar.url
     dcUserDb.username = member.display_name
     dcUserDb.discord_name = member.name
 

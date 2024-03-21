@@ -5,14 +5,18 @@ from datetime import datetime
 from enum import Enum
 
 from discord import Client, Member
+from sqlalchemy import select
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories
 from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
+from src.Repository.Quest.Entity.Quest import Quest
+from src.Repository.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 
@@ -50,23 +54,30 @@ class QuestService:
         :param value: Optional value to overwrite the standard increase of one
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
-        query = ("SELECT qdm.*, q.value_to_reach, q.time_type "
-                 "FROM quest_discord_mapping qdm INNER JOIN quest q ON quest_id = q.id "
-                 "WHERE quest_id IN "
-                 "(SELECT id FROM quest WHERE type = %s) "
-                 "AND discord_id = "
-                 "(SELECT id FROM discord WHERE user_id = %s)")
+        if not (session := getSession()):
+            return
+
+        getQuery = (select(QuestDiscordMapping)
+                    .join(Quest, Quest.id == QuestDiscordMapping.quest_id)
+                    .where(QuestDiscordMapping.quest_id.in_(select(Quest.id)
+                                                            .where(Quest.type == questType.value)
+                                                            .scalar_subquery()),
+                           QuestDiscordMapping.discord_id == (select(DiscordUser.id)
+                                                              .where(DiscordUser.user_id == str(member.id))
+                                                              .scalar_subquery()))
+                    )
 
         # use lock here to avoid giving spammers more boosts
         async with lock:
-            if not (quests := database.fetchAllResults(query, (questType.value, member.id,))):
-                logger.debug(f"no quests found to type {questType.value} and {member.name}")
+            try:
+                quests = session.scalars(getQuery).all()
+            except Exception as error:
+                logger.error("failure to fetch quests from database", exc_info=error)
 
                 return
 
             for quest in quests:
-                lastUpdated: datetime | None = quest['time_updated']
+                lastUpdated: datetime | None = quest.time_updated
 
                 # special checks for special quests
                 if questType == QuestType.DAYS_ONLINE:
@@ -94,54 +105,53 @@ class QuestService:
                     # if the difference is too big, the progress will be lost
                     if lastUpdated and datetime.now().day - lastUpdated.day > 1:
                         # if the streak was broken and the value fulfilled, don't reset to zero and continue
-                        if quest['current_value'] >= quest['value_to_reach']:
+                        if quest.current_value >= quest.quest.value_to_reach:
                             logger.debug("streak broken, saving current state")
 
                             continue
 
                         # reset value due to loss in streak
-                        quest['current_value'] = 0
-                        quest['time_updated'] = None
+                        quest.current_value = 0
+                        quest.time_updated = None
 
-                        del quest['value_to_reach']
-                        del quest['time_type']
+                        try:
+                            session.commit()
+                        except Exception as error:
+                            logger.error(f"failure to save quest_discord_mapping to database: {quest.__dict__}",
+                                         exc_info=error, )
 
-                        query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
-
-                        if not database.runQueryOnDatabase(query, nones):
-                            logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
+                            session.rollback()
 
                         continue
 
-                quest['current_value'] += value
-                quest['time_updated'] = datetime.now()
+                quest.current_value += value
+                quest.time_updated = datetime.now()
 
                 await self._checkForFinishedQuest(member, quest)
 
-                # remove value_to_reach key due it's online for comparison and doesn't belong into quest_discord_mapping
-                del quest['value_to_reach']
-                del quest['time_type']
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"failure to save quest_discord_mapping to database: {quest.__dict__}",
+                                 exc_info=error, )
 
-                query, nones = writeSaveQuery("quest_discord_mapping", quest['id'], quest)
+                    session.rollback()
+                finally:
+                    session.close()
 
-                if not database.runQueryOnDatabase(query, nones):
-                    logger.error(f"couldn't save changes to database for {member.name}, query: {query}")
-                else:
-                    logger.debug(f"saved {quest} to database for {member.name}")
-
-    async def _checkForFinishedQuest(self, member: Member, quest: dict):
+    async def _checkForFinishedQuest(self, member: Member, qdm: QuestDiscordMapping):
         """
         If a quest was finished a xp-boost will be given to the user.
 
         :param member: Member, who completed the quest and will get the boost
-        :param quest: Dictionary of the quest in the database with current_value from the mapping
+        :param qdm: QuestDiscordMapping
         """
-        if quest['current_value'] == quest['value_to_reach']:
-            await self.notificationService.sendQuestFinishNotification(member, quest['quest_id'])
+        if qdm.current_value == qdm.quest.value_to_reach:
+            await self.notificationService.sendQuestFinishNotification(member, qdm.quest)
 
-            if quest['time_type'] == "daily":
+            if qdm.quest.time_type == "daily":
                 boost = AchievementParameter.DAILY_QUEST
-            elif quest['time_type'] == "weekly":
+            elif qdm.quest.time_type == "weekly":
                 boost = AchievementParameter.WEEKLY_QUEST
             else:
                 boost = AchievementParameter.MONTHLY_QUEST
@@ -243,7 +253,7 @@ class QuestService:
         :raise ConnectionError: If the database connection cant be established
         """
         database = Database_Old()
-        dcUserDb = getDiscordUser(member, database)
+        dcUserDb = getDiscordUserOld(member, database)
 
         if not dcUserDb:
             logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")

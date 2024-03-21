@@ -12,7 +12,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
-from src.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -47,8 +47,8 @@ class RelationService:
         :param database:
         :return:
         """
-        member1 = getDiscordUser(member_1, database)
-        member2 = getDiscordUser(member_2, database)
+        member1 = getDiscordUserOld(member_1, database)
+        member2 = getDiscordUserOld(member_2, database)
 
         if not member1 or not member2:
             logger.debug("couldn't create relation")
@@ -89,8 +89,8 @@ class RelationService:
 
             return None
 
-        dcUserDb_1: dict | None = getDiscordUser(member_1, database)
-        dcUserDb_2: dict | None = getDiscordUser(member_2, database)
+        dcUserDb_1: dict | None = getDiscordUserOld(member_1, database)
+        dcUserDb_2: dict | None = getDiscordUserOld(member_2, database)
 
         if not dcUserDb_1 or not dcUserDb_2:
             logger.warning("couldn't create relation, %s has no entity"

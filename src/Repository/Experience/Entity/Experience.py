@@ -13,10 +13,10 @@ class Experience(Base):
     __tablename__ = "experience"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    xp_amount: Mapped[Optional[int]]
-    xp_boosts_inventory: Mapped[dict[str, Any]] = mapped_column(JSON)
+    xp_amount: Mapped[int]
+    xp_boosts_inventory: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
     last_spin_for_boost: Mapped[Optional[datetime]]
-    active_xp_boosts: Mapped[dict[str, Any]] = mapped_column(JSON)
+    active_xp_boosts: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
     last_cookie_boost: Mapped[Optional[datetime]]
     time_to_send_spin_reminder: Mapped[Optional[datetime]]
 

@@ -5,10 +5,12 @@ from discord import Member, Client
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser
+from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser_OLD
+from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
+from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -86,22 +88,29 @@ class StatisticManager:
         """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
 
-        database = Database_Old()
-        statistics: list[dict] = getStatisticsForUser(database, type, member)
+        if not (session := getSession()):
+            return
+
+        statistics: list[CurrentDiscordStatistic] = getStatisticsForUser(type, member, session)
 
         if not statistics:
             logger.error(f"got no statistics for {member.display_name}, aborting to increase")
 
             return
 
-        # increase weekly, monthly and yearly
+        # increase weekly, monthly and yearly  # TODO check if all statistics are committed
         for statistic in statistics:
-            statistic['value'] += value
-            saveQuery, nones = writeSaveQuery("current_discord_statistic", statistic['id'], statistic)
+            statistic.value += value
 
-            if not database.runQueryOnDatabase(saveQuery, nones):
-                logger.error(f"couldn't increase statistics for {member.display_name} and time "
-                             f"{statistic['statistic_time']}")
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit increase of statistics for {member.display_name}", exc_info=error)
+            session.rollback()
+
+            return
+        finally:
+            session.close()
 
     async def runRetrospectForUsers(self, time: StatisticsParameter):
         """
@@ -150,19 +159,19 @@ class StatisticManager:
 
             statistics = dict()
             statistics[StatisticsParameter.ONLINE.value] = (
-                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.ONLINE, member))
+                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.ONLINE, member))
             )
             statistics[StatisticsParameter.STREAM.value] = (
-                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.STREAM, member))
+                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.STREAM, member))
             )
             statistics[StatisticsParameter.MESSAGE.value] = (
-                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.MESSAGE, member))
+                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.MESSAGE, member))
             )
             statistics[StatisticsParameter.COMMAND.value] = (
-                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.COMMAND, member))
+                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.COMMAND, member))
             )
             statistics[StatisticsParameter.ACTIVITY.value] = (
-                getStatisticForTime(getStatisticsForUser(database, StatisticsParameter.ACTIVITY, member))
+                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.ACTIVITY, member))
             )
 
             allNone = True
