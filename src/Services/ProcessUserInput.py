@@ -277,7 +277,7 @@ class ProcessUserInput:
 
             return "Es gab ein Problem!"
 
-        if time.getTime(dcUserDb) == 0:
+        if time.getTime(dcUserDb) == 0 and not param:
             logger.debug(f"{user.display_name} has not been online yet")
             session.close()
 

@@ -16,10 +16,8 @@ class OnlineTime(Time):
     def increaseTime(self, dcUserDb: DiscordUser, value: int):
         dcUserDb.time_online += value
 
-    # TODO test
     def getTime(self, dcUserDb: DiscordUser) -> int:
         return dcUserDb.time_online
 
-    # TODO test
     def getStringForTime(self, dcUserDb: DiscordUser) -> string:
         return f"<@{dcUserDb.user_id}> war bereits {getFormattedTime(dcUserDb.time_online)} Stunden online!"

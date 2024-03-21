@@ -160,7 +160,7 @@ class CommandService:
                 function = self.quotesManager.answerQuote
 
             case Commands.TIME:
-                function = self.userInputService.accessTimeAndEdit  # TODO
+                function = self.userInputService.accessTimeAndEdit
 
             case Commands.COUNTER:
                 function = self.counterService.accessNameCounterAndEdit  # TODO
