@@ -1,9 +1,13 @@
 import logging
 
 from discord import Member
+from sqlalchemy import select
 
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Repository.NotificationSettingRepository import getNotificationSettings_OLD
 from src.Services.Database_Old import Database_Old
 
@@ -91,72 +95,78 @@ class UserSettings:
         :raise ConnectionError: if the database connection can't be established
         :return:
         """
-        logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
+        logger.debug(f"{member.display_name} requested a change of his / her WhatsApp settings")
 
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        query = "SELECT * " \
-                "FROM whatsapp_setting " \
-                "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+        getQuery = (select(WhatsappSetting)
+                    .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery())))
 
-        whatsappSettings = database.fetchOneResult(query, (member.id,))
+        try:
+            whatsappSettings = session.scalars(getQuery).one()  # TODO maybe as repo
+        except Exception as error:
+            logger.error(f"couldn't fetch WhatsappSetting for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        if not whatsappSettings:
-            logger.warning("couldn't fetch corresponding settings!")
-
-            return "Du bist nicht als User für WhatsApp-Nachrichten bei uns registriert!"
+            return "Es gab ein Problem!"
 
         if type == 'Gaming':
             # !whatsapp join
             if action == 'join':
                 # !whatsapp join on
                 if switch == 'on':
-                    whatsappSettings['receive_join_notification'] = 1
+                    whatsappSettings.receive_join_notification = True
                 # !whatsapp join off
                 elif switch == 'off':
-                    whatsappSettings['receive_join_notification'] = 0
+                    whatsappSettings.receive_join_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
             # !whatsapp leave
             elif action == 'leave':
                 # !whatsapp leave on
                 if switch == 'on':
-                    whatsappSettings['receive_leave_notification'] = 1
+                    whatsappSettings.receive_leave_notification = True
                 # !whatsapp leave off
                 elif switch == 'off':
-                    whatsappSettings['receive_leave_notification'] = 0
+                    whatsappSettings.receive_leave_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
         # !whatsapp uni
         elif type == 'Uni':
             if action == 'join':
                 if switch == 'on':
-                    whatsappSettings['receive_uni_join_notification'] = 1
+                    whatsappSettings.receive_uni_join_notification = True
                 elif switch == 'off':
-                    whatsappSettings['receive_uni_join_notification'] = 0
+                    whatsappSettings.receive_uni_join_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
             elif action == 'leave':
                 if switch == 'on':
-                    whatsappSettings['receive_uni_leave_notification'] = 1
+                    whatsappSettings.receive_uni_leave_notification = True
                 elif switch == 'off':
-                    whatsappSettings['receive_uni_leave_notification'] = 0
+                    whatsappSettings.receive_uni_leave_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
 
-        if self._saveToDatabase(whatsappSettings, "whatsapp_setting", database):
-            logger.debug("saved changes to database")
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit changes for {member.display_name} and {whatsappSettings}", exc_info=error)
+            session.rollback()
+            session.close()
 
-            return "Deine Einstellung wurde übernommen!"
+            return "Es gab ein Problem!"
         else:
-            logger.critical("couldn't save changes to database")
-
-            return "Es gab ein Problem beim Speichern deiner Einstellung."
+            return "Deine Einstellung wurde übernommen!"

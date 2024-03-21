@@ -166,7 +166,7 @@ class CommandService:
                 function = self.counterService.accessNameCounterAndEdit
 
             case Commands.WHATSAPP:
-                function = self.userSettings.manageWhatsAppSettings  # TODO
+                function = self.userSettings.manageWhatsAppSettings
 
             case Commands.LEADERBOARD:
                 data = await LeaderboardService(self.client).getLeaderboard()  # TODO
