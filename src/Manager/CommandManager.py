@@ -183,7 +183,7 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.XP_SPIN:
-                function = self.experienceService.spinForXpBoost  # TODO
+                function = self.experienceService.spinForXpBoost
 
             case Commands.XP_INVENTORY:
                 function = self.experienceService.handleXpInventory  # TODO

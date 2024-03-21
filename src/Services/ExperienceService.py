@@ -213,7 +213,7 @@ class ExperienceService:
         finally:
             session.close()
 
-    def spinForXpBoost(self, member: Member) -> string:
+    def spinForXpBoost(self, member: Member) -> str:
         """
         Xp-Boost-Spin for member
 
@@ -221,35 +221,27 @@ class ExperienceService:
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
-        logger.debug("%s requested XP-SPIN." % member.name)
+        logger.debug(f"{member.display_name} requested xp-spin")
 
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if (dcUserDb := getDiscordUserOld(member, database)) is None:
-            logger.warning("couldn't fetch DiscordUser!")
+        if not (xp := getExperience(member, session)):
+            logger.error(f"couldn't fetch Experience for {member.display_name}")
 
-            return "Es ist etwas schief gelaufen!"
+            return "Es gab einen Fehler!"
 
-        xp = self._getExperience(dcUserDb['user_id'], database)
+        inventory = xp.xp_boosts_inventory
 
-        if xp is None:
-            logger.warning("couldn't spin because of missing experience!")
-
-            return "Es ist etwas schief gelaufen!"
-
-        inventoryJson = xp['xp_boosts_inventory']
-
-        if inventoryJson is None:
+        if inventory is None:
             inventory = []
-        else:
-            inventory = json.loads(inventoryJson)
 
         if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
-            logger.debug("full inventory, cant spin")
+            logger.debug(f"full inventory, cant spin for {member.display_name}")
 
             return "Dein Inventar ist voll! Benutze erst einen oder mehrere XP-Boosts!"
 
-        lastXpSpinTime = xp['last_spin_for_boost']
+        lastXpSpinTime = xp.last_spin_for_boost
 
         if lastXpSpinTime is not None:
             difference: timedelta = datetime.now() - lastXpSpinTime
@@ -264,17 +256,17 @@ class ExperienceService:
                 remainingMinutes = 59 - minutes
                 remainingSeconds = 59 - remainingSeconds
 
-                logger.debug("cant spin, still on cooldown")
+                logger.debug(f"cant spin, still on cooldown for {member.display_name}")
 
                 if days == 6 and hours == 23 and minutes == 59:
-                    return "Du darfst noch nicht wieder drehen! Versuche es in %d Sekunden wieder!" % remainingSeconds
+                    return f"Du darfst noch nicht wieder drehen! Versuche es in {remainingSeconds} Sekunden wieder!"
 
-                return "Du darfst noch nicht wieder drehen! Versuche es in %d Tag(en), %d Stunde(n) und " \
-                       "%d Minute(n) wieder!" % (remainingDays, remainingHours, remainingMinutes)
+                return f"Du darfst noch nicht wieder drehen! Versuche es in {remainingDays} Tag(en), {remainingHours} Stunde(n) und " \
+                       f"{remainingMinutes} Minute(n) wieder!"
 
         # win
         if random.randint(0, (100 / ExperienceParameter.SPIN_WIN_PERCENTAGE.value)) == 1:
-            logger.debug("won xp boost")
+            logger.debug(f"{member.display_name} won a xp boost")
 
             boost = {
                 'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value,
@@ -284,46 +276,46 @@ class ExperienceService:
 
             inventory.append(boost)
 
-            xp['xp_boosts_inventory'] = json.dumps(inventory)
-            xp['last_spin_for_boost'] = datetime.now()
-            xp['time_to_send_spin_reminder'] = (datetime.now()
-                                                + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
-            query, nones = writeSaveQuery(
-                'experience',
-                xp['id'],
-                xp,
-            )
+            print(inventory)
 
-            if database.runQueryOnDatabase(query, nones):
-                logger.debug("saved new xp boost to database")
+            xp.xp_boosts_inventory = inventory
 
-                return "Du hast einen XP-Boost gewonnen!!! Für %d Stunde(n) bekommst du %d-Fach XP! Setze ihn über " \
-                       "dein Inventar ein!" % (ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60,
-                                               ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value)
+            print(xp.xp_boosts_inventory)
+            xp.last_spin_for_boost = datetime.now()
+            xp.time_to_send_spin_reminder = (datetime.now()
+                                             + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit changes for {xp} and {member.display_name}", exc_info=error)
+                session.rollback()
+                session.close()
+
+                return "Es gabe einen Fehler"
             else:
-                logger.critical("couldn't save new boost into database!")
-
-                return ("Herzlichen Glückwunsch, du hast gewonnen! Allerdings gab es ein Problem beim speichern. "
-                        "Bitte wende dich an craftundfun für weitere Hilfe :/.")
+                return (f"Du hast einen XP-Boost gewonnen!!! Für "
+                        f"{int(ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60)} Stunde(n) bekommst du "
+                        f"{ExperienceParameter.XP_BOOST_MULTIPLIER_SPIN.value}-Fach XP! Setze ihn über dein Inventar "
+                        f"ein!")
         else:
-            logger.debug("did not win xp boost")
+            logger.debug(f"{member.display_name} did not win xp boost")
 
             days = ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value
-            xp['last_spin_for_boost'] = datetime.now()
-            xp['time_to_send_spin_reminder'] = (datetime.now()
-                                                + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
-            query, nones = writeSaveQuery(
-                'experience',
-                xp['id'],
-                xp,
-            )
+            xp.last_spin_for_boost = datetime.now()
+            xp.time_to_send_spin_reminder = (datetime.now()
+                                             + timedelta(days=ExperienceParameter.WAIT_X_DAYS_BEFORE_NEW_SPIN.value))
 
-            if database.runQueryOnDatabase(query, nones):
-                logger.debug("saved date to database")
-            else:
-                logger.critical("couldn't save changes to database")
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit changes for {xp} and {member.display_name}", exc_info=error)
+                session.rollback()
+                session.close()
 
-            return "Du hast leider nichts gewonnen! Versuche es in %d Tagen nochmal!" % days
+                return "Es gab einen Fehler!"
+
+            return f"Du hast leider nichts gewonnen! Versuche es in {days} Tagen nochmal!"
 
     async def runExperienceReminder(self):
         """
