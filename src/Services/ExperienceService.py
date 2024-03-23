@@ -421,119 +421,115 @@ class ExperienceService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        logger.debug("%s requested Xp-Inventory" % member.name)
+        logger.debug(f"{member.display_name} requested xp-inventory")
 
-        database = Database_Old()
-        dcUserDb: dict | None = getDiscordUserOld(member, database)
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if dcUserDb is None:
-            logger.warning("couldn't fetch DiscordUser")
+        if not (xp := getExperience(member, session)):
+            logger.error(f"couldn't fetch Experience for {member.display_name}")
 
-            return "Es ist ein Fehler aufgetreten!"
-
-        xp = self._getExperience(dcUserDb['user_id'], database)
-
-        if xp is None:
-            logger.warning("couldn't fetch Experience")
-
-            return "Es ist ein Fehler aufgetreten!"
+            return "Es gab einen Fehler!"
 
         if action == 'list':
-            logger.debug("list-action used")
+            logger.debug(f"list-action used by {member.display_name}")
 
             reply = ""
 
-            if xp['xp_boosts_inventory'] is None:
-                logger.debug("no boosts in inventory")
+            if not xp.xp_boosts_inventory:
+                logger.debug(f"no boosts in inventory for {member.display_name}")
 
                 reply += "Du hast keine XP-Boosts in deinem Inventar!"
 
-                if xp['active_xp_boosts']:
+                if xp.active_xp_boosts:
                     reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
-                    inventory = json.loads(xp['active_xp_boosts'])
+                    inventory: list[dict] = xp.active_xp_boosts
 
                     for index, item in enumerate(inventory, start=1):
-                        reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
-                            index, item['description'], item['remaining'], item['multiplier'])
+                        reply += (f"{index}. {item['description']}-Boost, der noch für {item['remaining']} Minuten "
+                                  f"{item['multiplier']}-Fach XP gibt\n")
+
+                session.close()
 
                 return reply
 
-            logger.debug("list all current and active boosts")
+            logger.debug(f"list all current and active boosts for {member.display_name}")
 
             reply = "__Du hast folgende XP-Boosts in deinem Inventar__:\n\n"
-            inventory = json.loads(xp['xp_boosts_inventory'])
+            inventory = xp.xp_boosts_inventory
 
             for index, item in enumerate(inventory, start=1):
-                reply += "%d. %s-Boost, für %s Minuten %s-Fach XP\n" % \
-                         (index, item['description'], item['remaining'], item['multiplier'])
+                reply += (f"{index}. {item['description']}-Boost, für {item['remaining']} Minuten "
+                          f"{item['multiplier']}-Fach XP\n")
 
-            if xp['active_xp_boosts'] is not None:
+            if xp.active_xp_boosts:
                 reply += "\n\n__Du hast folgende aktive XP-Boosts__:\n\n"
-                inventory = json.loads(xp['active_xp_boosts'])
+                activeInventory: list[dict] = xp.active_xp_boosts
 
-                for index, item in enumerate(inventory, start=1):
-                    reply += "%d. %s-Boost, der noch für %s Minuten %s-Fach XP gibt\n" % (
-                        index, item['description'], item['remaining'], item['multiplier'])
+                for index, item in enumerate(activeInventory, start=1):
+                    reply += (f"{index}. {item['description']}-Boost, der noch für {item['remaining']} Minuten "
+                              f"{item['multiplier']}-Fach XP gibt\n")
 
             reply += "\nMit '/xp_inventory use zeile:1 | all' kannst du einen oder mehrere XP-Boost einsetzen!"
+
+            session.close()
 
             return reply
         # !inventory use
         else:
-            logger.debug("use-action used")
+            logger.debug(f"use-action used by {member.display_name}")
 
             # no xp boosts available
-            if xp['xp_boosts_inventory'] is None:
-                logger.debug("no boosts in inventory")
+            if not xp.xp_boosts_inventory:
+                logger.debug(f"no boosts in inventory for {member.display_name}")
+                session.close()
 
                 return "Du hast keine XP-Boosts in deinem Inventar!"
 
             # too many xp boosts are active, cant activate another one
-            if (xp['active_xp_boosts'] is not None
-                    and len(json.loads(xp['active_xp_boosts'])) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value):
-                logger.debug("too many boosts active")
+            if xp.active_xp_boosts and len(xp.active_xp_boosts) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
+                logger.debug(f"too many boosts active for {member.display_name}")
+                session.close()
 
                 return "Du hast zu viele aktive XP-Boosts! Warte bis einer ausgelaufen ist und probiere " \
                        "es erneut!"
 
             # inventory use all
             if row == 'all':
-                logger.debug("use all boosts")
+                logger.debug(f"use all boosts for {member.display_name}")
                 # list to keep track of which boosts will be used
                 usedBoosts = []
 
-                currentInventory = json.loads(xp['xp_boosts_inventory']) if xp['xp_boosts_inventory'] else None
-                activeBoosts = json.loads(xp['active_xp_boosts']) if xp['active_xp_boosts'] else None
+                currentInventory = xp.xp_boosts_inventory if xp.xp_boosts_inventory else None
+                activeBoosts = xp.active_xp_boosts if xp.active_xp_boosts else None
                 maxValue = ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
 
                 # empty active boosts and fewer then max boosts => can use all boosts at once
                 if currentInventory and not activeBoosts and len(currentInventory) <= maxValue:
-                    logger.debug("no active boosts, all will fit")
+                    logger.debug(f"no active boosts, all will fitfor {member.display_name}")
 
-                    xp['active_xp_boosts'] = xp['xp_boosts_inventory']
-                    usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
-                    usedBoosts = json.loads(usedBoosts)
-                    xp['xp_boosts_inventory'] = None
+                    xp.active_xp_boosts = xp.xp_boosts_inventory
+                    usedBoosts = copy.deepcopy(xp.xp_boosts_inventory)
+                    xp.xp_boosts_inventory = None
                 # xp boosts can fit into active
                 elif currentInventory and activeBoosts and (len(currentInventory) + len(activeBoosts) <= maxValue):
-                    logger.debug("active boosts present, but new ones fit")
+                    logger.debug(f"active boosts present, but new ones fit for {member.display_name}")
 
-                    usedBoosts = copy.deepcopy(xp['xp_boosts_inventory'])
-                    usedBoosts = json.loads(usedBoosts)
-                    inventory = json.loads(xp['xp_boosts_inventory'])
-                    activeBoosts = json.loads(xp['active_xp_boosts'])
-                    xp['active_xp_boosts'] = json.dumps(activeBoosts + inventory)
-                    xp['xp_boosts_inventory'] = None
+                    usedBoosts = copy.deepcopy(xp.xp_boosts_inventory)
+                    inventory = xp.xp_boosts_inventory
+                    activeBoosts = xp.active_xp_boosts
+                    xp.active_xp_boosts = activeBoosts + inventory
+                    xp.xp_boosts_inventory = None
                 # not all xp-boosts fit into active ones
                 else:
-                    logger.debug("active boosts, choose only fitting ones")
+                    logger.debug(f"active boosts, choose only fitting ones for {member.display_name}")
 
                     if not activeBoosts:
                         activeBoosts = []
 
                     currentPosInInventory = 0
                     numXpBoosts = len(activeBoosts)
-                    inventoryAfter: list[dict] = json.loads(xp['xp_boosts_inventory'])
+                    inventoryAfter: list[dict] = xp.xp_boosts_inventory
 
                     while (numXpBoosts < ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value
                            and currentPosInInventory < len(currentInventory)):
@@ -541,7 +537,7 @@ class ExperienceService:
 
                         usedBoosts.append(currentBoost)
                         activeBoosts.append(currentBoost)
-                        inventoryAfter.remove(currentBoost)
+                        inventoryAfter.remove(currentBoost)  # TODO
 
                         currentPosInInventory += 1
                         numXpBoosts += 1
