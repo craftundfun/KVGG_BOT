@@ -186,7 +186,7 @@ class CommandService:
                 function = self.experienceService.spinForXpBoost
 
             case Commands.XP_INVENTORY:
-                function = self.experienceService.handleXpInventory  # TODO
+                function = self.experienceService.handleXpInventory
 
             case Commands.XP:
                 function = self.experienceService.handleXpRequest  # TODO

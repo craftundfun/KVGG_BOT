@@ -8,7 +8,7 @@ from src.Helper.ReadParameters import getParameter, Parameters
 logger = logging.getLogger("KVGG_BOT")
 _engine = create_engine(
     f'mysql+mysqlconnector://{getParameter(Parameters.USER)}:{getParameter(Parameters.PASSWORD)}@{getParameter(Parameters.HOST)}/{getParameter(Parameters.NAME)}',
-    echo=False, )
+    echo=False, pool_recycle=60)
 metadata = MetaData()
 metadata.reflect(bind=_engine)
 

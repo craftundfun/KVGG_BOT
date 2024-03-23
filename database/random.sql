@@ -118,5 +118,9 @@ INSERT INTO beta.reminder (id, discord_user_id, content, sent_at, error, repeat_
 ALTER TABLE discord
 ADD COLUMN formated_time VARCHAR(255);
 
+SHOW VARIABLES LIKE 'wait_%';
+
 ALTER TABLE discord
 ADD COLUMN formated_university_time VARCHAR(255);
+
+SELECT * FROM experience WHERE discord_user_id = 12 and xp_boosts_inventory is null;
