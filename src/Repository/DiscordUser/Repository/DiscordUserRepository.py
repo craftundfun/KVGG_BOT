@@ -21,8 +21,8 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
     :param session: Session of the database connection
     :return: None | Dict[Any, Any] DiscordUser
     """
-    if not member or isinstance(member, User):
-        logger.debug("member was None or not the correct format")
+    if not member or isinstance(member, User) or member.bot:
+        logger.debug("member was None (or a bot) or not the correct format")
 
         return None
 

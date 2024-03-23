@@ -594,7 +594,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     :param user: Entered user to read XP from
     :return:
     """
-    await commandService.runCommand(Commands.XP, interaction, member=interaction.user, user=user)
+    await commandService.runCommand(Commands.XP, interaction, requestingMember=interaction.user, requestedMember=user)
 
 
 """NOTIFICATIONS"""

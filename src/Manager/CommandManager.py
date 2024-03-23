@@ -189,7 +189,7 @@ class CommandService:
                 function = self.experienceService.handleXpInventory
 
             case Commands.XP:
-                function = self.experienceService.handleXpRequest  # TODO
+                function = self.experienceService.handleXpRequest
 
             case Commands.NOTIFICATION_SETTING:
                 function = self.userSettings.changeNotificationSetting  # TODO

@@ -17,7 +17,6 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Repository.Experience.Repository.ExperienceRepository import getExperience
 from src.Services.Database_Old import Database_Old
 
@@ -52,7 +51,7 @@ class ExperienceService:
         :return:
         """
         if isDoubleWeekend(datetime.now()):
-            return "Dieses Wochenende ist btw. Doppel-XP-Wochenende!"
+            return "Dieses Wochenende ist Doppel-XP-Wochenende!"
         else:
             diff: timedelta = self._getDiffUntilNextDoubleXpWeekend()
 
@@ -372,40 +371,30 @@ class ExperienceService:
 
         return self._getExperience(dcUserDb['user_id'], Database_Old())
 
-    def handleXpRequest(self, member: Member, user: Member) -> string:
+    def handleXpRequest(self, requestingMember: Member, requestedMember: Member) -> str:
         """
         Handles the XP-Request of the given tag
 
-        :param user: Tag of the requested user
-        :param member: Member, who called the command
+        :param requestedMember: Tag of the requested user
+        :param requestingMember: Member, who called the command
         :raise ConnectionError: If the database connection can't be established
         :return: string - answer
         """
-        # lazy import to avoid circular import
-        from src.Services.ProcessUserInput import getTagStringFromId
+        logger.debug(f"{requestingMember.display_name} requested xp for {requestedMember.display_name}")
 
-        logger.debug("%s requested XP" % member.name)
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        database = Database_Old()
-        dcUserDb = getDiscordUserOld(user, database)
+        if not (xp := getExperience(requestedMember, session)):
+            logger.error(f"couldn't fetch Experience for {requestedMember.display_name}")
 
-        if dcUserDb is None:
-            logger.warning("couldn't fetch DiscordUser!")
+            return "Es gab einen Fehler!"
 
-            return "Es ist ein Fehler aufgetreten!"
-
-        xp = self._getExperience(dcUserDb['user_id'], database)
-
-        if xp is None:
-            logger.warning("couldn't fetch Experience!")
-
-            return "Es ist ein Fehler aufgetreten!"
-
-        reply = "%s hat bereits %s XP gefarmt!\n\n" % (getTagStringFromId(dcUserDb['user_id']),
-                                                       '{:,}'.format(xp['xp_amount']).replace(',', '.'))
+        reply = f"<@{requestedMember.id}> hat bereits {'{:,}'.format(xp.xp_amount).replace(',', '.')} XP gefarmt!\n\n"
         reply += self._getDoubleXpWeekendInformation()
 
-        logger.debug("replying xp amount")
+        logger.debug(f"replying xp amount for {requestedMember.display_name} by {requestingMember.display_name}")
+        session.close()
 
         return reply
 
