@@ -195,7 +195,7 @@ class CommandService:
                 function = self.userSettings.changeNotificationSetting
 
             case Commands.FELIX_TIMER:
-                function = self.userInputService.handleFelixTimer  # TODO
+                function = self.userInputService.handleFelixTimer
 
             case Commands.WHATSAPP_SUSPEND_SETTINGS:
                 function = self.whatsappHelper.addOrEditSuspendDay  # TODO

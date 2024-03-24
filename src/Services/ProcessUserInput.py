@@ -19,12 +19,10 @@ from src.Id import ChannelId
 from src.Id.Categories import TrackedCategories
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
-from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Repository.DiscordUserRepository import getDiscordUserOld as getDiscordUserOld
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
@@ -257,9 +255,9 @@ class ProcessUserInput:
         """
         if timeName == "online":
             time = OnlineTime.OnlineTime()
-        elif timeName == "stream":  # TODO like OnlineTime
+        elif timeName == "stream":
             time = StreamTime.StreamTime()
-        elif timeName == "uni":     # TODO like OnlineTime
+        elif timeName == "uni":
             time = UniversityTime.UniversityTime()
         else:
             logger.error("undefined entry was reached!")
@@ -362,40 +360,47 @@ class ProcessUserInput:
 
         return "Dir wurde das Formular privat gesendet!"
 
-    async def handleFelixTimer(self, member: Member, user: Member, action: string, time: string = None) -> str:
+    async def handleFelixTimer(self,
+                               requestingMember: Member,
+                               requestedMember: Member,
+                               action: str,
+                               time: str = None) -> str:
         """
         Handles the Feli-Timer for the given user
 
-        :param user: User whose timer will be edited
-        :param member: Member, who raised the command
+        :param requestedMember: User whose timer will be edited
+        :param requestingMember: Member, who raised the command
         :param action: Chosen action, start or stop
         :param time: Optional time to start the timer at
         :raise ConnectionError: If the database connection cant be established
         :return:
         """
-        logger.debug("handling Felix-Timer by %s" % member.name)
+        logger.debug(f"handling Felix-Timer for {requestedMember.display_name} by {requestingMember.display_name}")
 
-        database = Database_Old()
-        dcUserDb = getDiscordUserOld(user, database)
+        if not (session := getSession()):
+            return "Es gab ein Problem!"
 
-        if not dcUserDb:
-            logger.warning("couldn't fetch DiscordUser!")
+        if not (dcUserDb := getDiscordUser(requestedMember, session)):
+            logger.error(f"couldn't fetch DiscordUser for {requestedMember.display_name}")
+            session.close()
 
-            return "Bitte tagge deinen User korrekt!"
-
-        counter = FelixCounter(dcUserDb)
+            return "Es gab einen Fehler!"
 
         if action == FelixCounterKeyword.FELIX_COUNTER_START_KEYWORD:
-            if counter.getFelixTimer():
-                logger.debug("felix-Timer is already running")
+            logger.debug(f"start chosen by {requestingMember.display_name}")
+
+            if dcUserDb.felix_counter_start:
+                logger.debug(f"Felix-Timer is already running for {requestedMember.display_name}")
+                session.close()
 
                 return "Es läuft bereits ein Timer!"
 
-            if dcUserDb['channel_id']:
-                logger.debug("%s is online" % user.name)
+            if dcUserDb.channel_id:
+                logger.debug(f"{requestedMember.display_name} is online")
+                session.close()
 
-                return ("%s ist gerade online. Du kannst für ihn / sie keinen %s-Timer starten!" %
-                        (getTagStringFromId(str(user.id)), counter.getNameOfCounter()))
+                return (f"<@{requestedMember.id}> ist gerade online. Du kannst für ihn / sie keinen Felix-Timer "
+                        f"starten!")
 
             if not time:
                 date = datetime.now()
@@ -416,7 +421,9 @@ class ProcessUserInput:
                     try:
                         minutesFromNow = int(time)
                     except ValueError:
-                        logger.debug("no time or amount of minutes was given")
+                        logger.debug(f"no time or amount of minutes was given by {requestingMember.display_name}, "
+                                     f"value: {time}")
+                        session.close()
 
                         return ("Bitte gib eine gültige Zeit an! Zum Beispiel: '20' für 20 Minuten oder '09:04' um den "
                                 "Timer um 09:04 Uhr zu starten!")
@@ -426,49 +433,73 @@ class ProcessUserInput:
 
             # I don't think it's necessary, but don't change a running system (too much)
             if not date:
-                logger.debug("no date was given")
+                logger.debug(f"no date was given by {requestingMember.display_name}")
+                session.close()
 
                 return "Deine gegebene Zeit war inkorrekt. Bitte achte auf das Format: '09:09' oder '20'!"
 
-            counter.setFelixTimer(date)
-            self._saveDiscordUserToDatabase(dcUserDb, database)
+            dcUserDb.felix_counter_start = date
 
             try:
-                await sendDM(user, "Dein %s-Timer wurde von %s auf %s Uhr gesetzt! Pro vergangener Minute "
-                                   "bekommst du ab der Uhrzeit einen %s-Counter dazu! Um den Timer zu stoppen komm "
-                                   "(vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n"
-                             % (counter.getNameOfCounter(),
-                                member.nick if member.nick else member.name,
-                                date.strftime("%H:%M"),
-                                counter.getNameOfCounter())
-                             )
-                await sendDM(user, FelixCounterKeyword.LIAR)
+                session.commit()
             except Exception as error:
-                logger.error("couldn't send DM to %s" % user.name, exc_info=error)
+                logger.error(f"couldn't commit changes for DiscordUser of {requestedMember.display_name}",
+                             exc_info=error, )
+                session.rollback()
+                session.close()
+
+                return "Es gab einen Fehler!"
+
+            session.close()
+
+            try:
+                await sendDM(requestedMember, f"Dein Felix-Timer wurde von {requestingMember.display_name} auf "
+                                              f"{date.strftime('%H:%M')} Uhr gesetzt! Pro vergangener Minute bekommst "
+                                              f"du ab der Uhrzeit einen Felix-Counter dazu! Um den Timer zu stoppen "
+                                              f"komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n")
+                await sendDM(requestedMember, FelixCounterKeyword.LIAR)
+            except Exception as error:
+                logger.error(f"couldn't send DM to {requestedMember.display_name}", exc_info=error)
+
+                return (f"Der Felix-Timer wurde gestellt. {requestedMember.display_name} wurde allerdings nicht "
+                        f"darüber informiert - es gab Probleme beim Senden einer DM.")
             else:
-                logger.debug("send DMs to %s" % user.name)
+                logger.debug(f"notified {requestedMember.display_name} about his / her Felix-Timer by "
+                             f"{requestingMember.display_name}")
 
-                return "Der %s-Timer von %s wird um %s Uhr gestartet." % (counter.getNameOfCounter(),
-                                                                          getTagStringFromId(str(user.id)),
-                                                                          date.strftime("%H:%M"))
+                return f"Der Felix-Timer von <@{requestedMember.id}> wird um {date.strftime('%H:%M')} Uhr gestartet."
         else:
-            logger.debug("stop chosen")
+            logger.debug(f"stop chosen by {requestingMember.display_name}")
 
-            if counter.getFelixTimer() is None:
-                return "Es lief kein %s-Timer für %s!" % (counter.getNameOfCounter(), getTagStringFromId(str(user.id)))
+            if not dcUserDb.felix_counter_start:
+                logger.debug(f"{requestedMember.display_name} had no running Felix-Timer")
+                session.close()
 
-            if str(counter.getDiscordUser()['user_id']) == str(member.id):
-                logger.debug("user wanted to stop his / her own Felix-Timer")
+                return f"Es lief kein Felix-Timer für <@{requestedMember.id}>!"
+
+            if requestedMember.id == requestingMember.id:
+                logger.debug(f"{requestingMember.display_name} wanted to stop his / her own Felix-Timer")
+                session.close()
 
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
-            counter.setFelixTimer(None)
-            self._saveDiscordUserToDatabase(dcUserDb, database)
+            dcUserDb.felix_counter_start = None
 
             try:
-                await sendDM(user, "Dein %s-Timer wurde beendet!" % (counter.getNameOfCounter()))
+                session.commit()
             except Exception as error:
-                logger.error("couldn't send DM to %s" % dcUserDb['username'], exc_info=error)
+                logger.error(f"couldn't save changes for DiscordUser for {requestedMember.display_name}",
+                             exc_info=error, )
+                session.rollback()
+                session.close()
 
-            return "Der %s-Timer von %s wurde beendet." % (counter.getNameOfCounter(),
-                                                           getTagStringFromId(str(user.id)))
+                return "Es gab einen Fehler!"
+
+            session.close()
+
+            try:
+                await sendDM(requestedMember, "Dein Felix-Timer wurde beendet!")
+            except Exception as error:
+                logger.error(f"couldn't send DM to {requestedMember.display_name}", exc_info=error)
+
+            return f"Der Felix-Timer von <@{requestedMember.id}> wurde beendet."

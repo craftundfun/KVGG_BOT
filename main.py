@@ -653,8 +653,8 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
 async def handleFelixTimer(interaction: discord.Interaction, user: Member, action: Choice[str], zeit: str = None):
     await commandService.runCommand(Commands.FELIX_TIMER,
                                     interaction,
-                                    member=interaction.user,
-                                    user=user,
+                                    requestingMember=interaction.user,
+                                    requestedMember=user,
                                     action=action.value,
                                     time=zeit)
 

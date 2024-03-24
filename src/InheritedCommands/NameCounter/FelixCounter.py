@@ -7,6 +7,7 @@ from discord import Member
 
 from src.Helper.SendDM import sendDM, separator
 from src.InheritedCommands.NameCounter.Counter import Counter
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Services.Database_Old import Database_Old
 
 FELIX_COUNTER_MINUTES = 20
@@ -23,7 +24,7 @@ def getAllKeywords() -> list:
 
 class FelixCounter(Counter):
 
-    def __init__(self, dcUserDb: dict = None):
+    def __init__(self, dcUserDb: DiscordUser = None):
         super().__init__('Felix', dcUserDb)
 
     def getCounterValue(self) -> int:
