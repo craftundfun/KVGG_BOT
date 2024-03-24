@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import json
 import logging
 from datetime import datetime, timedelta
@@ -8,11 +9,16 @@ from typing import Any, List, Dict
 import discord.app_commands
 from discord import VoiceState, Member, Client, VoiceChannel
 from discord.app_commands import Choice
+from sqlalchemy import select
+from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Services.Database_Old import Database_Old
@@ -319,7 +325,7 @@ class WhatsAppHelper:
 
         logger.debug("saved new message to database")
 
-    def addOrEditSuspendDay(self, member: Member, weekday: Choice, start: str, end: str):
+    def addOrEditSuspendDay(self, member: Member, weekday: Choice, start: str, end: str) -> str:
         """
         Enables a given time interval for the member to not receive messages in
 
@@ -330,16 +336,26 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+        getQuery = (select(WhatsappSetting)
+                    .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery())))
 
-        whatsappSetting = database.fetchOneResult(query, (member.id,))
+        try:
+            whatsappSetting = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.debug(f"{member.display_name} is not registered for whatsapp messages")
+            session.close()
 
-        if not whatsappSetting:
-            logger.debug("%s is not registered for whatsapp messages" % member.name)
+            return "Du bist nicht für unseren Whatsapp-Nachrichtendienst registriert!"
+        except Exception as error:
+            logger.error(f"couldn't fetch WhatsappSettings for {member.display_name}", exc_info=error)
+            session.close()
 
-            return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+            return "Es gab einen Fehler!"
 
         current = datetime.now()
 
@@ -373,41 +389,40 @@ class WhatsAppHelper:
             'start': str(startTime),
             'end': str(endTime),
         }
-        suspendTimes = whatsappSetting['suspend_times']
+        suspendTimes: list[dict[str, Any]] | None = copy.deepcopy(whatsappSetting.suspend_times)
 
-        if suspendTimes is None:
+        if not suspendTimes:
             newSuspendTimes = [suspendDay]
         else:
-            suspendTimes = json.loads(suspendTimes)
             newSuspendTimes = []
-
             alreadyExisted = False
 
-            for day in suspendTimes:
-                if day['day'] == suspendDay['day']:
+            for time in suspendTimes:
+                if time['day'] == suspendDay['day']:
                     newSuspendTimes.append(suspendDay)
 
                     alreadyExisted = True
                 else:
-                    newSuspendTimes.append(day)
+                    newSuspendTimes.append(time)
 
             if not alreadyExisted:
                 newSuspendTimes.append(suspendDay)
 
-        whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
-        query, nones = writeSaveQuery(
-            'whatsapp_setting',
-            whatsappSetting['id'],
-            whatsappSetting,
-        )
+        whatsappSetting.suspend_times = newSuspendTimes
 
-        if database.runQueryOnDatabase(query, nones):
-            logger.debug("saved new suspend time to database")
-        else:
-            return "Es gab Probleme beim speichern!"
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't save changes for WhatsappSetting for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        return "Du bekommst von nun an ab %s bis %s am %s keine WhatsApp-Nachrichten mehr." % (
-            startTime.strftime("%H:%M"), endTime.strftime("%H:%M"), weekday.name)
+            return "Es gab einen Fehler!"
+
+        session.close()
+
+        return (f"Du bekommst von nun an ab {startTime.strftime('%H:%M')} bis {endTime.strftime('%H:%M')} am "
+                f"{weekday.name} keine WhatsApp-Nachrichten mehr.")
 
     def resetSuspendSetting(self, member: Member, weekday: discord.app_commands.Choice):
         """
