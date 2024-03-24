@@ -8,7 +8,7 @@ from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.DatabaseManager import getSession
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
-from src.Repository.NotificationSettingRepository import getNotificationSettings_OLD
+from src.Repository.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -47,40 +47,74 @@ class UserSettings:
 
         return settings
 
-    def changeNotificationSetting(self, member: Member, kind: str, setting: bool) -> str:
+    def changeNotificationSetting(self, member: Member, kind: str, switch: bool) -> str:
         """
         Changes the notification setting for coming online
 
         :param member: Member, who wants to change the settings
         :param kind: Type of setting
-        :param setting: New value
+        :param switch: New value
         :raise ConnectionError: if the database connection cant be established
         :return: Answer
         """
-        database = Database_Old()
-        settings = getNotificationSettings_OLD(member, database)
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if not settings:
-            logger.error("couldn't fetch settings")
+        if not (settings := getNotificationSettings(member, session)):
+            logger.error(f"couldn't fetch NotificationSettings for {member.display_name}")
+            session.close()
 
-            return "Es gab ein Problem!"
+            return "Es gab einen Fehler!"
 
-        # database rows
-        settings_keys = NotificationType.getValues()
+        setting = None
 
-        if kind in settings_keys:
-            settings[kind] = 1 if setting else 0
-        else:
-            logger.critical(f"undefined value was reached: {kind}")
+        for notificationSetting in NotificationType.getObjects():
+            if notificationSetting.value.lower() == kind.lower():
+                setting = notificationSetting
 
-            return "Es gab ein Problem! Es wurde nichts geändert."
+                break
 
-        if not self._saveToDatabase(settings, "notification_setting", database):
-            logger.critical("couldn't save changes to database")
+        if not setting:
+            logger.error(f"couldn't find NotificationSettingObject for {kind}")
+            session.close()
 
-            return "Es gab ein Problem! Es wurde nichts geändert."
+            return "Es gab einen Fehler!"
 
-        logger.debug("saved changes to database")
+        match setting:
+            case NotificationType.NOTIFICATION:
+                settings.notifications = switch
+            case NotificationType.DOUBLE_XP:
+                settings.double_xp = switch
+            case NotificationType.WELCOME_BACK:
+                settings.welcome_back = switch
+            case NotificationType.QUEST:
+                settings.quest = switch
+            case NotificationType.XP_INVENTORY:
+                settings.xp_inventory = switch
+            case NotificationType.XP_SPIN:
+                settings.xp_spin = switch
+            case NotificationType.STATUS:
+                settings.status_report = switch
+            case NotificationType.RETROSPECT:
+                settings.retrospect = switch
+            case _:
+                logger.error(f"undefined enum entry was reached: {setting}")
+                session.rollback()
+                session.close()
+
+                return "Es gab einen Fehler!"
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit NotificationSettings for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        session.close()
+        logger.debug(f"saved NotificationSettings for {member.display_name}")
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 

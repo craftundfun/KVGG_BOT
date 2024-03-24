@@ -632,7 +632,7 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
                                     interaction,
                                     member=interaction.user,
                                     kind=kategorie.value,
-                                    setting=1 if action.value == "on" else 0)
+                                    switch=True if action.value == "on" else False)
 
 
 """FELIX TIMER"""

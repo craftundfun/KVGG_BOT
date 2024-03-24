@@ -192,7 +192,7 @@ class CommandService:
                 function = self.experienceService.handleXpRequest
 
             case Commands.NOTIFICATION_SETTING:
-                function = self.userSettings.changeNotificationSetting  # TODO
+                function = self.userSettings.changeNotificationSetting
 
             case Commands.FELIX_TIMER:
                 function = self.userInputService.handleFelixTimer  # TODO
