@@ -218,15 +218,26 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
-        query = "SELECT * " \
-                "FROM reminder " \
-                "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
-                "and time_to_sent IS NOT NULL"
-        reminders = database.fetchAllResults(query, (int(member.id),))
+        if not (session := getSession()):
+            return [PaginationViewDataItem(field_name="Es gab einen Fehler!")]
+
+        getQuery = (select(Reminder)
+                    .where(Reminder.discord_user_id == (select(DiscordUser.id)
+                                                        .where(DiscordUser.user_id == str(member.id))
+                                                        .scalar_subquery()),
+                           Reminder.time_to_sent is not None, ))
+
+        try:
+            reminders = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch reminders for {member.display_name}", exc_info=error)
+
+            return [PaginationViewDataItem(field_name="Es gab einen Fehler!")]
+        finally:
+            session.close()
 
         if not reminders:
-            logger.debug("reminders for %s were empty" % member.name)
+            logger.debug(f"{member.display_name} has no active reminders")
 
             return [PaginationViewDataItem(field_name="Du hast aktuell keine Reminder.")]
 
@@ -249,20 +260,20 @@ class ReminderService:
         allReminder: [PaginationViewDataItem] = []
 
         for reminder in reminders:
-            repetition = getTimeFromRepeatInMinutes(reminder['repeat_in_minutes'])
+            repetition = getTimeFromRepeatInMinutes(reminder.repeat_in_minutes)
 
             allReminder += [
                 PaginationViewDataItem(
-                    field_name=f"__**{reminder['content']}**__",
-                    field_value=f"**Zeitpunkt**: {reminder['time_to_sent'].strftime('%d.%m.%Y %H:%M')} Uhr\n "
+                    field_name=f"__**{reminder.content}**__",
+                    field_value=f"**Zeitpunkt**: {reminder.time_to_sent.strftime('%d.%m.%Y %H:%M')} Uhr\n "
                                 f"**Wiederholung**: {'aktiviert - alle %d Tage, %d Stunden, %d Minuten' % (repetition[0], repetition[1], repetition[2]) if repetition else 'deaktiviert'}\n"
-                                f"**Whatsapp**: {'aktiviert' if reminder['whatsapp'] else 'deaktiviert'}\n"
-                                f"**Typ**: {'Reminder' if not reminder['is_timer'] else 'Timer'}\n"
-                                f"**ID**: {reminder['id']}"
+                                f"**Whatsapp**: {'aktiviert' if reminder.whatsapp else 'deaktiviert'}\n"
+                                f"**Typ**: {'Reminder' if not reminder.is_timer else 'Timer'}\n"
+                                f"**ID**: {reminder.id}"
                 )
             ]
 
-        logger.debug("listed all reminders from %s" % member.name)
+        logger.debug(f"listed all reminders from {member.display_name}")
 
         return allReminder
 

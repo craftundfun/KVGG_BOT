@@ -219,7 +219,7 @@ class CommandService:
                 function = self.reminderService.createReminder
 
             case Commands.LIST_REMINDERS:
-                data = self.reminderService.listReminders(**kwargs)  # TODO
+                data = self.reminderService.listReminders(**kwargs)
 
                 await PaginationView(
                     ctx=interaction,
