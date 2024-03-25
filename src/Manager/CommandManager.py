@@ -233,7 +233,7 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_REMINDER:
-                function = self.reminderService.deleteReminder  # TODO
+                function = self.reminderService.deleteReminder
 
             case Commands.PLAY_SOUND:
                 function = self.soundboardService.playSound  # TODO

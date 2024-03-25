@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import discord
 from discord import Member
-from sqlalchemy import select, insert, null
+from sqlalchemy import select, insert, null, delete
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
@@ -322,42 +322,57 @@ class ReminderService:
 
         :param member:
         :param id:
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
         try:
             id = int(id)
         except ValueError:
-            logger.debug("the given string was not a number")
+            logger.debug(f"the given string was not a number by {member.display_name}")
 
             return "Bitte gib eine korrekte ID ein!"
 
-        query = "SELECT r.* " \
-                "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
-                "WHERE d.user_id = %s AND r.time_to_sent IS NOT NULL"
+        getQuery = (select(Reminder)
+                    .where(Reminder.discord_user_id == (select(DiscordUser.id)
+                                                        .where(DiscordUser.user_id == str(member.id))
+                                                        .scalar_subquery()),
+                           Reminder.time_to_sent is not None, ))
 
-        reminders = database.fetchAllResults(query, (member.id,))
+        try:
+            reminders = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"error while fetching Reminders for {member.display_name}", exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
 
         if not reminders:
-            logger.debug("no entries to delete")
+            logger.debug(f"no entries to delete for {member.display_name}")
 
             return "Du hast keine aktiven Reminders!"
 
-        if not any(reminder['id'] == id for reminder in reminders):
-            logger.debug("id was not found in personal reminders")
+        if not any(reminder.id == id for reminder in reminders):
+            logger.debug(f"id was not found in personal reminders for {member.display_name}")
 
             return "Du hast keinen Reminder mit dieser ID!"
 
-        query = "DELETE FROM reminder WHERE id = %s"
+        deleteQuery = delete(Reminder).where(Reminder.id == id)
 
-        if not database.runQueryOnDatabase(query, (id,)):
-            logger.critical(f"couldnt save changes to database: {query}, id: {id}")
-        else:
-            logger.debug("deleted entry from database")
+        try:
+            session.execute(deleteQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't delete Reminder for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        return "Dein Reminder wurde erfolgreich gelöscht."
+            return "Es gab einen Fehler!"
+
+        session.close()
+
+        return "Dein Reminder wurde erfolgreich gelöscht!"
 
     async def _sendReminder(self, reminder: dict) -> dict:
         """
