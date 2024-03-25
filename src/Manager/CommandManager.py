@@ -210,7 +210,7 @@ class CommandService:
                 function = self.apiService.getWeather
 
             case Commands.CURRENCY_CONVERTER:
-                function = self.apiService.convertCurrency  # TODO
+                function = self.apiService.convertCurrency
 
             case Commands.QRCODE:
                 function = self.apiService.generateQRCode  # TODO

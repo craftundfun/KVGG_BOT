@@ -109,6 +109,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for currency-conversion")
+
             answer = await client.get(
                 self.url + "convertcurrency",
                 params=payload,
@@ -128,8 +129,7 @@ class ApiServices:
         data = answer.content.decode('utf-8')
         data = json.loads(data)
 
-        return "%s %s sind %s %s." % (
-            data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
+        return f"{data['old_amount']} {data['old_currency']} sind {data['new_amount']} {data['new_currency']}."
 
     async def generateQRCode(self, text: str) -> Path | str:
         """
