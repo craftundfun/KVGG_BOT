@@ -148,6 +148,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for QR-Code generation")
+
             answer = await client.get(
                 "https://api.qrserver.com/v1/create-qr-code/",
                 params=payload,

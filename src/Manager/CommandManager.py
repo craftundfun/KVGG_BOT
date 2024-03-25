@@ -213,7 +213,7 @@ class CommandService:
                 function = self.apiService.convertCurrency
 
             case Commands.QRCODE:
-                function = self.apiService.generateQRCode  # TODO
+                function = self.apiService.generateQRCode
 
             case Commands.CREATE_REMINDER:
                 function = self.reminderService.createReminder  # TODO
