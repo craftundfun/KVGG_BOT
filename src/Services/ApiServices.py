@@ -52,6 +52,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for weather")
+
             answerWeather = await client.get(
                 self.url + "weather",
                 params=payload,
@@ -61,6 +62,7 @@ class ApiServices:
             )
 
             logger.debug("calling API for air-quality")
+
             answerAir = await client.get(
                 self.url + "airquality",
                 params=payload,
@@ -82,11 +84,10 @@ class ApiServices:
         answerAir = answerAir.content.decode('utf-8')
         dataAir = json.loads(answerAir)
 
-        return "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine " \
-               "Luftfeuchtigkeit von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt " \
-               "bei %s (von maximal 500)." % (
-            city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
-            dataWeather['cloud_pct'], dataAir['overall_aqi'])
+        return (f"Aktuell sind es in {city} {dataWeather['temp']}°C. Die gefühlte Temperatur liegt bei "
+                f"{dataWeather['feels_like']}°C. Es herrscht eine Luftfeuchtigkeit von {dataWeather['humidity']} "
+                f"Prozent. Es ist zu {dataWeather['cloud_pct']} Prozent bewölkt. Der Luftqualitätsindex liegt bei "
+                f"{dataAir['overall_aqi']} (von maximal 500).")
 
     async def convertCurrency(self, have: str, want: str, amount: float) -> str:
         """

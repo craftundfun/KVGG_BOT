@@ -207,7 +207,7 @@ class CommandService:
                 function = self.whatsappHelper.listSuspendSettings
 
             case Commands.WEATHER:
-                function = self.apiService.getWeather  # TODO
+                function = self.apiService.getWeather
 
             case Commands.CURRENCY_CONVERTER:
                 function = self.apiService.convertCurrency  # TODO
