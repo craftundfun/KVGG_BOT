@@ -9,6 +9,7 @@ from typing import Any, List, Dict
 import discord.app_commands
 from discord import VoiceState, Member, Client, VoiceChannel
 from discord.app_commands import Choice
+from sqlalchemy import null
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -433,53 +434,64 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
-        query = "SELECT * " \
-                "FROM whatsapp_setting " \
-                "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-        whatsappSetting = database.fetchOneResult(query, (member.id,))
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if not whatsappSetting:
-            logger.debug("%s is no registered for whatsapp messages" % member.name)
+        getQuery = (select(WhatsappSetting)
+                    .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery())))
+
+        try:
+            whatsappSetting = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.debug(f"{member.display_name} is not registered for whatsapp messages")
+            session.close()
 
             return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+        except Exception as error:
+            logger.error(f"couldn't fetch WhatsappSettings for {member.display_name}", exc_info=error)
+            session.close()
 
-        suspendTimes = whatsappSetting['suspend_times']
+            return "Es gab einen Fehler!"
+
+        suspendTimes: list[dict[str, Any]] | None = copy.deepcopy(whatsappSetting.suspend_times)
 
         if not suspendTimes:
-            logger.debug("no suspend times to reset")
+            logger.debug(f"no suspend times to reset for {member.display_name}")
+            session.close()
 
             return "Du hast keine Suspend-Zeiten zum zurücksetzen!"
 
-        suspendTimes = json.loads(suspendTimes)
         newSuspendTimes = []
         found = False
 
-        for day in suspendTimes:
-            if day['day'] != weekday.value:
-                newSuspendTimes.append(day)
+        for time in suspendTimes:
+            if time['day'] != weekday.value:
+                newSuspendTimes.append(time)
             else:
                 found = True
 
-        if len(newSuspendTimes) == 0:
-            whatsappSetting['suspend_times'] = None
-        else:
-            whatsappSetting['suspend_times'] = json.dumps(newSuspendTimes)
+        whatsappSetting.suspend_times = newSuspendTimes if len(newSuspendTimes) > 0 else null()
 
-        query, nones = writeSaveQuery(
-            'whatsapp_setting',
-            whatsappSetting['id'],
-            whatsappSetting,
-        )
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit WhatsappSettings for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        if database.runQueryOnDatabase(query, nones):
-            logger.debug("saved changes to database")
-        else:
-            return "Es gab ein Problem."
+            return "Es gab einen Fehler!"
+
+        session.close()
 
         if found:
-            return "Du bekommst nun wieder durchgehend WhatsApp-Nachrichten am %s." % weekday.name
+            logger.debug(f"reset suspend times for {member.display_name} on {weekday.name}")
+
+            return f"Du bekommst nun wieder durchgehend WhatsApp-Nachrichten am {weekday.name}."
         else:
+            logger.debug(f"{member.display_name} had no suspend times on {weekday.name} to reset")
+
             return "Du hattest keine Suspend-Zeit an diesem Tag festgelegt!"
 
     def _hasReceiverSuspended(self, whatsappSetting) -> bool:

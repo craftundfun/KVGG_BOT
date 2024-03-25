@@ -201,7 +201,7 @@ class CommandService:
                 function = self.whatsappHelper.addOrEditSuspendDay
 
             case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.resetSuspendSetting  # TODO
+                function = self.whatsappHelper.resetSuspendSetting
 
             case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
                 function = self.whatsappHelper.listSuspendSettings  # TODO
