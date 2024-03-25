@@ -43,14 +43,14 @@ class SoundboardService:
         )
 
         if not (0 <= row - 1 < len((dir := os.listdir(path)))):
-            logger.debug(f"user chose row {row - 1}, but that was not possible")
+            logger.debug(f"{ctx.user.display_name} chose row {row - 1}, but that was not possible")
 
             return "Deine Auswahl steht nicht zur Verfügung!"
 
         try:
             os.remove(os.path.join(path, dir[row - 1]))
         except FileNotFoundError as error:
-            logger.error("user has no sounds uploaded yet", exc_info=error)
+            logger.error(f"{ctx.user.display_name} has no sounds uploaded yet", exc_info=error)
 
             return "Diese Datei hat nicht existiert."
         except Exception as error:

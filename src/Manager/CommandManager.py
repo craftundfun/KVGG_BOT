@@ -259,7 +259,7 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_SOUND:
-                function = self.soundboardService.deletePersonalSound  # TODO
+                function = self.soundboardService.deletePersonalSound
 
             case Commands.LIST_QUESTS:
                 function = self.questService.listQuests  # TODO
