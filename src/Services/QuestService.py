@@ -345,37 +345,46 @@ class QuestService:
         :param member: Member, who requested his quests
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        query = ("SELECT q.*, qdm.current_value "
-                 "FROM quest q INNER JOIN quest_discord_mapping qdm ON q.id = qdm.quest_id "
-                 "WHERE q.id IN "
-                 "(SELECT quest_id FROM quest_discord_mapping) "
-                 "AND qdm.discord_id = (SELECT id FROM discord WHERE user_id = %s)")
+        getQuery = (select(QuestDiscordMapping)
+                    .where(QuestDiscordMapping.discord_id == (select(DiscordUser.id)
+                                                              .where(DiscordUser.user_id == str(member.id))
+                                                              .scalar_subquery())))
 
-        if not (quests := database.fetchAllResults(query, (member.id,))):
-            logger.warning(f"couldn't fetch results for following query: {query}")
+        try:
+            quests = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch quests for {member.display_name}", exc_info=error)
+            session.close()
 
-            return "Es gab ein Problem beim Abfragen der Quests oder du hast keine Quests!"
+            return "Es gab einen Fehler!"
+
+        if not quests:
+            logger.warning(f"{member.display_name} has no active quests")
+            session.close()
+
+            return "Du hast aktuell keine Quests!"
 
         daily = []
         weekly = []
         monthly = []
 
         for quest in quests:
-            if quest['time_type'] == "daily":
+            if quest.quest.time_type == "daily":
                 daily.append(quest)
-            elif quest['time_type'] == "weekly":
+            elif quest.quest.time_type == "weekly":
                 weekly.append(quest)
-            elif quest['time_type'] == "monthly":
+            elif quest.quest.time_type == "monthly":
                 monthly.append(quest)
             else:
-                logger.error("undefined quest time found")
+                logger.error(f"undefined quest time found: {quest.quest.time_type}")
 
                 continue
 
         def addEmoji(quest) -> str:
-            if quest['current_value'] >= quest['value_to_reach']:
+            if quest.current_value >= quest.quest.value_to_reach:
                 return self.questAccomplished + "\n"
             else:
                 return self.questNotAccomplished + "\n"
@@ -383,23 +392,25 @@ class QuestService:
         answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
 
         for quest in daily:
-            answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} {quest['unit']} ")
+            answer += (f"- {quest.quest.description} Aktueller Wert: **{quest.current_value}**, von: "
+                       f"{quest.quest.value_to_reach} {quest.quest.unit} ")
             answer += addEmoji(quest)
 
         answer += "\n__**Weeklys**__:\n"
 
         for quest in weekly:
-            answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} {quest['unit']} ")
+            answer += (f"- {quest.quest.description} Aktueller Wert: **{quest.current_value}**, von: "
+                       f"{quest.quest.value_to_reach} {quest.quest.unit} ")
             answer += addEmoji(quest)
 
         answer += "\n__**Monthlys**__:\n"
 
         for quest in monthly:
-            answer += (f"- {quest['description']} Aktueller Wert: **{quest['current_value']}**, von: "
-                       f"{quest['value_to_reach']} {quest['unit']} ")
+            answer += (f"- {quest.quest.description} Aktueller Wert: **{quest.current_value}**, von: "
+                       f"{quest.quest.value_to_reach} {quest.quest.unit} ")
             answer += addEmoji(quest)
+
+        session.close()
 
         return answer
 

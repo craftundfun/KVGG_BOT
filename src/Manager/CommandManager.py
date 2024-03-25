@@ -262,7 +262,7 @@ class CommandService:
                 function = self.soundboardService.deletePersonalSound
 
             case Commands.LIST_QUESTS:
-                function = self.questService.listQuests  # TODO
+                function = self.questService.listQuests
 
             case Commands.CREATE_COUNTER:
                 function = self.counterService.createNewCounter  # TODO
