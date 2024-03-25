@@ -28,6 +28,8 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
+        self.voiceClientService = VoiceClientService(self.client)
+
     async def deletePersonalSound(self, ctx: discord.interactions.Interaction, row: int) -> str:
         """
         Deletes the file at position row.
@@ -239,7 +241,8 @@ class SoundboardService:
         if not self.searchInPersonalFiles(member=member, search=sound):
             logger.debug(f"file {sound} not found")
 
-            return "Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als PN schickst."
+            return ("Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als Privatnachricht "
+                    "schickst.")
 
         if not (voiceState := member.voice):
             return "Du bist mit keinem Channel verbunden!"
@@ -249,7 +252,7 @@ class SoundboardService:
 
         filepath = f"{member.id}/{sound}"
 
-        if not await VoiceClientService(self.client).play(voiceState.channel, self.path + filepath, ctx, False):
+        if not await self.voiceClientService.play(voiceState.channel, self.path + filepath, ctx, False):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."

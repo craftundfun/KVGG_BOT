@@ -236,7 +236,7 @@ class CommandService:
                 function = self.reminderService.deleteReminder
 
             case Commands.PLAY_SOUND:
-                function = self.soundboardService.playSound  # TODO
+                function = self.soundboardService.playSound
 
             case Commands.STOP_SOUND:
                 function = self.voiceClientService.stop  # TODO
