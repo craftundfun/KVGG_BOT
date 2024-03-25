@@ -129,7 +129,7 @@ class VoiceClientService:
             return "Der Bot ist aktuell in keinem Channel aktiv."
 
         if voiceState.channel != self.voiceClient.channel:
-            logger.debug("%s and the bot are not connected to the same channel" % member.name)
+            logger.debug(f"{member.display_name} and the bot are not connected to the same channel")
 
             return "Du befindest nicht im selben Channel wie der Bot!"
 
@@ -138,8 +138,7 @@ class VoiceClientService:
 
         if self.voiceClientCorrespondingCTX:
             await self.voiceClientCorrespondingCTX.followup.send(f"Das Abspielen deines Sounds wurde von "
-                                                                 f"{member.nick if member.nick else member.name} "
-                                                                 f"gestoppt!")
+                                                                 f"{member.display_name} gestoppt!")
 
             self.voiceClientCorrespondingCTX = None
 

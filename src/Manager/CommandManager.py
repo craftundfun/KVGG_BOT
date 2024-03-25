@@ -239,7 +239,7 @@ class CommandService:
                 function = self.soundboardService.playSound
 
             case Commands.STOP_SOUND:
-                function = self.voiceClientService.stop  # TODO
+                function = self.voiceClientService.stop
 
             case Commands.KNEIPE:
                 function = self.channelService.createKneipe  # TODO
