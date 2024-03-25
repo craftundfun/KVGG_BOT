@@ -216,7 +216,7 @@ class CommandService:
                 function = self.apiService.generateQRCode
 
             case Commands.CREATE_REMINDER:
-                function = self.reminderService.createReminder  # TODO
+                function = self.reminderService.createReminder
 
             case Commands.LIST_REMINDERS:
                 data = self.reminderService.listReminders(**kwargs)  # TODO
