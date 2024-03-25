@@ -60,18 +60,16 @@ class ChannelService:
             return "Du musst zwei Benutzer angeben!"
 
         nameMember = member.nick if member.nick else member.name
-        nameMember_1 = member_1.nick if member_1.nick else member_1.name
-        nameMember_2 = member_2.nick if member_2.nick else member_2.name
 
         if not (member_1Voice := member_1.voice) or not (member_2Voice := member_2.voice):
-            logger.debug(f"{nameMember_1} or {nameMember_2} has no voice-state")
+            logger.debug(f"{member_1.display_name} or {member_2.display_name} has no voice-state")
 
-            return f"{nameMember_1} und / oder {nameMember_2} sind nicht online."
+            return f"<@{member_1.id}> und / oder <@{member_2.id}> sind nicht online."
 
         if member_1Voice.channel != member_2Voice.channel:
-            logger.debug(f"{nameMember_1} and {nameMember_2} are not within the same channel")
+            logger.debug(f"{member_1.display_name} and {member_2.display_name} are not within the same channel")
 
-            return f"{nameMember_1} und {nameMember_2} sind nicht im gleichen Channel."
+            return f"<@{member_1.id}> und <@{member_2.id}> sind nicht im gleichen Channel."
 
         if not (memberVoice := member.voice):
             logger.debug(f"{nameMember} is not online -> cant use kneipe")
@@ -80,9 +78,10 @@ class ChannelService:
 
         # check only with member_1, here it's safe they both are in the same channel
         if memberVoice.channel != member_1Voice.channel:
-            logger.debug(f"{nameMember} is not in the same channel as {nameMember_1} and {nameMember_2}")
+            logger.debug(f"{nameMember} is not in the same channel as {member_1.display_name} and "
+                         f"{member_2.display_name}")
 
-            return f"Du bist nicht im VoiceChannel von {nameMember_1} und {nameMember_2}."
+            return f"Du bist nicht im VoiceChannel von <@{member_1.id}> und <@{member_2.id}>."
 
         if member_1Voice.channel.category.id not in TrackedCategories.getValues():
             logger.debug("category was not withing gaming / quatschen / besondere events")
@@ -95,11 +94,12 @@ class ChannelService:
             try:
                 loop.run_until_complete(moveMembers([member_1, member_2], voiceChannel))
             except Exception as error:
-                logger.error("couldn't move %s (%d) into new channel (%d)" % voiceChannel.id, exc_info=error)
+                logger.error(f"couldn't move {member_1.display_name} and {member_2.display_name} into new channel ",
+                             exc_info=error, )
 
                 return "Es ist ein Fehler aufgetreten."
             else:
-                return f"{nameMember_1} und {nameMember_2} wurden erfolgreich verschoben."
+                return f"<@{member_1.id}> und<@ {member_2.id}> wurden erfolgreich verschoben."
         else:
             return "Es ist ein Fehler aufgetreten."
 

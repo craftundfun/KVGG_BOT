@@ -670,8 +670,6 @@ class ExperienceService:
             session.commit()
         except Exception as error:
             logger.error(f"error while committing increased experience for {member.display_name}", exc_info=error)
-        finally:
-            session.close()
 
         # 99 mod 10 > 101 mod 10 -> achievement for 100
         if (xpAmountBefore % AchievementParameter.XP_AMOUNT.value
@@ -682,6 +680,8 @@ class ExperienceService:
                                                  AchievementParameter.XP,
                                                  (xp.xp_amount -
                                                   (xp.xp_amount % AchievementParameter.XP_AMOUNT.value))))
+
+        session.close()
 
     def sendXpLeaderboard(self, member: Member) -> string:
         """

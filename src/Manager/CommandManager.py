@@ -242,7 +242,7 @@ class CommandService:
                 function = self.voiceClientService.stop
 
             case Commands.KNEIPE:
-                function = self.channelService.createKneipe  # TODO
+                function = self.channelService.createKneipe
 
             case Commands.LIST_SOUNDS:
                 data = await self.soundboardService.listPersonalSounds(**kwargs)  # TODO
