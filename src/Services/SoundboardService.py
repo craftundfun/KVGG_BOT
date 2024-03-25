@@ -73,9 +73,8 @@ class SoundboardService:
                     seconds = MP3(os.path.join(path, filepath)).info.length
                     data += [PaginationViewDataItem(field_name=f"__**{index}. {filepath}**__",
                                                     field_value=f"**Dauer**: {str(seconds)[:4]} Sekunden")]
-
         except FileNotFoundError as error:
-            logger.warning("user has no sounds uploaded yet", exc_info=error)
+            logger.warning(f"{ctx.user.display_name} has no sounds uploaded yet", exc_info=error)
 
             return [PaginationViewDataItem(field_name="Du hast keine Dateien hochgeladen. Wenn du welche hochladen" +
                                                       " möchtest, dann schicke sie mir einfach per DM.")]
