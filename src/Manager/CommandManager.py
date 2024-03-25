@@ -204,7 +204,7 @@ class CommandService:
                 function = self.whatsappHelper.resetSuspendSetting
 
             case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.listSuspendSettings  # TODO
+                function = self.whatsappHelper.listSuspendSettings
 
             case Commands.WEATHER:
                 function = self.apiService.getWeather  # TODO

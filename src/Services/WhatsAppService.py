@@ -530,23 +530,33 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
-        query = "SELECT * FROM whatsapp_setting WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
-        whatsappSetting = database.fetchOneResult(query, (member.id,))
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if not whatsappSetting:
-            logger.debug("%s is no registered for whatsapp messages" % member.name)
+        getQuery = (select(WhatsappSetting)
+                    .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery())))
+
+        try:
+            whatsappSetting = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.debug(f"{member.display_name} is not registered for whatsapp messages")
+            session.close()
 
             return "Du bist nicht für unseren WhatsApp-Nachrichtendienst registriert!"
+        except Exception as error:
+            logger.error(f"couldn't fetch WhatsappSettings for {member.display_name}", exc_info=error)
+            session.close()
 
-        suspendTimes = whatsappSetting['suspend_times']
+            return "Es gab einen Fehler!"
 
-        if not suspendTimes:
-            logger.debug("%s has no suspend times to list" % member.name)
+        if not (suspendTimes := copy.deepcopy(whatsappSetting.suspend_times)):
+            logger.debug(f"{member.display_name} has not suspend times to list")
+            session.close()
 
             return "Du hast keine Suspend-Zeiten gesetzt!"
 
-        suspendTimes = json.loads(suspendTimes)
         answer = "Du hast folgende Suspend-Zeiten:\n\n"
 
         days = {
@@ -572,8 +582,8 @@ class WhatsAppHelper:
             endTime = endTime.strftime("%H:%M")
             weekday = day["day"]
 
-            answer += "- %s: von %s Uhr bis %s Uhr\n" % (
-                days[weekday], startTime, endTime,
-            )
+            answer += f"- {days[weekday]}: von {startTime} Uhr bis {endTime} Uhr\n"
+
+        session.close()
 
         return answer
