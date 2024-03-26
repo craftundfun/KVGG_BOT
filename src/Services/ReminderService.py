@@ -15,7 +15,6 @@ from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
-from src.Repository.DiscordUserRepository import getDiscordUserOld
 from src.Repository.Reminder.Entity.Reminder import Reminder
 from src.Services.Database_Old import Database_Old
 from src.View.PaginationView import PaginationViewDataItem
@@ -32,15 +31,14 @@ class ReminderService:
         self.client = client
 
     def createTimer(self, member: Member, name: str, minutes: int) -> str:
-        database = Database_Old()
-
-        if not (dcUserDb := getDiscordUserOld(member, database)):
-            logger.debug("cant proceed, no DiscordUser")
-
-            return "Es gab ein Problem!"
+        """
+        Creates a timer based on the reminder system
+        """
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
         if len(name) > 1000:
-            logger.debug("name for timer is too long")
+            logger.debug(f"name for timer is too long by {member.display_name}")
 
             return "Bitte gib einen kürzeren Namen ein!"
 
@@ -51,25 +49,32 @@ class ReminderService:
         elif minutes > 525960:
             logger.debug(f"{member.display_name} wanted to time a timer for over a year in the future")
 
-            return "Bitte stell deinen Timer auf unter ein Jahr ein!"
+            return "Bitte stell deinen Timer auf unter ein Jahr ein! Das sollte doch möglich sein, oder?"
 
         now = datetime.now()
         timeToSent = now + timedelta(minutes=minutes)
 
-        query = ("INSERT INTO reminder (discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes,"
-                 " is_timer) "
-                 "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+        insertQuery = insert(Reminder).values(discord_user_id=(select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery()),
+                                              content=name,
+                                              time_to_sent=timeToSent,
+                                              sent_at=null(),
+                                              whatsapp=False,
+                                              repeat_in_minutes=null(),
+                                              is_timer=True, )
 
-        if not database.runQueryOnDatabase(query, (dcUserDb['id'],
-                                                   name,
-                                                   timeToSent,
-                                                   None,
-                                                   False,
-                                                   None,
-                                                   True,)):
-            logger.error(f"couldn't save timer for {member.display_name}")
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldnt save Timer to database for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
             return "Es gab einen Fehler!"
+
+        session.close()
 
         return "Dein Timer wurde gespeichert. Du kannst ihn über `/list_reminder` oder `/delete_reminder` verwalten."
 

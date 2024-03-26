@@ -271,7 +271,7 @@ class CommandService:
                 function = self.counterService.listAllCounters
 
             case Commands.CREATE_TIMER:
-                function = self.reminderService.createTimer  # TODO
+                function = self.reminderService.createTimer
 
             case _:
                 logger.error("undefined enum entry was reached!")
