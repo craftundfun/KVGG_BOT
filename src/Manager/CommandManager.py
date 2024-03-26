@@ -169,7 +169,7 @@ class CommandService:
                 function = self.userSettings.manageWhatsAppSettings
 
             case Commands.LEADERBOARD:
-                data = await LeaderboardService(self.client).getLeaderboard()  # TODO
+                data = await LeaderboardService(self.client).getLeaderboard()
 
                 await PaginationView(
                     ctx=interaction,

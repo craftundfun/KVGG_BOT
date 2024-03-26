@@ -9,10 +9,14 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 from discord import Client
+from sqlalchemy import select
 
 from src.DiscordParameters.Colors import Colors
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Services.Database_Old import Database_Old
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Repository.Game.Repository.DiscordGameRepository import getMostPlayedGames
+from src.Repository.UserRelation.Entity.DiscordUserRelation import DiscordUserRelation
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationTypeEnum
 from src.View.PaginationView import PaginationViewDataItem, PaginationViewDataTypes
@@ -184,44 +188,42 @@ class LeaderboardService:
         logger.debug("creating createTopMessagesAndCommandsDiagram")
 
         countOfEntries = 5
-        database = Database_Old()
-        messageQuery = ("SELECT username, message_count_all_time AS value "
-                        "FROM discord "
-                        "ORDER BY message_count_all_time DESC "
-                        "LIMIT %s")
-        commandQuery = ("SELECT username, command_count_all_time AS value "
-                        "FROM discord "
-                        "ORDER BY command_count_all_time DESC "
-                        "LIMIT %s")
 
-        if not (messageUsers := database.fetchAllResults(messageQuery, (countOfEntries,))):
-            logger.error("couldn't fetch messageUsers")
+        if not (session := getSession()):
+            return False
+
+        messageQuery = (select(DiscordUser)
+                        .order_by(DiscordUser.message_count_all_time.desc())
+                        .limit(countOfEntries))
+        commandQuery = (select(DiscordUser)
+                        .order_by(DiscordUser.command_count_all_time.desc())
+                        .limit(countOfEntries))
+
+        try:
+            messageUsers = session.scalars(messageQuery).all()
+            commandUsers = session.scalars(commandQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch data for leaderboard", exc_info=error)
+            session.close()
 
             return False
 
-        if not (commandUsers := database.fetchAllResults(commandQuery, (countOfEntries,))):
-            logger.error("couldn't fetch commandUsers")
+        if not messageUsers or not commandUsers:
+            logger.error("no message or command users")
+            session.close()
 
             return False
 
-        messageValues = [user['value'] if user['value'] else 0 for user in messageUsers]
+        messageValues = [user.message_count_all_time for user in messageUsers]
         messageValues.sort(reverse=True)
-        commandValues = [user['value'] if user['value'] else 0 for user in commandUsers]
+        commandValues = [user.command_count_all_time for user in commandUsers]
         commandValues.sort(reverse=True)
 
-        # TODO maybe edit the doubleBarDiagramMethod, but idk
-        # self._createDoubleBarDiagram(messageValues,
-        #                              commandValues,
-        #                              "Nachrichten",
-        #                              "Commands",
-        #                              [user['username'] for user in messageUsers],
-        #                              [user['username'] for user in commandUsers],
-        #                              "gesendete Nachrichten und Commands",
-        #                              LeaderboardImageNames.MESSAGES_AND_COMMANDS, )
-
         # prepare usernames to fit in the bars
-        xLabelsFirstBar = [textwrap.fill(item, 30) for item in [user['username'] for user in messageUsers]]
-        xLabelsSecondBar = [textwrap.fill(item, 30) for item in [user['username'] for user in commandUsers]]
+        xLabelsFirstBar = [textwrap.fill(item, 30) for item in [user.username for user in messageUsers]]
+        xLabelsSecondBar = [textwrap.fill(item, 30) for item in [user.username for user in commandUsers]]
+
+        session.close()
 
         # create plot
         fig, ax = plt.subplots()
@@ -301,42 +303,56 @@ class LeaderboardService:
         logger.debug("creating TopOnlineAndStreamDiagram")
 
         countOfUsers = 5
-        database = Database_Old()
 
-        query = ("SELECT username, time_online AS value "
-                 "FROM discord "
-                 "WHERE time_online IS NOT NULL "
-                 "ORDER BY time_online DESC "
-                 "LIMIT %s")
+        if not (session := getSession()):
+            return False
 
-        if not (onlineUsers := database.fetchAllResults(query, (countOfUsers,))):
-            logger.error("couldn't fetch data for top online users")
+        getQuery = (select(DiscordUser)
+                    .where(DiscordUser.time_online is not None)
+                    .order_by(DiscordUser.time_online.desc())
+                    .limit(countOfUsers))
+
+        try:
+            onlineUsers = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch data for top online users", exc_info=error)
+            session.close()
 
             return False
 
-        query = ("SELECT username, time_streamed AS value "
-                 "FROM discord "
-                 "WHERE time_online IS NOT NULL "
-                 "ORDER BY time_streamed DESC "
-                 "LIMIT %s")
+        getQuery = (select(DiscordUser)
+                    .where(DiscordUser.time_online is not None)
+                    .order_by(DiscordUser.time_streamed.desc())
+                    .limit(countOfUsers))
 
-        if not (streamUsers := database.fetchAllResults(query, (countOfUsers,))):
-            logger.error("couldn't fetch data for top stream users")
+        try:
+            streamUsers = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch data for top stream users", exc_info=error)
+            session.close()
+
+            return False
+
+        if not onlineUsers or not streamUsers:
+            logger.error("no online or stream users")
+            session.close()
 
             return False
 
         # extracting the values
-        onlineValues = [user['value'] for user in onlineUsers]
+        onlineValues = [user.time_online for user in onlineUsers]
         onlineValues.sort(reverse=True)
-        streamValues = [user['value'] for user in streamUsers]
+        streamValues = [user.time_streamed for user in streamUsers]
         streamValues.sort(reverse=True)
+
+        session.close()
 
         self._createDoubleBarDiagram(onlineValues,
                                      streamValues,
                                      "Online",
                                      "Stream",
-                                     [user['username'] for user in onlineUsers],
-                                     [user['username'] for user in streamUsers],
+                                     [user.username for user in onlineUsers],
+                                     [user.username for user in streamUsers],
                                      "Online- und Stream-Zeit",
                                      LeaderboardImageNames.ONLINE_AND_STREAM)
 
@@ -351,29 +367,38 @@ class LeaderboardService:
         logger.debug("creating TopRelationDiagram")
 
         countOfRelations = 5
-        query = ("SELECT d1.username AS username_1, d2.username AS username_2, dur.value"
-                 " FROM discord_user_relation dur "
-                 "JOIN discord d1 ON d1.id = dur.discord_user_id_1 "
-                 "JOIN discord d2 ON d2.id = dur.discord_user_id_2 "
-                 "WHERE dur.type = %s "
-                 "ORDER BY dur.value DESC "
-                 "LIMIT %s")
-        database = Database_Old()
 
-        if not (onlineRelations := database.fetchAllResults(query, (RelationTypeEnum.ONLINE.value, countOfRelations,))):
-            logger.error("couldn't fetch onlineRelations")
+        if not (session := getSession()):
+            return False
+
+        getOnlineQuery = (select(DiscordUserRelation)
+                          .where(DiscordUserRelation.type == RelationTypeEnum.ONLINE.value)
+                          .order_by(DiscordUserRelation.value.desc())
+                          .limit(countOfRelations))
+        getStreamQuery = (select(DiscordUserRelation)
+                          .where(DiscordUserRelation.type == RelationTypeEnum.STREAM.value)
+                          .order_by(DiscordUserRelation.value.desc())
+                          .limit(countOfRelations))
+
+        try:
+            onlineRelations = session.scalars(getOnlineQuery).all()
+            streamRelations = session.scalars(getStreamQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch data for leaderboard", exc_info=error)
+            session.close()
 
             return False
 
-        if not (streamRelations := database.fetchAllResults(query, (RelationTypeEnum.STREAM.value, countOfRelations))):
-            logger.error("couldn't fetch streamRelations")
+        if not onlineRelations or not streamRelations:
+            logger.error("no online or stream relations")
+            session.close()
 
             return False
 
         # extracting the values
-        onlineValues = [relation['value'] for relation in onlineRelations]
+        onlineValues = [relation.value for relation in onlineRelations]
         onlineValues.sort(reverse=True)
-        streamValues = [relation['value'] for relation in streamRelations]
+        streamValues = [relation.value for relation in streamRelations]
         streamValues.sort(reverse=True)
 
         def sortNames(name1: str, name2: str, position: int) -> str:
@@ -391,16 +416,19 @@ class LeaderboardService:
                 else:
                     return name1
 
+        # we cant style that besser because of Python
         self._createDoubleBarDiagram(onlineValues,
                                      streamValues,
                                      "Online",
                                      "Stream",
-                                     [f"{sortNames(relation['username_1'], relation['username_2'], 1)} & "
-                                      f"{sortNames(relation['username_1'], relation['username_2'], 2)}"
-                                      for relation in onlineRelations],
-                                     [f"{sortNames(relation['username_1'], relation['username_2'], 1)} & "
-                                      f"{sortNames(relation['username_1'], relation['username_2'], 2)}"
-                                      for relation in streamRelations],
+                                     [
+                                         f"{sortNames(relation.discord_user_1.username, relation.discord_user_2.username, 1)} & "
+                                         f"{sortNames(relation.discord_user_1.username, relation.discord_user_2.username, 2)}"
+                                         for relation in onlineRelations],
+                                     [
+                                         f"{sortNames(relation.discord_user_1.username, relation.discord_user_2.username, 1)} & "
+                                         f"{sortNames(relation.discord_user_1.username, relation.discord_user_2.username, 2)}"
+                                         for relation in streamRelations],
                                      "Online- und Stream-Relationen",
                                      LeaderboardImageNames.RELATIONS)
 
@@ -414,13 +442,19 @@ class LeaderboardService:
         """
         logger.debug("creating TopGamesDiagram")
 
+        if not (session := getSession()):
+            return False
+
         countOfGames = 5
-        games = self.gameDiscordService.getMostPlayedGames(countOfGames)
+        games = getMostPlayedGames(session, countOfGames)
 
         if not games:
             logger.error("couldn't fetch games")
+            session.close()
 
             return False
+
+        session.close()
 
         gameNames: list[str] = []
         values: list[int] = []

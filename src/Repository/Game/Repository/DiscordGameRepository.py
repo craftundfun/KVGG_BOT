@@ -2,7 +2,10 @@ import logging
 
 import Levenshtein
 from discord import Member
-from sqlalchemy import select, insert
+from sqlalchemy import desc
+from sqlalchemy import func
+from sqlalchemy import insert
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy.orm.exc import NoResultFound
@@ -132,3 +135,30 @@ def getGameDiscordRelation(session: Session,
     logger.debug(f"fetched game relation for {member.display_name} and {activityName}")
 
     return relation
+
+
+def getMostPlayedGames(session: Session, limit: int = 3) -> list[dict[str, str | int]] | None:
+    """
+    Fetches the most played games from the database based on time played online and offline.
+
+    :return: [{"name": <str>, "time_played": <int>}]
+    """
+    getQuery = (select(Game.name, func.sum(GameDiscordMapping.time_played_online)
+                       + func.sum(GameDiscordMapping.time_played_offline))
+                .join(GameDiscordMapping)
+                .group_by(GameDiscordMapping.discord_game_id)
+                # this is shit, but I found no way to make this better -.-
+                .order_by(desc(func.sum(GameDiscordMapping.time_played_online)
+                               + func.sum(GameDiscordMapping.time_played_offline)))
+                .limit(limit))
+
+    try:
+        games = session.execute(getQuery).all()
+    except Exception as error:
+        logger.error("couldn't fetch most played games from database", exc_info=error)
+
+        return None
+
+    logger.debug("fetched most played games")
+
+    return [{"name": game[0], "time_played": int(game[1])} for game in games]

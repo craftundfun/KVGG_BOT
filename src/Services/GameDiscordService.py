@@ -8,7 +8,6 @@ from discord import Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
@@ -82,40 +81,3 @@ class GameDiscordService:
                 logger.warning("couldn't fetch game_discord_relation, continuing")
 
                 continue
-
-    def getMostPlayedGames(self, limit: int = 3) -> list[dict] | None:
-        database = Database_Old()
-        query = ("SELECT dg.name, SUM(gdm.time_played_online) + SUM(gdm.time_played_offline) AS time_played "
-                 "FROM discord_game dg JOIN game_discord_mapping gdm ON dg.id = gdm.discord_game_id "
-                 "GROUP BY gdm.discord_game_id "
-                 "ORDER BY time_played DESC "
-                 "LIMIT %s")
-
-        if not (games := database.fetchAllResults(query, (limit,))):
-            logger.error("couldn't fetch any most played games from the database")
-
-            return None
-
-        logger.debug("fetched most played games")
-
-        return games
-
-    def getMostPlayedGamesForLeaderboard(self, limit: int = 3) -> str:
-        """
-        Returns the most played games sorted by time_played and returns a string to use it in the leaderboard
-
-        :param limit: Optional limit to receive more than three results
-        """
-        answer = ""
-        games = self.getMostPlayedGames(limit)
-
-        if not games:
-            return "Es gab einen Fehler!"
-
-        for index, game in enumerate(games, 1):
-            answer += f"\t{index}: {game['name']} - {getFormattedTime(game['time_played'])} Stunden\n"
-
-        answer += ("\n`Diese Stunden sind zusammengerechnet über alle User. Außerdem können die Zahlen evtl. nicht "
-                   "mit der Wirklichkeit übereinstimmen => Limitation von Discord.`")
-
-        return answer
