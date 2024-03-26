@@ -268,7 +268,7 @@ class CommandService:
                 function = self.counterService.createNewCounter
 
             case Commands.LIST_COUNTERS:
-                function = self.counterService.listAllCounters  # TODO
+                function = self.counterService.listAllCounters
 
             case Commands.CREATE_TIMER:
                 function = self.reminderService.createTimer  # TODO

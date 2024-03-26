@@ -122,18 +122,30 @@ class CounterService:
         """
         Returns a list of all counters currently existing
         """
-        query = "SELECT * FROM counter"
-        database = Database_Old()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if not (counters := database.fetchAllResults(query)):
-            logger.debug("couldn't fetch counter from database")
+        getQuery = select(Counter)
 
-            return "Es gab ein Problem!"
+        try:
+            counters = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldnt fetch Counters from database", exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        if not counters:
+            logger.error("couldn't fetch counter from database")
+
+            return "Es gab einen Fehler!"
 
         answer = "__Es gibt folgende Counter:__\n\n"
 
         for index, counter in enumerate(counters, 1):
-            answer += f"{index}. {counter['name'].capitalize()} - {counter['description']}\n"
+            answer += f"{index}. {counter.name.capitalize()} - {counter.description}\n"
+
+        session.close()
 
         return answer
 
