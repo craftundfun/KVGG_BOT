@@ -265,7 +265,7 @@ class CommandService:
                 function = self.questService.listQuests
 
             case Commands.CREATE_COUNTER:
-                function = self.counterService.createNewCounter  # TODO
+                function = self.counterService.createNewCounter
 
             case Commands.LIST_COUNTERS:
                 function = self.counterService.listAllCounters  # TODO

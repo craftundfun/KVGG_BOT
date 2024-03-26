@@ -3,7 +3,7 @@ from pathlib import Path
 
 from discord import Client
 from discord import Member
-from sqlalchemy import select
+from sqlalchemy import select, insert
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
@@ -40,8 +40,6 @@ class CounterService:
         :param voiceLine: eventual tts voice line
         :param member: Member who creates the counter
         """
-        database = Database_Old()
-
         if not hasUserWantedRoles(member, RoleId.ADMIN, RoleId.MOD):
             logger.debug(f"{member.display_name} has no rights to create counters")
 
@@ -57,44 +55,66 @@ class CounterService:
 
             return "Dein Counter-Name darf nicht länger als 20 Zeichen sein!"
 
-        query = "SELECT name FROM counter"
-
-        if not (counterNames := database.fetchAllResults(query)):
-            logger.error("couldn't fetch counter from database")
-
-            return "Es gab ein Problem."
-
-        for row in counterNames:
-            if row['name'].lower() == name.lower():
-                logger.debug("counter name does already exist")
-
-                return "Dieser Counter-Name existiert bereits!"
-
         if len(description) > 100:
             logger.debug("description for new counter too long")
 
             return "Deine Beschreibung ist zu lang! Bitte benutze maximal 100 Zeichen!"
 
         if voiceLine and len(voiceLine) > 200:
-            logger.debug("voiceline too long for new counter")
+            logger.debug("voice line too long for new counter")
 
             return "Deine VoiceLine ist zu lang. Bitte benutze maximal 200 Zeichen!"
+
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
+
+        getQuery = select(Counter.name)
+
+        try:
+            counterNames = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch names of counters from database", exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        if not counterNames:
+            logger.error("counterNames was empty")
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        for counterName in counterNames:
+            if counterName.lower() == name.lower():
+                logger.debug(f"counter name '{counterName}' does already exist")
+                session.close()
+
+                return "Dieser Counter-Name existiert bereits!"
 
         name = name.lower()
 
         if voiceLine:
-            query = "INSERT INTO counter (name, description, tts_voice_line) VALUES (%s, %s, %s)"
-            parameters = (name, description, voiceLine,)
+            insertQuery = insert(Counter).values(name=name,
+                                                 description=description,
+                                                 tts_voice_line=voiceLine, )
         else:
-            query = "INSERT INTO counter (name, description) VALUES (%s, %s)"
-            parameters = (name, description,)
+            insertQuery = insert(Counter).values(name=name,
+                                                 description=description, )
 
-        if not database.runQueryOnDatabase(query, parameters):
-            logger.error("couldn't update database")
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't insert new counter", exc_info=error)
+            session.rollback()
+            session.close()
 
             return "Es gab einen Fehler!"
         else:
+            # to notify us per E-Mail
             logger.critical(f"{member.display_name} hat einen neuen Counter erstellt: {name} - {description}")
+
+        session.close()
 
         return "Dein neuer Counter wurde erstellt!"
 
