@@ -14,6 +14,7 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice
+from sqlalchemy import select
 
 from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
@@ -25,10 +26,11 @@ from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Manager.CommandManager import CommandService, Commands
+from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Services.Database_Old import Database_Old
+from src.Repository.Counter.Entity.Counter import Counter
 from src.Services.MemeService import MemeService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService
@@ -387,28 +389,29 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 """NAME COUNTER"""
 
 
-async def listCounters(interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+async def listCounters(_, current: str) -> list[Choice[str]]:
     choices = []
 
-    try:
-        database = Database_Old()
-    except Exception as error:
-        logger.error("couldn't create database connection", exc_info=error)
-    else:
-        query = "SELECT name, description FROM counter LIMIT 25"
-
-        if not (counters := database.fetchAllResults(query)):
-            logger.error("couldn't fetch any counters from database")
-
-            return choices
-
-        for counter in counters:
-            name = counter['name']
-
-            if current.lower() == "" or current.lower() in name.lower():
-                choices.append(Choice(name=(name.capitalize() + " - " + counter['description'])[:100], value=name))
-    finally:
+    if not (session := getSession()):
         return choices
+
+    getQuery = select(Counter).limit(25)
+
+    try:
+        counters = session.scalars(getQuery).all()
+    except Exception as error:
+        logger.error("error while fetching Counters", exc_info=error)
+        session.close()
+
+        return choices
+
+    for counter in counters:
+        name: str = counter.name
+
+        if current.lower() == "" or current.lower() in counter.name.lower():
+            choices.append(Choice(name=(name.capitalize() + " - " + counter.description)[:100], value=name))
+
+    return choices
 
 
 @tree.command(name='counter',
