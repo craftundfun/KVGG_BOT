@@ -53,12 +53,12 @@ class MinutelyJobRunner:
 
                 # we have to commit here, otherwise we have a transaction-locked error: a possible solution is to
                 # rewrite "everything" -> FML
-                try:
-                    session.commit()
-                except Exception as error:
-                    logger.error("couldn't commit", exc_info=error)
+                # try:
+                #     session.commit()
+                # except Exception as error:
+                #     logger.error("couldn't commit", exc_info=error)
 
-                    continue
+                #     continue
 
                 # updating game statistics
                 await self.gameDiscordService.increaseGameRelationsForMember(member, session)
