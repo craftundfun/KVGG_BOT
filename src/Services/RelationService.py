@@ -1,18 +1,18 @@
 import asyncio
 import logging
-from datetime import datetime
 from enum import Enum
 
 from discord import ChannelType, Member, Client, VoiceChannel
+from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
-from src.Repository.DiscordUserRepository import getDiscordUserOld
+from src.Manager.DatabaseManager import getSession
+from src.Repository.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -37,97 +37,14 @@ class RelationService:
         """
         self.client = client
 
-    def _createRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, database: Database_Old) -> bool:
-        """
-        Creates a new relation between the two given members
+        self.achievementService = AchievementService(self.client)
 
-        :param member_1:
-        :param member_2:
-        :param type:
-        :param database:
-        :return:
-        """
-        member1 = getDiscordUserOld(member_1, database)
-        member2 = getDiscordUserOld(member_2, database)
-
-        if not member1 or not member2:
-            logger.debug("couldn't create relation")
-
-            return False
-        elif member1['id'] == member2['id']:
-            logger.debug("given member were the same one")
-
-            return False
-
-        query = "INSERT INTO discord_user_relation " \
-                "(discord_user_id_1, discord_user_id_2, type, created_at) " \
-                "VALUES (%s, %s, %s, %s)"
-
-        database.runQueryOnDatabase(query, (member1['id'], member2['id'], type.value, datetime.now(),))
-
-        return True
-
-    async def getRelationBetweenUsers(self, member_1: Member, member_2: Member, type: RelationTypeEnum) -> dict | None:
-        """
-        Returns the relation of the given type and users
-
-        :param member_2:
-        :param member_1:
-        :param type:
-        :raise ConnectionError: If the database connection can't be established
-        :return:
-        """
-        database = Database_Old()
-
-        if member_1.id == member_2.id:
-            logger.debug("same member for relation")
-
-            return None
-
-        if member_1.bot or member_2.bot:
-            logger.debug("one of the users were a bot")
-
-            return None
-
-        dcUserDb_1: dict | None = getDiscordUserOld(member_1, database)
-        dcUserDb_2: dict | None = getDiscordUserOld(member_2, database)
-
-        if not dcUserDb_1 or not dcUserDb_2:
-            logger.warning("couldn't create relation, %s has no entity"
-                           % (member_1.name if not dcUserDb_1 else member_2.name))
-
-            return None
-
-        query = "SELECT * " \
-                "FROM discord_user_relation " \
-                "WHERE type = %s AND " \
-                "((discord_user_id_1 = %s AND discord_user_id_2 = %s) " \
-                "OR (discord_user_id_1 = %s AND discord_user_id_2 = %s))"
-
-        relation = database.fetchOneResult(query,
-                                           (type.value,
-                                            dcUserDb_1['id'],
-                                            dcUserDb_2['id'],
-                                            dcUserDb_2['id'],
-                                            dcUserDb_1['id'],))
-
-        if not relation:
-            if self._createRelation(member_1, member_2, type, database):
-                relation = database.fetchOneResult(query,
-                                                   (type.value,
-                                                    dcUserDb_1['id'],
-                                                    dcUserDb_2['id'],
-                                                    dcUserDb_2['id'],
-                                                    dcUserDb_1['id'],))
-
-                if not relation:
-                    logger.warning("couldn't fetch relation for %s and %s" % (member_1.name, member_2.name))
-
-                    return None
-
-        return relation
-
-    async def increaseRelation(self, member_1: Member, member_2: Member, type: RelationTypeEnum, value: int = 1):
+    async def increaseRelation(self,
+                               member_1: Member,
+                               member_2: Member,
+                               type: RelationTypeEnum,
+                               session: Session,
+                               value: int = 1):
         """
         Raises a relation of a specific couple. It creates a new relation if possible and if there is none.
 
@@ -135,43 +52,42 @@ class RelationService:
         :param member_1:
         :param type: Type of the relation
         :param value: Value to be increased
-        :raise ConnectionError: If the database connection can't be established
+        :param session:
         :return:
         """
-        database = Database_Old()
-
-        if relation := await self.getRelationBetweenUsers(member_1, member_2, type):
-            relation['value'] = relation['value'] + value
+        if relation := getRelationBetweenUsers(member_1, member_2, type, session):
+            relation.value += value
 
             # check for grant-able achievements
             match type:
                 case RelationTypeEnum.ONLINE:
-                    if (relation['value'] % (AchievementParameter.RELATION_ONLINE_TIME_HOURS.value * 60)) == 0:
-                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                    if (relation.value % (AchievementParameter.RELATION_ONLINE_TIME_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievementAndGrantBoostForRelation(
                             member_1,
                             member_2,
                             AchievementParameter.RELATION_ONLINE,
-                            relation['value']
+                            relation.value,
                         )
                 case RelationTypeEnum.STREAM:
-                    if (relation['value'] % (AchievementParameter.RELATION_STREAM_TIME_HOURS.value * 60)) == 0:
-                        await AchievementService(self.client).sendAchievementAndGrantBoostForRelation(
+                    if (relation.value % (AchievementParameter.RELATION_STREAM_TIME_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievementAndGrantBoostForRelation(
                             member_1,
                             member_2,
-                            AchievementParameter.RELATON_STREAM,
-                            relation['value']
+                            AchievementParameter.RELATION_STREAM,
+                            relation.value,
                         )
 
-            query, nones = writeSaveQuery("discord_user_relation", relation['id'], relation)
-
-            if database.runQueryOnDatabase(query, nones):
-                logger.debug("saved increased relation to database")
-            else:
-                logger.critical("couldn't save relation into database")
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't save DiscordUserRelation for {member_1.display_name} and "
+                             f"{member_2.display_name}",
+                             exc_info=error, )
         else:
-            logger.debug("couldn't fetch relation")
+            logger.error("couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+                         f"{member_2.display_name}")
 
-    async def increaseAllRelation(self):
+    async def increaseAllRelations(self):
         """
         Increases all relations at the same time on this server
 
@@ -180,6 +96,9 @@ class RelationService:
         whatsappChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
         universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
         allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
+
+        if not (session := getSession()):
+            return
 
         for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
             # skip none voice channels
@@ -201,18 +120,18 @@ class RelationService:
             # for every member with every member
             for i in range(len(members)):
                 for j in range(i + 1, len(members)):
-                    logger.debug("looking at %s and %s" % (members[i].name, members[j].name))
+                    logger.debug(f"looking at {members[i].name} and {members[j].name}")
 
                     # depending on the channel increase correct relation
                     if channel in whatsappChannels:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE)
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE, session)
                     else:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY)
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY, session)
 
                     # increase streaming relation if both are streaming at the same time
                     if (members[i].voice.self_stream or members[i].voice.self_video) and \
                             (members[j].voice.self_stream or members[j].voice.self_video):
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM)
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM, session)
 
     async def getLeaderboardFromType(self, type: RelationTypeEnum, limit: int = 3) -> str | None:
         """

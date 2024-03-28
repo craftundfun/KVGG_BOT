@@ -308,7 +308,7 @@ class LeaderboardService:
             return False
 
         getQuery = (select(DiscordUser)
-                    .where(DiscordUser.time_online is not None)
+                    .where(DiscordUser.time_online.is_not(None))
                     .order_by(DiscordUser.time_online.desc())
                     .limit(countOfUsers))
 
@@ -321,7 +321,7 @@ class LeaderboardService:
             return False
 
         getQuery = (select(DiscordUser)
-                    .where(DiscordUser.time_online is not None)
+                    .where(DiscordUser.time_online.is_not(None))
                     .order_by(DiscordUser.time_streamed.desc())
                     .limit(countOfUsers))
 

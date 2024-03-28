@@ -65,10 +65,10 @@ def getDiscordGame(database: Database_Old, activityName: str) -> dict | None:
     return game
 
 
-def getGameDiscordRelation(database: Database_Old,
-                           member: Member,
-                           activityName: str,
-                           includeGameInformation: bool = False) -> dict | None:
+def getGameDiscordRelation_Old(database: Database_Old,
+                               member: Member,
+                               activityName: str,
+                               includeGameInformation: bool = False) -> dict | None:
     insertQuery = ("INSERT INTO game_discord_mapping (discord_id, discord_game_id) "
                    "VALUES ((SELECT id FROM discord WHERE user_id = %s), %s)")
     game: dict | None = getDiscordGame(database, activityName)

@@ -75,8 +75,7 @@ def getDiscordGame(activityName: str, session: Session) -> Game | None:
 
 def getGameDiscordRelation(session: Session,
                            member: Member,
-                           activityName: str,
-                           ) -> GameDiscordMapping | None:
+                           activityName: str, ) -> GameDiscordMapping | None:
     if not (game := getDiscordGame(activityName, session)):
         logger.error("couldn't get game")
 
@@ -147,7 +146,7 @@ def getMostPlayedGames(session: Session, limit: int = 3) -> list[dict[str, str |
                        + func.sum(GameDiscordMapping.time_played_offline))
                 .join(GameDiscordMapping)
                 .group_by(GameDiscordMapping.discord_game_id)
-                # this is shit, but I found no way to make this better -.-
+                # this is shit, but I found no way to make this better -.-  -> FML
                 .order_by(desc(func.sum(GameDiscordMapping.time_played_online)
                                + func.sum(GameDiscordMapping.time_played_offline)))
                 .limit(limit))

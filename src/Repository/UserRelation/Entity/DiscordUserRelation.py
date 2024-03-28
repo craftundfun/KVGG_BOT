@@ -17,8 +17,6 @@ class DiscordUserRelation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     value: Mapped[int]
     created_at: Mapped[datetime]
-    last_time: Mapped[datetime]
-    frequency: Mapped[int]
     type: Mapped[str]
 
     discord_user_id_1: Mapped[int] = mapped_column(ForeignKey("discord.id"))

@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 
 from discord import Client, Member
-from sqlalchemy import select
+from sqlalchemy import select, null
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
@@ -58,14 +58,12 @@ class QuestService:
             return
 
         getQuery = (select(QuestDiscordMapping)
-                    .join(Quest, Quest.id == QuestDiscordMapping.quest_id)
                     .where(QuestDiscordMapping.quest_id.in_(select(Quest.id)
                                                             .where(Quest.type == questType.value)
                                                             .scalar_subquery()),
                            QuestDiscordMapping.discord_id == (select(DiscordUser.id)
                                                               .where(DiscordUser.user_id == str(member.id))
-                                                              .scalar_subquery()))
-                    )
+                                                              .scalar_subquery()),))
 
         # use lock here to avoid giving spammers more boosts
         async with lock:
@@ -73,10 +71,12 @@ class QuestService:
                 quests = session.scalars(getQuery).all()
             except Exception as error:
                 logger.error("failure to fetch quests from database", exc_info=error)
+                session.close()
 
                 return
 
             for quest in quests:
+                # print(quest)
                 lastUpdated: datetime | None = quest.time_updated
 
                 # special checks for special quests
@@ -112,14 +112,13 @@ class QuestService:
 
                         # reset value due to loss in streak
                         quest.current_value = 0
-                        quest.time_updated = None
+                        quest.time_updated = null()
 
                         try:
                             session.commit()
                         except Exception as error:
-                            logger.error(f"failure to save quest_discord_mapping to database: {quest.__dict__}",
+                            logger.error(f"failure to save quest_discord_mapping to database: {quest}",
                                          exc_info=error, )
-
                             session.rollback()
 
                         continue
@@ -132,12 +131,11 @@ class QuestService:
                 try:
                     session.commit()
                 except Exception as error:
-                    logger.error(f"failure to save quest_discord_mapping to database: {quest.__dict__}",
+                    logger.error(f"failure to save quest_discord_mapping to database: {quest}",
                                  exc_info=error, )
-
                     session.rollback()
-                finally:
-                    session.close()
+
+            session.close()
 
     async def _checkForFinishedQuest(self, member: Member, qdm: QuestDiscordMapping):
         """

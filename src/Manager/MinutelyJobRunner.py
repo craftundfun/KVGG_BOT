@@ -3,14 +3,14 @@ from datetime import datetime
 
 from dateutil.relativedelta import relativedelta
 from discord import Client, Member
+from sqlalchemy import null
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.AchievementManager import AchievementService
+from src.Manager.DatabaseManager import getSession
 from src.Manager.UpdateTimeManager import UpdateTimeService
-from src.Repository.DiscordUserRepository import getDiscordUserOld
-from src.Services.Database_Old import Database_Old
+from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationService
@@ -34,10 +34,13 @@ class MinutelyJobRunner:
         self.experienceService = ExperienceService(self.client)
 
     async def run(self):
-        database = Database_Old()
+        if not (session := getSession()):
+            logger.error("couldn't fetch session for minutelyJob")
+
+            return
 
         for member in self.client.get_all_members():
-            dcUserDb = getDiscordUserOld(member, database)
+            dcUserDb = getDiscordUser(member, session)
 
             if not dcUserDb:
                 logger.warning(f"couldn't fetch DiscordUser for {member.display_name} from the database")
@@ -48,16 +51,25 @@ class MinutelyJobRunner:
                 # updating time and experience
                 await self.updateTimeManager.updateTimesAndExperience(member, dcUserDb)
 
+                # we have to commit here, otherwise we have a transaction-locked error: a possible solution is to
+                # rewrite "everything" -> FML
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error("couldn't commit", exc_info=error)
+
+                    continue
+
                 # updating game statistics
-                await self.gameDiscordService.increaseGameRelationsForMember(member, database)
+                await self.gameDiscordService.increaseGameRelationsForMember(member, session)
 
                 # updating Felix.Counter
-                await self.felixCounter.updateFelixCounter(member, dcUserDb)
+                await self.felixCounter.updateFelixCounter(member, dcUserDb, session)
 
                 # update things
-                dcUserDb['username'] = member.display_name
-                dcUserDb['profile_picture_discord'] = member.display_avatar
-                dcUserDb['channel_id'] = member.voice.channel.id if member.voice else None
+                dcUserDb.username = member.display_name
+                dcUserDb.profile_picture_discord = member.display_avatar.url
+                dcUserDb.channel_id = member.voice.channel.id if member.voice else null()
 
                 if (now := datetime.now()).hour == 0 and now.minute == 0:
                     logger.debug("running anniversary check")
@@ -66,15 +78,16 @@ class MinutelyJobRunner:
             except Exception as error:
                 logger.error(f"error occurred while running the minutely job for {member.display_name}", exc_info=error)
             finally:
-                query, nones = writeSaveQuery("discord", dcUserDb['id'], dcUserDb)
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"couldn't save DiscordUser for {member.display_name}", exc_info=error)
+                    session.rollback()
 
-                if not database.runQueryOnDatabase(query, nones):
-                    logger.debug(f"couldn't save updated dcUserDb: {dcUserDb['username']} to database!")
-
-                    continue
+        session.close()
 
         # increase all relations
-        await self.relationService.increaseAllRelation()
+        await self.relationService.increaseAllRelations()
         logger.debug("increased relations")
 
         # check reminder

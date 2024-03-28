@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import json
 import logging
 import random
 import string
@@ -9,14 +8,14 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from discord import Client, Member
-from sqlalchemy import null
+from sqlalchemy import null, select
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
+from src.Repository.Experience.Entity.Experience import Experience
 from src.Repository.Experience.Repository.ExperienceRepository import getExperience
 from src.Services.Database_Old import Database_Old
 
@@ -123,7 +122,7 @@ class ExperienceService:
                     'remaining': ExperienceParameter.XP_BOOST_RELATION_ONLINE_DURATION.value,
                     'description': ExperienceParameter.DESCRIPTION_RELATION_ONLINE.value,
                 }
-            case AchievementParameter.RELATON_STREAM:
+            case AchievementParameter.RELATION_STREAM:
                 boost = {
                     'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_STREAM.value,
                     'remaining': ExperienceParameter.XP_BOOST_RELATION_STREAM_DURATION.value,
@@ -187,7 +186,7 @@ class ExperienceService:
                 return
 
         if xp.xp_boosts_inventory:
-            inventory = xp.xp_boosts_inventory
+            inventory = copy.deepcopy(xp.xp_boosts_inventory)
 
             if len(inventory) >= ExperienceParameter.MAX_XP_BOOSTS_INVENTORY.value:
                 logger.debug("cant grant boost, too many inactive xp boosts")
@@ -205,6 +204,7 @@ class ExperienceService:
             session.commit()
         except Exception as error:
             logger.error(f"couldn't save new xp boost to database for {member.display_name}", exc_info=error)
+            session.rollback()
 
             return
         else:
@@ -318,13 +318,21 @@ class ExperienceService:
         """
         Searches the database for open xp-spin reminders and notifies the member
         """
-        database = Database_Old()
-        query = ("SELECT e.*, d.user_id "
-                 "FROM experience e INNER JOIN discord d ON d.id = e.discord_user_id "
-                 "WHERE e.time_to_send_spin_reminder IS NOT NULL "
-                 "AND e.time_to_send_spin_reminder <= SYSDATE()")
+        if not (session := getSession()):
+            return
 
-        if not (xps := database.fetchAllResults(query)):
+        getQuery = select(Experience).where(Experience.time_to_send_spin_reminder.is_not(None),
+                                            Experience.time_to_send_spin_reminder <= datetime.now(), )
+
+        try:
+            xps = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch Experiences", exc_info=error)
+            session.close()
+
+            return
+
+        if not xps:
             logger.debug("no xp-spin reminders to run")
 
             return
@@ -340,24 +348,27 @@ class ExperienceService:
         notificationService = NotificationService(self.client)
 
         for xp in xps:
-            if not (member := guild.get_member(int(xp['user_id']))):
-                logger.error(f"couldn't fetch member for DiscordID: {xp['discord_user_id']}")
+            if not (member := guild.get_member(int(xp.discord_user.user_id))):
+                logger.error(f"couldn't fetch member for DiscordUser: {xp.discord_user}")
 
                 continue
 
             await notificationService.sendXpSpinNotification(member, "Du kannst wieder den XP-Spin nutzen!")
-            logger.debug(f"informed DiscordID: {xp['discord_user_id']} about the xp-spin")
+            logger.debug(f"informed DiscordUser: {xp.discord_user} about the xp-spin")
 
-            # delete foreign column to save to database
-            del xp['user_id']
+            xp.time_to_send_spin_reminder = null()
 
-            xp['time_to_send_spin_reminder'] = None
-            query, nones = writeSaveQuery("experience", xp['id'], xp)
-
-            if not database.runQueryOnDatabase(query, nones):
-                logger.error(f"couldn't save experience to database for DiscordID: {xp['discord_user_id']}")
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit {xp}", exc_info=error)
+                session.rollback()
 
                 continue
+            else:
+                logger.debug(f"updated {xp}")
+
+        session.close()
 
     def getXpValue(self, dcUserDb: dict) -> dict | None:
         """
@@ -717,30 +728,29 @@ class ExperienceService:
 
         return reply
 
+    # TODO test
     def reduceXpBoostsTime(self, member: Member):
         """
         Reduces the active boosts time from the given member.
 
         :param member:
-        :raise ConnectionError: If the database connection can't be established
         """
-        database = Database_Old()
-
-        query = "SELECT * " \
-                "FROM experience " \
-                "WHERE active_xp_boosts IS NOT NULL AND discord_user_id = " \
-                "(SELECT id FROM discord WHERE user_id = %s)"
-        xp = database.fetchOneResult(query, (member.id,))
-
-        if not xp:
+        if not (session := getSession()):
             return
 
-        if not xp['active_xp_boosts']:
-            logger.debug("no boosts to reduce")
+        if not (xp := getExperience(member, session)):
+            logger.error(f"couldn't fetch Experience for {member.display_name}")
+            session.close()
 
             return
 
-        boosts = json.loads(xp['active_xp_boosts'])
+        if not xp.active_xp_boosts:
+            logger.debug(f"no boosts to reduce for {member.display_name}")
+            session.close()
+
+            return
+
+        boosts = copy.deepcopy(xp.active_xp_boosts)
         editedBoosts = []
 
         for boost in boosts:
@@ -752,10 +762,20 @@ class ExperienceService:
         if len(editedBoosts) == 0:
             boosts = None
         else:
-            boosts = json.dumps(editedBoosts)
+            boosts = editedBoosts
 
-        xp['active_xp_boosts'] = boosts
-        query, nones = writeSaveQuery('experience', xp['id'], xp)
+        xp.active_xp_boosts = boosts
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.critical("couldn't reduce xp boost time for %s" % member.name)
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't save Experience for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
+
+            return
+
+        session.close()
+        logger.debug(f"reduced xp boosts for {member.display_name}")
+
+        return

@@ -124,3 +124,6 @@ ALTER TABLE discord
 ADD COLUMN formated_university_time VARCHAR(255);
 
 SELECT * FROM experience WHERE discord_user_id = 12 and xp_boosts_inventory is null;
+
+show open tables where in_use>0;
+show processlist;

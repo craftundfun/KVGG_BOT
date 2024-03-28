@@ -5,14 +5,13 @@ from pathlib import Path
 import discord
 from discord import Client
 from discord import Member
+from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.DiscordGameRepository import getGameDiscordRelation
-from src.Services.Database_Old import Database_Old
+from src.Repository.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -28,12 +27,12 @@ class GameDiscordService:
         self.statisticManager = StatisticManager(self.client)
         self.achievementService = AchievementService(self.client)
 
-    async def increaseGameRelationsForMember(self, member: Member, database: Database_Old):
+    async def increaseGameRelationsForMember(self, member: Member, session: Session):
         """
         Increases the value of all current activities from the given member.
 
         :param member: The member to increase the values
-        :param database:
+        :param session:
         """
         now = datetime.now()
 
@@ -48,36 +47,34 @@ class GameDiscordService:
 
                 continue
 
-            if relation := getGameDiscordRelation(database, member, activity.name, includeGameInformation=True):
+            if relation := getGameDiscordRelation(session, member, activity.name):
                 if member.voice:
-                    relation['time_played_online'] += 1
+                    relation.time_played_online += 1
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
                     self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member)
 
-                    if (relation['time_played_online'] % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
+                    if (relation.time_played_online % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
                         await self.achievementService.sendAchievementAndGrantBoost(member,
                                                                                    AchievementParameter.TIME_PLAYED,
-                                                                                   relation['time_played_online'],
-                                                                                   gameName=relation['name'], )
+                                                                                   relation.time_played_online,
+                                                                                   gameName=relation.discord_game.name, )
                 else:
-                    relation['time_played_offline'] += 1
+                    relation.time_played_offline += 1
 
-                relation['last_played'] = now
+                relation.last_played = now
 
-                relation.pop('name', None)
-                relation.pop('application_id', None)
-
-                saveQuery, nones = writeSaveQuery("game_discord_mapping", relation['id'], relation)
-
-                if not database.runQueryOnDatabase(saveQuery, nones):
-                    logger.error(f"couldn't increase activity value for {member.display_name} and "
-                                 f"{activity.name}")
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"couldn't save GameDiscordMapping for {member.display_name} and {activity.name}",
+                                 exc_info=error, )
+                    session.rollback()
 
                     continue
-
-                logger.debug(f"increased {activity.name} for {member.display_name}")
+                else:
+                    logger.debug(f"increased {activity.name} for {member.display_name}")
             else:
-                logger.warning("couldn't fetch game_discord_relation, continuing")
+                logger.error("couldn't fetch game_discord_relation, continuing")
 
                 continue

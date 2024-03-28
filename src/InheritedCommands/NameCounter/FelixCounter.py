@@ -4,11 +4,13 @@ import logging
 from datetime import datetime
 
 from discord import Member
+from sqlalchemy import null
+from sqlalchemy.orm import Session
 
 from src.Helper.SendDM import sendDM, separator
 from src.InheritedCommands.NameCounter.Counter import Counter
+from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Services.Database_Old import Database_Old
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -48,53 +50,38 @@ class FelixCounter(Counter):
             return self.dcUserDb['felix_counter_start']
         return None
 
-    # TODO increase counter in correct table
-    async def updateFelixCounter(self, member: Member, dcUserDb: dict):
+    async def updateFelixCounter(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Increases the Felix-Counter of members with an active timer
 
-        :raise ConnectionError: If there is a problem with the database connection
         :return:
         """
-        if not dcUserDb['felix_counter_start']:
-            logger.debug(f"{dcUserDb['username']} has no felix-counter")
+        if not dcUserDb.felix_counter_start:
+            logger.debug(f"{dcUserDb.username} has no felix-counter")
 
             return
 
         # time to start is not yet reached
-        if dcUserDb['felix_counter_start'] > datetime.now():
+        if dcUserDb.felix_counter_start > datetime.now():
             return
 
-        database = Database_Old()
+        if not (counterDiscordMapping := getCounterDiscordMapping(member, "felix", session)):
+            logger.error(f"couldn't fetch CounterDiscordMapping for {member.display_name} and Felix-Counter")
 
-        query = "SELECT * FROM counter WHERE name like 'felix'"
-        felixCounter = database.fetchOneResult(query)
-
-        if felixCounter is None:
-            logger.error('felixCounter wurde nicht gefunden')
-
-        query = "SELECT * FROM counter_discord_mapping WHERE counter_id = %s AND discord_id = %s"
-
-        if not (felixCounterUser := database.fetchOneResult(query, (felixCounter['id'], dcUserDb['id']))):
-            query = "INSERT INTO counter_discord_mapping (counter_id, discord_id, value) VALUES (%s, %s, %s)"
-            database.runQueryOnDatabase(query, (felixCounter['id'], dcUserDb['id'], 0))
-            felixCounterValue = 0
-        else:
-            felixCounterValue = felixCounterUser['value']
+            return
 
         # timer still active
-        if (datetime.now() - dcUserDb['felix_counter_start']).seconds // 60 <= 20:
-            query = "UPDATE counter_discord_mapping SET value = %s WHERE counter_id = %s AND discord_id = %s"
-            database.runQueryOnDatabase(query, (felixCounterValue + 1, felixCounter['id'], dcUserDb['id']))
+        if (datetime.now() - dcUserDb.felix_counter_start).seconds // 60 <= 20:
+            counterDiscordMapping.value += 1
         else:
-            dcUserDb['felix_counter_start'] = None
+            dcUserDb.felix_counter_start = null()
 
             try:
                 await sendDM(member, "Dein Felix-Counter ist ausgelaufen und du hast 20 dazu "
                                      "bekommen! Schade, dass du dich nicht an deine abgemachte Zeit "
-                                     "gehalten hast.")
+                                     "gehalten hast." + separator)
             except Exception as error:
-                logger.error("couldn't send DM to %s" % member.name, exc_info=error)
+                logger.error(f"couldn't send DM to {member.display_name}", exc_info=error)
 
     async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: dict):
         """
