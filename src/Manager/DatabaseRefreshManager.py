@@ -4,11 +4,11 @@ import logging
 from datetime import datetime
 
 from discord import Client, ChannelType
+from sqlalchemy import select, null
 
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUserOld
-from src.Services.Database_Old import Database_Old
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -30,98 +30,95 @@ class DatabaseRefreshService:
         """
         logger.debug("beginning fetching data")
 
-        database = Database_Old()
-        query = "SELECT * FROM discord"
-        dcUsersDb = database.fetchAllResults(query)
+        if not (session := getSession()):
+            return
 
-        if dcUsersDb is None:
-            logger.error("couldn't fetch DiscordUsers")
+        getQuery = select(DiscordUser)
+
+        try:
+            dcUsersDb = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch DiscordUsers", exc_info=error)
+            session.close()
 
             return
 
-        logger.debug("compare database against discord")
+        if not dcUsersDb:
+            logger.error("no DiscordUsers")
 
-        try:
-            # for every user from the database
-            for user in dcUsersDb:
-                foundInChannel = False
+            return
 
-                # look in every channel
-                for channel in self.client.get_all_channels():
-                    if foundInChannel:
-                        break
+        logger.debug("comparing database against discord")
 
-                    # filter out none voice channels
-                    if channel.type != ChannelType.voice:
-                        continue
+        # for every user from the database
+        for user in dcUsersDb:
+            foundInChannel = False
 
-                    members = channel.members
-
-                    # for every member in this voice channel
-                    for member in members:
-                        # if the user was found, save the (new) channel id and break
-                        if member.id == int(user['user_id']):
-                            user['channel_id'] = channel.id
-                            user['joined_at'] = datetime.now()
-                            voiceState = channel.voice_states[member.id]
-
-                            if voiceState.self_mute:
-                                user['muted_at'] = datetime.now()
-                            else:
-                                user['muted_at'] = None
-
-                            if voiceState.self_deaf:
-                                user['full_muted_at'] = datetime.now()
-                            else:
-                                user['full_muted_at'] = None
-
-                            if voiceState.self_stream:
-                                user['started_stream_at'] = datetime.now()
-                            else:
-                                user['started_stream_at'] = None
-
-                            if voiceState.self_video:
-                                user['started_webcam_at'] = datetime.now()
-                            else:
-                                user['started_webcam_at'] = None
-
-                            foundInChannel = True
-                            break
-
-                if not foundInChannel:
-                    # overwrite last online only if user was previously in a channel
-                    if user['channel_id']:
-                        user['last_online'] = datetime.now()
-                    user['channel_id'] = None
-                    user['joined_at'] = None
-                    user['started_stream_at'] = None
-                    user['started_webcam_at'] = None
-                    user['muted_at'] = None
-                    user['full_muted_at'] = None
-
-                # update nick
-                if member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user['user_id'])):
-                    user['username'] = member.nick if member.nick else member.name
-                    user['discord_name'] = member.name
-
-                query, nones = writeSaveQuery(
-                    'discord',
-                    user['id'],
-                    user,
-                )
-
-                if not database.runQueryOnDatabase(query, nones):
-                    logger.critical("couldn't save changes to database")
-
-            # check for new members that aren't in our database
+            # look in every channel
             for channel in self.client.get_all_channels():
+                if foundInChannel:
+                    break
+
+                # filter out none voice channels
                 if channel.type != ChannelType.voice:
                     continue
 
-                for member in channel.members:
-                    dcUserDb = getDiscordUserOld(member, database)
+                members = channel.members
 
-                    if dcUserDb is None:
-                        logger.error("couldn't create new entry for %s!" % member.name)
-        except Exception as error:
-            print(error)
+                # for every member in this voice channel
+                for member in members:
+                    # if the user was found, save the (new) channel id and break
+                    if member.id == int(user.user_id):
+                        user.channel_id = channel.id
+                        user.joined_at = datetime.now()
+                        voiceState = channel.voice_states[member.id]
+
+                        if voiceState.self_mute:
+                            user.muted_at = datetime.now()
+                        else:
+                            user.muted_at = null()
+
+                        if voiceState.self_deaf:
+                            user.full_muted_at = datetime.now()
+                        else:
+                            user.full_muted_at = null()
+
+                        if voiceState.self_stream:
+                            user.started_stream_at = datetime.now()
+                        else:
+                            user.started_stream_at = null()
+
+                        if voiceState.self_video:
+                            user.started_webcam_at = datetime.now()
+                        else:
+                            user.started_webcam_at = null()
+
+                        foundInChannel = True
+                        break
+
+            if not foundInChannel:
+                # overwrite last online only if user was previously in a channel
+                if user.channel_id:
+                    user.last_online = datetime.now()
+
+                user.channel_id = null()
+                user.joined_at = null()
+                user.started_stream_at = null()
+                user.started_webcam_at = null()
+                user.muted_at = null()
+                user.full_muted_at = null()
+
+            # update nick
+            if member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user.user_id)):
+                user.username = member.display_name
+                user.discord_name = member.name
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit {user}", exc_info=error)
+                session.rollback()
+            else:
+                logger.debug(f"updated {user}")
+
+        session.close()

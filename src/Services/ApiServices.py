@@ -17,19 +17,24 @@ class ApiServices:
     def __init__(self):
         self.apiKey = getParameter(Parameters.API_KEY)
 
+    # noinspection PyMethodMayBeStatic
     async def getJoke(self, category: str) -> str:
+        """
+        Returns a joke after requesting if from the API.
+
+        :param category: Optional category choice by the user
+        """
         payload = {
             'language': 'de',
             'category': category,
         }
-
         answer = requests.get(
             'https://witzapi.de/api/joke',
             params=payload,
         )
 
         if answer.status_code != 200:
-            logger.warning("API sent an invalid response!")
+            logger.warning(f"joke-API sent an invalid response! Code: {answer.status_code}")
 
             return "Es gab Probleme beim Erreichen der API - kein Witz."
 

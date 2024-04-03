@@ -26,6 +26,7 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
 
         return None
 
+    # noinspection PyTypeChecker
     getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id))
 
     try:
@@ -37,6 +38,7 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
     except NoResultFound:
         logger.debug("creating new DiscordUser")
 
+        checkpoint = session.begin_nested()  # TODO test
         insertQuery = insert(DiscordUser).values(guild_id=str(member.guild.id),
                                                  user_id=str(member.id),
                                                  username=member.display_name,
@@ -48,7 +50,7 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
             session.commit()
         except Exception as error:
             logger.error(f"couldn't insert new DiscordUser for {member.display_name}", exc_info=error)
-            session.rollback()
+            checkpoint.rollback()
 
             return None
 
@@ -67,19 +69,5 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
     dcUserDb.profile_picture_discord = member.display_avatar.url
     dcUserDb.username = member.display_name
     dcUserDb.discord_name = member.name
-
-    return dcUserDb
-
-
-# TODO dont use that in the future -> try to avoid
-def getDiscordUserById(userId: int, session: Session) -> DiscordUser | None:
-    getQuery = select(DiscordUser).where(DiscordUser.user_id == userId)
-
-    try:
-        dcUserDb = session.scalars(getQuery).one()
-    except Exception as error:
-        logger.error(f"couldn't fetch DiscordUser by ID: {userId}", exc_info=error)
-
-        return None
 
     return dcUserDb

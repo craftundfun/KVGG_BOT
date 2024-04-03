@@ -25,7 +25,6 @@ from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
-from src.Manager.BackgroundServiceManager import BackgroundServices
 from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
@@ -141,15 +140,14 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
-        # from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
-        # from src.Manager.DatabaseManager import getSession
+        # print(getDiscordUser(self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), getSession()).counter_mappings)
 
-        # print(getCounterDiscordMapping(self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), "Test", getSession()))
-
-        # sys.exit(0)
+        await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
+                                                                     name="Checkt Datenbank auf Konsistenz", ))
 
         try:
-            await self.databaseRefreshService.startUp()  # TODO
+            # await self.databaseRefreshService.startUp()  # TODO
+            pass
         except ConnectionError as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
@@ -185,15 +183,15 @@ class MyClient(discord.Client):
             logger.debug("trying to set activity")
 
             if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-                await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
-                )
+                await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                                       name="auf deine Aktivität", ))
             else:
-                await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name="ob alles läuft")
-                )
-        except Exception as e:
-            logger.warning("activity couldn't be set", exc_info=e)
+                await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
+                                                                             name="Ich schaue nur \U0001F440"
+                                                                             if sys.argv[1] == "-clean"
+                                                                             else "Werde getestet \U0001F605", ))
+        except Exception as error:
+            logger.warning("activity couldn't be set", exc_info=error)
         else:
             logger.info("activity set")
 
@@ -203,7 +201,7 @@ class MyClient(discord.Client):
 
         global backgroundServices
 
-        backgroundServices = BackgroundServices(self)  # TODO
+        # backgroundServices = BackgroundServices(self)  # TODO
 
     async def on_message(self, message: discord.Message):
         """
@@ -408,8 +406,10 @@ async def listCounters(_, current: str) -> list[Choice[str]]:
     for counter in counters:
         name: str = counter.name
 
-        if current.lower() == "" or current.lower() in counter.name.lower():
+        if current.lower() == "" or current.lower() in name.lower():
             choices.append(Choice(name=(name.capitalize() + " - " + counter.description)[:100], value=name))
+
+    session.close()
 
     return choices
 

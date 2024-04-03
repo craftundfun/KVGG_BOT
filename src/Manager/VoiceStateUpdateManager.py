@@ -4,13 +4,15 @@ import logging
 from datetime import datetime
 
 from discord import Member, VoiceState, Client
+from sqlalchemy import null
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.ChannelManager import ChannelService
+from src.Manager.DatabaseManager import getSession
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUserOld
+from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.Database_Old import Database_Old
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
@@ -38,31 +40,31 @@ class VoiceStateUpdateService:
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
-        :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
         voiceStates = (voiceStateBefore, voiceStateAfter)
 
-        logger.debug("%s raised a VoiceStateUpdate" % member.name)
+        logger.debug(f"{member.display_name} raised a VoiceStateUpdate")
 
         if not member:
-            logger.debug("member was not a member")
+            logger.debug(f"{member.display_name} was not a member")
 
             return
         elif member.bot:
-            logger.debug("member was a bot")
+            logger.debug(f"{member.display_name} was a bot")
 
             return
 
-        dcUserDb = getDiscordUserOld(member, database)
+        if not (session := getSession()):
+            return
 
-        if not dcUserDb:
-            logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
+        if not (dcUserDb := getDiscordUser(member, session)):
+            logger.error(f"couldn't fetch DiscordUser for {member.display_name}")
+            session.close()
 
             return
 
         async def runLogService(event: Events):
-            # runs the log service so we don't need the exception handling all the time
+            # runs the log service, so we don't need the exception handling all the time
             try:
                 await self.logService.sendLog(member, voiceStates, event)
             except Exception as error:
@@ -70,54 +72,61 @@ class VoiceStateUpdateService:
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
-            logger.debug("%s joined channel" % member.name)
+            logger.debug(f"{member.display_name} joined channel")
 
-            dcUserDb['channel_id'] = voiceStateAfter.channel.id
-            dcUserDb['joined_at'] = datetime.now()
+            dcUserDb.channel_id = str(voiceStateAfter.channel.id)
+            dcUserDb.joined_at = datetime.now()
 
             # if user joined with (full) mute
             if voiceStateAfter.self_mute or voiceStateAfter.mute:
-                dcUserDb['muted_at'] = datetime.now()
+                dcUserDb.muted_at = datetime.now()
             elif not voiceStateAfter.self_mute and not voiceStateAfter.mute:
-                dcUserDb['muted_at'] = None
+                dcUserDb.muted_at = null()
 
             if voiceStateAfter.self_deaf or voiceStateAfter.deaf:
-                dcUserDb['full_muted_at'] = datetime.now()
+                dcUserDb.full_muted_at = datetime.now()
             elif not voiceStateAfter.self_deaf and not voiceStateAfter.self_deaf:
-                dcUserDb['full_muted_at'] = None
+                dcUserDb.full_muted_at = null()
 
-            dcUserDb['started_stream_at'] = None
-            dcUserDb['started_webcam_at'] = None
+            dcUserDb.started_stream_at = null()
+            dcUserDb.started_webcam_at = null()
 
             try:
-                await self.notificationService.runNotificationsForMember(member, dcUserDb)
+                await self.notificationService.runNotificationsForMember(member, dcUserDb, session)
             except Exception as error:
-                logger.error(f"failure while running notifications for {member}", exc_info=error)
+                logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
             try:
                 await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
             except Exception as error:
-                logger.error(f"failure while running felix timer for {member}", exc_info=error)
+                logger.error(f"failure while running felix timer for {dcUserDb}", exc_info=error)
 
             # save user so a whatsapp message can be sent properly
-            self._saveDiscordUser(dcUserDb, database)
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit changes for {dcUserDb}", exc_info=error)
+                session.rollback()
+                session.close()
+
+                return
 
             try:
-                self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+                self.waHelper.sendOnlineNotification(member, dcUserDb, voiceStateAfter, session)  # TODO
             except Exception as error:
                 logger.error(f"failure while running sendOnlineNotification for {member}", exc_info=error)
 
             try:
                 # move is the last step to avoid channel confusion
-                await self.channelService.checkChannelForMoving(member)
+                await self.channelService.checkChannelForMoving(member)  # TODO
             except Exception as error:
                 logger.error(f"failure while running checkChannelForMoving for {member}", exc_info=error)
 
             # create new quests and check the progress of existing ones
             try:
-                await self.questService.checkQuestsForJoinedMember(member)
-                await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
-                await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
+                await self.questService.checkQuestsForJoinedMember(member)  # TODO
+                await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)  # TODO
+                await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)  # TODO
             except Exception as error:
                 logger.error(f"failure while running addProgressToQuest for {member}", exc_info=error)
 

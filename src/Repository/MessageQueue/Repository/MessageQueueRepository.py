@@ -22,11 +22,11 @@ def getUnsentMessagesFromTriggerUser(dcUserDb: DiscordUser,
     :return:
     """
     # compare None with == and != because of SQLAlchemy
-    query = select(MessageQueue).where(MessageQueue.sent_at == None,
+    query = select(MessageQueue).where(MessageQueue.sent_at.is_(None),
                                        MessageQueue.trigger_user_id == dcUserDb.id,
-                                       MessageQueue.time_to_sent != None,
+                                       MessageQueue.time_to_sent.is_not(None),
                                        MessageQueue.time_to_sent > datetime.now(),
-                                       MessageQueue.is_join_message != None,
+                                       MessageQueue.is_join_message.is_not(None),
                                        MessageQueue.is_join_message == isJoinMessage, )
 
     try:

@@ -1,24 +1,21 @@
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
+from sqlalchemy import Column, Integer, ForeignKey
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
-# from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.Counter.Entity.Counter import Counter
 
 
 class CounterDiscordMapping(Base):
-    __tablename__ = "counter_discord_mapping"
+    __tablename__ = 'counter_discord_mapping'
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    value: Mapped[int]
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    counter_id = Column(Integer, ForeignKey('counter.id'), nullable=False)
+    discord_id = Column(Integer, ForeignKey('discord.id'), nullable=False)
+    value = Column(Integer, default=0, nullable=False)
 
-    counter_id: Mapped[int] = mapped_column(ForeignKey("counter.id"))
-    counter: Mapped["Counter"] = relationship("Counter")
-
-    discord_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
-    discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
+    # noinspection PyTypeChecker
+    discord_user = relationship("DiscordUser", foreign_keys=discord_id)
+    # noinspection PyTypeChecker
+    counter = relationship("Counter", foreign_keys=counter_id)
 
     def __repr__(self):
-        return f"Counter(id={self.id}, DiscordUser={self.discord_user}, Counter={self.counter})"
+        return f"CounterDiscordMapping(id={self.id}, DiscordUser={self.discord_user}, Counter={self.counter})"

@@ -88,7 +88,7 @@ class StatisticManager:
         """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO get session from outside
             return
 
         statistics: list[CurrentDiscordStatistic] = getStatisticsForUser(type, member, session)
@@ -101,6 +101,11 @@ class StatisticManager:
         # increase weekly, monthly and yearly
         for statistic in statistics:
             statistic.value += value
+
+            if statistic.value < 0:
+                logger.debug(f"{statistic.statistic_type} had value: {statistic.value}, correcting to 0")
+
+                statistic.value = 0
 
         try:
             session.commit()

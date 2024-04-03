@@ -1,27 +1,23 @@
-from datetime import datetime
-from typing import Optional, Any
-
+from sqlalchemy import Column, BigInteger, DateTime
 from sqlalchemy import JSON, ForeignKey
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
 
 
 class Experience(Base):
-    __tablename__ = "experience"
+    __tablename__ = 'experience'
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    xp_amount: Mapped[int]
-    xp_boosts_inventory: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
-    last_spin_for_boost: Mapped[Optional[datetime]]
-    active_xp_boosts: Mapped[Optional[list[dict[str, Any]]]] = mapped_column(JSON)
-    last_cookie_boost: Mapped[Optional[datetime]]
-    time_to_send_spin_reminder: Mapped[Optional[datetime]]
-
-    discord_user_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
-    discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    discord_user_id = Column(BigInteger, ForeignKey('discord.id'), nullable=False)
+    xp_amount = Column(BigInteger, default=0, nullable=True)
+    xp_boosts_inventory = Column(JSON, nullable=True)
+    last_spin_for_boost = Column(DateTime, nullable=True)
+    active_xp_boosts = Column(JSON, nullable=True)
+    last_cookie_boost = Column(DateTime, nullable=True)
+    time_to_send_spin_reminder = Column(DateTime, nullable=True)
+    # noinspection PyTypeChecker
+    discord_user = relationship("DiscordUser", foreign_keys=discord_user_id)
 
     def __repr__(self):
         return f"Experience(id={self.id}, DiscordUser={self.discord_user})"

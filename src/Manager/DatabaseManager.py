@@ -14,8 +14,6 @@ metadata.reflect(bind=_engine)
 
 
 def getSession() -> Session | None:
-    logger.debug("returning new Session")
-
     try:
         return Session(_engine)
     except Exception as error:

@@ -54,16 +54,17 @@ class QuestService:
         :param value: Optional value to overwrite the standard increase of one
         :raise ConnectionError: If the database connection cant be established
         """
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO get session from outside
             return
 
+        # noinspection PyTypeChecker
         getQuery = (select(QuestDiscordMapping)
                     .where(QuestDiscordMapping.quest_id.in_(select(Quest.id)
                                                             .where(Quest.type == questType.value)
                                                             .scalar_subquery()),
                            QuestDiscordMapping.discord_id == (select(DiscordUser.id)
                                                               .where(DiscordUser.user_id == str(member.id))
-                                                              .scalar_subquery()),))
+                                                              .scalar_subquery()), ))
 
         # use lock here to avoid giving spammers more boosts
         async with lock:

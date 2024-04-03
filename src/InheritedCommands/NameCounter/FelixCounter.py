@@ -83,7 +83,7 @@ class FelixCounter(Counter):
             except Exception as error:
                 logger.error(f"couldn't send DM to {member.display_name}", exc_info=error)
 
-    async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: dict):
+    async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: DiscordUser):
         """
         Check if the given DiscordUser had a Felix-Counter, if so it stops the timer
 
@@ -91,16 +91,16 @@ class FelixCounter(Counter):
         :param dcUserDb: Database user of the member
         :return:
         """
-        logger.debug("checking Felix-Timer from %s" % dcUserDb['username'])
+        logger.debug(f"checking Felix-Timer from {dcUserDb}")
 
-        if dcUserDb['felix_counter_start'] is not None:
-            dcUserDb['felix_counter_start'] = None
+        if dcUserDb.felix_counter_start:
+            dcUserDb.felix_counter_start = None
         else:
             return
 
         try:
             await sendDM(member, "Dein Felix-Counter wurde beendet!" + separator)
         except Exception as error:
-            logger.error("couldn't send DM to %s" % member.name, exc_info=error)
+            logger.error(f"couldn't send DM to {dcUserDb}", exc_info=error)
         else:
-            logger.debug("sent DM to %s" % member.name)
+            logger.debug(f"informed {dcUserDb} about ending Felix-Counter")

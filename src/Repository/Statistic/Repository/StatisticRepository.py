@@ -14,91 +14,83 @@ logger = logging.getLogger("KVGG_BOT")
 def getStatisticsForUser(type: StatisticsParameter,
                          member: Member,
                          session: Session) -> list[CurrentDiscordStatistic] | None:
+    # noinspection PyTypeChecker
+    getQuery = (select(CurrentDiscordStatistic)
+                .where(CurrentDiscordStatistic.statistic_type == type.value,
+                       CurrentDiscordStatistic.discord_id == (select(DiscordUser.id)
+                                                              .where(DiscordUser.user_id == str(member.id))
+                                                              .scalar_subquery())))
+
     try:
-        getQuery = (select(CurrentDiscordStatistic)
-                    .where(CurrentDiscordStatistic.statistic_type == type.value,
-                           CurrentDiscordStatistic.discord_id == (select(DiscordUser.id)
-                                                                  .where(DiscordUser.user_id == str(member.id))
-                                                                  .scalar_subquery())))
+        statistics = session.scalars(getQuery).all()
+    except Exception as error:
+        logger.error(f"an error occurred while fetching statistics for {member.display_name}", exc_info=error)
+        return None
+
+    if not statistics:
+        logger.debug(f"no current statistics found for {member.display_name}, creating new ones")
+
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
+            return None
+
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
+            return None
+
+        # weekly
+        if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
+            return None
 
         try:
             statistics = session.scalars(getQuery).all()
         except Exception as error:
-            logger.error(f"an error occurred while fetching statistics for {member.display_name}", exc_info=error)
-
+            logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
+                         exc_info=error, )
             return None
 
-        if not statistics:
-            logger.debug(f"no current statistics found for {member.display_name}, creating new ones")
+    if len(statistics) != 3:
+        logger.debug("less then 3 statistics, searching missing one and creating it")
 
-            # weekly
+        times = [StatisticsParameter.WEEKLY.value,
+                 StatisticsParameter.MONTHLY.value,
+                 StatisticsParameter.YEARLY.value, ]
+
+        for stat in list(statistics):
+            if stat.statistic_time in times:
+                times.remove(stat.statistic_time)
+
+        print(times)
+
+        if StatisticsParameter.WEEKLY.value in times:
             if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
-                # errors are thrown in the function
                 return None
 
-                # weekly
+        if StatisticsParameter.MONTHLY.value in times:
+            # monthly
             if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
                 return None
 
-                # weekly
+        if StatisticsParameter.YEARLY.value in times:
+            # yearly
             if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
                 return None
 
-            try:
-                statistics = session.scalars(getQuery).all()
-            except Exception as error:
-                logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
-                             exc_info=error, )
+        try:
+            statistics = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
+                         exc_info=error, )
+            return None
 
-                return None
-
-        if len(statistics) != 3:
-            logger.debug("less then 3 statistics, searching missing one and creating it")
-
-            times = [StatisticsParameter.WEEKLY.value.lower(),
-                     StatisticsParameter.MONTHLY.value.lower(),
-                     StatisticsParameter.YEARLY.value.lower(), ]
-
-            for stat in list(statistics):
-                if stat.statistic_time.lower() in times:
-                    times.remove(stat.statistic_time.lower())
-
-            if StatisticsParameter.WEEKLY.value in times:
-                if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
-                    # errors are thrown in the function
-                    return None
-
-            if StatisticsParameter.MONTHLY.value in times:
-                # monthly
-                if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
-                    # errors are thrown in the function
-                    return None
-
-            if StatisticsParameter.YEARLY.value in times:
-                # yearly
-                if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
-                    # errors are thrown in the function
-                    return None
-
-            try:
-                statistics = session.scalars(getQuery).all()
-            except Exception as error:
-                logger.error(f"couldn't fetch newly inserted current discord statistics for {member.display_name}",
-                             exc_info=error, )
-
-                return None
-
-        return list(statistics)
-    except Exception as error:
-        logger.error("FEHLER!", exc_info=error)
-
-        return None
+    return list(statistics)
 
 
 def _insertStatistic(type: StatisticsParameter,
                      statistic_time: StatisticsParameter,
                      member: Member,
                      session: Session) -> bool:
+    # noinspection PyTypeChecker
     insertQuery = (insert(CurrentDiscordStatistic)
                    .values(statistic_type=type.value,
                            statistic_time=statistic_time.value,
@@ -107,6 +99,7 @@ def _insertStatistic(type: StatisticsParameter,
                                        .where(DiscordUser.user_id == str(member.id))
                                        .scalar_subquery()),
                            ))
+    checkpoint = session.begin_nested()
 
     try:
         session.execute(insertQuery)
@@ -119,6 +112,6 @@ def _insertStatistic(type: StatisticsParameter,
     except Exception as error:
         logger.error(f"couldn't insert or commit current discord statistics for {member.display_name}",
                      exc_info=error, )
-        session.rollback()
+        checkpoint.rollback()
 
         return False

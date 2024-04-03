@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import logging
-import random
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUser.Entity.Quote import Quote
+from src.Repository.Quote.Entity.Quote import Quote
 from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
@@ -49,13 +48,14 @@ class QuotesManager:
         """
         logger.debug(f"{member.display_name} requested a quote")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab ein Problem!"
 
-        getQuery = select(Quote)
+        # let SQL fetch a random quote
+        getQuery = select(Quote).order_by(func.rand()).limit(1)
 
         try:
-            quotes = session.scalars(getQuery).all()
+            quote = session.scalars(getQuery).one()
         except Exception as error:
             logger.error("no quotes found in database", exc_info=error)
 
@@ -65,7 +65,7 @@ class QuotesManager:
 
         logger.debug("returning random quote")
 
-        return quotes[random.randint(0, len(quotes) - 1)].quote
+        return quote.quote
 
     async def checkForNewQuote(self, message: Message):
         """

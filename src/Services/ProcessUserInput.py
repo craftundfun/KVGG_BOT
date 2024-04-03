@@ -176,7 +176,7 @@ class ProcessUserInput:
 
         return False
 
-    async def moveUsers(self, channel: VoiceChannel, member: Member) -> string:
+    async def moveUsers(self, channel: VoiceChannel, member: Member) -> str:
         """
         Moves all users from the initiator channel to the given one
 
@@ -190,7 +190,7 @@ class ProcessUserInput:
             logger.debug(f"{member.display_name} is not connected to a voice channel")
 
             return "Du bist mit keinem Voicechannel verbunden!"
-        elif channelStart not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
+        elif channelStart not in (categoryChannels := getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)):
             logger.debug(f"{channelStart.name} is not allowed to be moved")
 
             return "Dein aktueller Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -200,7 +200,7 @@ class ProcessUserInput:
 
             return "Alle befinden sich bereits in diesem Channel!"
 
-        if channel not in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories):
+        if channel not in categoryChannels:
             logger.debug(f"{channel.name} is outside of the allowed moving range")
 
             return "Dieser Channel befindet sich außerhalb des erlaubten Channel-Spektrums!"
@@ -260,13 +260,13 @@ class ProcessUserInput:
         elif timeName == "uni":
             time = UniversityTime.UniversityTime()
         else:
-            logger.error("undefined entry was reached!")
+            logger.error(f"undefined entry was reached: {timeName}")
 
             return "Es gab ein Problem!"
 
         logger.debug(f"{member.name} requested {time.getName()}-Time from {user.display_name}")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab ein Problem!"
 
         if not (dcUserDb := getDiscordUser(user, session)):
@@ -287,7 +287,7 @@ class ProcessUserInput:
             try:
                 correction = int(param)
             except ValueError:
-                logger.debug("parameter was not convertable to int")
+                logger.debug(f"parameter was not convertable to int: {param}")
                 session.close()
 
                 return "Deine Korrektur war keine Zahl!"
@@ -299,7 +299,7 @@ class ProcessUserInput:
             onlineAfter = time.getTime(dcUserDb)
 
             if onlineAfter < 0:
-                logger.debug("value after increase was < 0, rollbacking")
+                logger.debug("value after increase was < 0")
                 session.rollback()
                 session.close()
 
@@ -335,6 +335,7 @@ class ProcessUserInput:
                     + time.getStringForTime(dcUserDb))
         else:
             session.close()
+
             return time.getStringForTime(dcUserDb)
 
     async def sendRegistrationLink(self, member: Member):

@@ -84,7 +84,6 @@ class ExperienceService:
         :param member: Member who earned the boost
         :param kind: Kind of boost
         :raise ConnectionError: If the database connection cant be established
-        :return:
         """
         # import and instantiate here due to avoiding circular import
         from src.Manager.NotificationManager import NotificationService

@@ -13,7 +13,6 @@ from src.Manager.TTSManager import TTSService
 from src.Repository.Counter.Entity.Counter import Counter
 from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
 from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
 from src.Services.VoiceClientService import VoiceClientService
@@ -167,7 +166,7 @@ class CounterService:
         counterName = counterName.split(" ")[0]
         answerAppendix = ""
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
         logger.debug(f"{requestingMember.display_name} requested {counterName}-Counter")
@@ -177,22 +176,23 @@ class CounterService:
 
             return "Es gab einen Fehler!"
 
+        # noinspection PyTypeChecker
         getQuery = select(Counter).where(Counter.name == counterName.lower())
 
         try:
             session.scalars(getQuery).one()
         except NoResultFound:
-            return "Es gibt diesen Counter nicht."
+            session.close()
+
+            return "Es gibt diesen Counter (noch) nicht."
         except Exception as error:
             logger.error(f"couldn't fetch counter: {counterName}", exc_info=error)
-            session.rollback()
             session.close()
 
             return "Es gab einen Fehler!"
 
         if not (counterDiscordMapping := getCounterDiscordMapping(requestedUser, counterName, session)):
             logger.error(f"no CounterDiscordMapping for {requestedUser.display_name} and {counterName}")
-            session.rollback()
             session.close()
 
             return "Es gab einen Fehler!"
@@ -204,7 +204,7 @@ class CounterService:
         try:
             value = int(param)
         except ValueError:
-            logger.debug("parameter was not convertable to int")
+            logger.debug(f"parameter was not convertable to int: {param} by {requestingMember.display_name}")
 
             return "Dein eingegebener Parameter war ungültig! Bitte gib eine (korrekte) Zahl ein!"
 
@@ -224,7 +224,8 @@ class CounterService:
 
         # only allow privileged users to increase counter by great amounts
         if not hasUserWantedRoles(requestingMember, RoleId.ADMIN, RoleId.MOD) and not -1 <= value <= 1:
-            logger.debug("%s wanted to edit the counter to greatly" % requestingMember.name)
+            logger.debug(f"{requestingMember.display_name} wanted to edit the Counter: {counterDiscordMapping.counter} "
+                         f"to greatly")
 
             return "Du darfst einen Counter nur um -1 verringern oder +1 erhöhen!"
 
@@ -236,18 +237,16 @@ class CounterService:
                 await self.experienceService.grantXpBoost(requestedUser, AchievementParameter.COOKIE)
             except Exception as error:
                 logger.error(f"failure to run grantXpBoost for {requestedUser.display_name}", exc_info=error)
-                session.rollback()
-                session.close()
-
-                return "Es gab einen Fehler!"
-
-            answerAppendix = "\n\n" + getTagStringFromId(str(requestedUser.id)) + (
-                ", du hast für deinen Keks evtl. einen neuen "
-                "XP-Boost erhalten.")
+            else:
+                answerAppendix = "\n\n" + getTagStringFromId(str(requestedUser.id)) + (
+                    ", du hast für deinen Keks evtl. einen neuen "
+                    "XP-Boost erhalten.")
 
         # dont decrease to counter into negative
         if counterDiscordMapping.value < 0:
             counterDiscordMapping.value = 0
+
+        tts = None
 
         if counterDiscordMapping.counter.tts_voice_line and value >= 1:
             try:
@@ -255,10 +254,9 @@ class CounterService:
             except KeyError as error:
                 logger.error(f"KeyError in '{counterDiscordMapping.counter.tts_voice_line}' von "
                              f"ID: {counterDiscordMapping.counter_id} Counter.", exc_info=error, )
-
-                tts = None
-        else:
-            tts = None
+            except Exception as error:
+                logger.error(f"something went wrong while creating the TTS for {counterDiscordMapping.counter}",
+                             exc_info=error, )
 
         try:
             session.commit()
@@ -279,38 +277,7 @@ class CounterService:
                                                    None,
                                                    True, )
 
-        return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht!"
+        return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht! "
+                f"<@{requestedUser.id}> hat nun insgesamt {counterDiscordMapping.value} "
+                f"{counterName.capitalize()}-Counter."
                 + answerAppendix)
-
-    @staticmethod
-    def leaderboardForCounter(database: Database_Old) -> str:
-        """
-        Sort all counters and list the top three per counter
-
-        :return:
-        """
-        query = "SELECT id, name FROM counter"
-
-        if not (counters := database.fetchAllResults(query)):
-            logger.error("couldn't fetch all counters from database")
-
-            return "\nEs gab ein Problem mit den Countern. Diese können aktuell nicht angezeigt werden."
-
-        answer = ""
-
-        for counter in counters:
-            query = ("SELECT d.username, cdm.value "
-                     "FROM counter_discord_mapping cdm INNER JOIN discord d ON cdm.discord_id = d.id "
-                     "WHERE cdm.value > 0 AND cdm.counter_id = %s "
-                     "ORDER BY value DESC "
-                     "LIMIT 3")
-
-            if not (mapping := database.fetchAllResults(query, (counter['id'],))):
-                continue
-
-            answer += f"\n- __{counter['name'].capitalize()}-Counter__:\n"
-
-            for index, map in enumerate(mapping, 1):
-                answer += "\t%d: %s - %d\n" % (index, map['username'], map['value'])
-
-        return answer

@@ -3,7 +3,7 @@ import logging
 import math
 
 from discord import Member
-from sqlalchemy import select, insert, literal_column
+from sqlalchemy import select, insert, null
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -26,6 +26,7 @@ def getExperience(member: Member, session: Session) -> Experience | None:
         """
     logger.debug("fetching experience")
 
+    # noinspection PyTypeChecker
     getQuery = (select(Experience)
                 .where(Experience.discord_user_id == (select(DiscordUser.id)
                                                       .where(DiscordUser.user_id == str(member.id))
@@ -44,11 +45,12 @@ def getExperience(member: Member, session: Session) -> Experience | None:
 
             return None
 
+        checkpoint = session.begin_nested()
         xpAmount = _calculateXpFromPreviousData(dcUserDb)
         xpBoosts = _calculateXpBoostsFromPreviousData(dcUserDb)
 
         insertQuery = insert(Experience).values(xp_amount=xpAmount,
-                                                xp_boosts_inventory=xpBoosts if xpBoosts else literal_column("NULL"),
+                                                xp_boosts_inventory=xpBoosts if xpBoosts else null(),
                                                 discord_user_id=dcUserDb.id, )
 
         try:
@@ -56,7 +58,7 @@ def getExperience(member: Member, session: Session) -> Experience | None:
             session.commit()
         except Exception as error:
             logger.error(f"could not insert (or commit) experience for {member.display_name}", exc_info=error)
-            session.rollback()
+            checkpoint.rollback()
 
             return None
 
@@ -64,7 +66,6 @@ def getExperience(member: Member, session: Session) -> Experience | None:
             xp = session.scalars(getQuery).one()
         except Exception as error:
             logger.error("couldn't fetch newly inserted experience for {member.display_name}", exc_info=error)
-            session.rollback()
 
             return None
     except Exception as error:
