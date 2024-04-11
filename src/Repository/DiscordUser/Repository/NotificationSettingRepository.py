@@ -20,6 +20,7 @@ def getNotificationSettings(member: Member, session: Session) -> NotificationSet
     :param session: Database-Session
     :return: None if no settings were found, dict otherwise
     """
+    # noinspection PyTypeChecker
     getQuery = (select(NotificationSetting)
                 .where(NotificationSetting.discord_id == (select(DiscordUser.id)
                                                           .where(DiscordUser.user_id == str(member.id))
@@ -37,16 +38,9 @@ def getNotificationSettings(member: Member, session: Session) -> NotificationSet
     except NoResultFound:
         logger.debug("found no notification setting for {member.display_name}")
 
+        # noinspection PyTypeChecker
         insertQuery = (insert(NotificationSetting)
-                       .values(notifications=True,
-                               double_xp=True,
-                               welcome_back=True,
-                               quest=True,
-                               xp_inventory=True,
-                               status_report=True,
-                               retrospect=True,
-                               xp_spin=True,
-                               discord_id=(select(DiscordUser.id)
+                       .values(discord_id=(select(DiscordUser.id)
                                            .where(DiscordUser.user_id == str(member.id))
                                            .scalar_subquery()),
                                ))
@@ -55,8 +49,8 @@ def getNotificationSettings(member: Member, session: Session) -> NotificationSet
             session.execute(insertQuery)
             session.commit()
         except Exception as error:
-            logger.error(f"could not insert (or commit) notification setting for {member.display_name}",
-                         exc_info=error)
+            logger.error(f"could not insert notification setting for {member.display_name}",
+                         exc_info=error, )
             session.rollback()
 
             return None

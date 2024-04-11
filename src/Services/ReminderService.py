@@ -79,6 +79,7 @@ class ReminderService:
 
         return "Dein Timer wurde gespeichert. Du kannst ihn über `/list_reminder` oder `/delete_reminder` verwalten."
 
+    # noinspection PyMethodMayBeStatic
     def createReminder(self,
                        member: Member,
                        content: str,
@@ -97,7 +98,6 @@ class ReminderService:
         :param content: Content of the reminder
         :param date: Date of the Reminder
         :param time: Time of the Reminder
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
         if not checkDateAgainstRegex(date):
@@ -170,6 +170,7 @@ class ReminderService:
             return "Es gab einen Fehler!"
 
         if whatsapp:
+            # noinspection PyTypeChecker
             getQuery = (select(WhatsappSetting)
                         .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
                                                                    .where(DiscordUser.user_id == str(member.id))
@@ -192,6 +193,7 @@ class ReminderService:
         else:
             whatsapp: bool = False
 
+        # noinspection PyTypeChecker
         insertQuery = insert(Reminder).values(content=content,
                                               time_to_sent=date,
                                               sent_at=null(),
@@ -289,7 +291,7 @@ class ReminderService:
 
         :return:
         """
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
         getQuery = select(Reminder).where(Reminder.time_to_sent.is_not(None))
@@ -385,7 +387,10 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        member: Member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(reminder.discord_user.user_id))
+        member: Member = (self
+                          .client
+                          .get_guild(GuildId.GUILD_KVGG.value)
+                          .get_member(int(reminder.discord_user.user_id)))
 
         if not member:
             logger.error(f"couldn't fetch {reminder.discord_user} with userId from guild")
@@ -395,25 +400,18 @@ class ReminderService:
         if reminder.whatsapp:
             message = f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n{reminder.content}"
             insertQuery = insert(MessageQueue).values(message=message,
+                                                      # noinspection PyTypeChecker
                                                       trigger_user_id=(select(DiscordUser.id)
                                                                        .where(DiscordUser.user_id == str(member.id))
                                                                        .scalar_subquery()),
                                                       created_at=datetime.now(),
+                                                      # noinspection PyTypeChecker
                                                       user_id=(select(User.id)
                                                                .where(DiscordUser.user_id == str(member.id))
                                                                .scalar_subquery()),
                                                       is_join_message=False, )
 
-            # query = "INSERT INTO message_queue (message, user_id, created_at, trigger_user_id, is_join_message) " \
-            #         "VALUES (%s, " \
-            #         "(SELECT id FROM user WHERE discord_user_id = " \
-            #         "(SELECT id FROM discord WHERE user_id = %s LIMIT 1) LIMIT 1), " \
-            #         "%s, " \
-            #         "(SELECT id FROM discord WHERE user_id = %s LIMIT 1), " \
-            #         "FALSE)"
-
             try:
-                session.begin_nested()
                 session.execute(insertQuery)
                 session.commit()
             except Exception as error:
@@ -437,6 +435,7 @@ class ReminderService:
         if not reminder.repeat_in_minutes:
             reminder.time_to_sent = null()
         else:
+            # noinspection PyTypeChecker
             reminder.time_to_sent = reminder.time_to_sent + timedelta(minutes=reminder.repeat_in_minutes)
 
         reminder.sent_at = datetime.now()

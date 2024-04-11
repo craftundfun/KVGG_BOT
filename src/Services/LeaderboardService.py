@@ -70,7 +70,7 @@ class LeaderboardService:
             if self.createTopRelationDiagram():
                 availablePlots.append(LeaderboardImageNames.RELATIONS)
 
-            if self.createTopGamesDiagram():
+            if self.createTopGamesDiagram():  # TODO
                 availablePlots.append(LeaderboardImageNames.ACTIVITIES)
 
             for plot in availablePlots:
@@ -189,12 +189,14 @@ class LeaderboardService:
 
         countOfEntries = 5
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return False
 
+        # noinspection PyUnresolvedReferences
         messageQuery = (select(DiscordUser)
                         .order_by(DiscordUser.message_count_all_time.desc())
                         .limit(countOfEntries))
+        # noinspection PyUnresolvedReferences
         commandQuery = (select(DiscordUser)
                         .order_by(DiscordUser.command_count_all_time.desc())
                         .limit(countOfEntries))
@@ -304,11 +306,11 @@ class LeaderboardService:
 
         countOfUsers = 5
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return False
 
+        # noinspection PyUnresolvedReferences
         getQuery = (select(DiscordUser)
-                    .where(DiscordUser.time_online.is_not(None))
                     .order_by(DiscordUser.time_online.desc())
                     .limit(countOfUsers))
 
@@ -320,8 +322,8 @@ class LeaderboardService:
 
             return False
 
+        # noinspection PyUnresolvedReferences
         getQuery = (select(DiscordUser)
-                    .where(DiscordUser.time_online.is_not(None))
                     .order_by(DiscordUser.time_streamed.desc())
                     .limit(countOfUsers))
 
@@ -368,7 +370,7 @@ class LeaderboardService:
 
         countOfRelations = 5
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return False
 
         getOnlineQuery = (select(DiscordUserRelation)
@@ -442,19 +444,18 @@ class LeaderboardService:
         """
         logger.debug("creating TopGamesDiagram")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return False
 
         countOfGames = 5
         games = getMostPlayedGames(session, countOfGames)
 
+        session.close()
+
         if not games:
             logger.error("couldn't fetch games")
-            session.close()
 
             return False
-
-        session.close()
 
         gameNames: list[str] = []
         values: list[int] = []

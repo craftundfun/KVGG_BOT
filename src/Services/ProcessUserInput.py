@@ -373,12 +373,11 @@ class ProcessUserInput:
         :param requestingMember: Member, who raised the command
         :param action: Chosen action, start or stop
         :param time: Optional time to start the timer at
-        :raise ConnectionError: If the database connection cant be established
         :return:
         """
         logger.debug(f"handling Felix-Timer for {requestedMember.display_name} by {requestingMember.display_name}")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab ein Problem!"
 
         if not (dcUserDb := getDiscordUser(requestedMember, session)):

@@ -40,6 +40,12 @@ class VoiceStateUpdateService:
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
+        Handles the VoiceStateUpdate and updates the database accordingly
+
+        :param member: Member, who raised the VoiceStateUpdate
+        :param voiceStateBefore: VoiceState before the update
+        :param voiceStateAfter: VoiceState after the update
+        :return:
         """
         voiceStates = (voiceStateBefore, voiceStateAfter)
 
@@ -67,8 +73,8 @@ class VoiceStateUpdateService:
             # runs the log service, so we don't need the exception handling all the time
             try:
                 await self.logService.sendLog(member, voiceStates, event)
-            except Exception as error:
-                logger.error("failure to run LogService", exc_info=error)
+            except Exception as e:
+                logger.error("failure to run LogService", exc_info=e)
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
@@ -92,7 +98,7 @@ class VoiceStateUpdateService:
             dcUserDb.started_webcam_at = null()
 
             try:
-                await self.notificationService.runNotificationsForMember(member, dcUserDb, session)
+                await self.notificationService.runNotificationsForMember(member, dcUserDb, session)  # TODO create repository for QuestDiscordMapping
             except Exception as error:
                 logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
@@ -106,34 +112,33 @@ class VoiceStateUpdateService:
                 session.commit()
             except Exception as error:
                 logger.error(f"couldn't commit changes for {dcUserDb}", exc_info=error)
-                session.rollback()
                 session.close()
 
                 return
 
             try:
-                self.waHelper.sendOnlineNotification(member, dcUserDb, voiceStateAfter, session)  # TODO
+                self.waHelper.sendOnlineNotification(dcUserDb, voiceStateAfter, session)
             except Exception as error:
-                logger.error(f"failure while running sendOnlineNotification for {member}", exc_info=error)
+                logger.error(f"failure while running sendOnlineNotification for {dcUserDb}", exc_info=error)
 
             try:
                 # move is the last step to avoid channel confusion
-                await self.channelService.checkChannelForMoving(member)  # TODO
+                await self.channelService.checkChannelForMoving(member)
             except Exception as error:
                 logger.error(f"failure while running checkChannelForMoving for {member}", exc_info=error)
 
             # create new quests and check the progress of existing ones
             try:
-                await self.questService.checkQuestsForJoinedMember(member)  # TODO
-                await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)  # TODO
-                await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)  # TODO
+                await self.questService.checkQuestsForJoinedMember(member, session)
+                await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
+                await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             except Exception as error:
                 logger.error(f"failure while running addProgressToQuest for {member}", exc_info=error)
 
             await runLogService(Events.JOINED_VOICE_CHAT)
 
         # user changed channel or changed status
-        elif voiceStateBefore.channel and voiceStateAfter.channel:
+        elif voiceStateBefore.channel and voiceStateAfter.channel:  # TODO
             logger.debug("member changes status or voice channel")
 
             # status changed
@@ -248,7 +253,7 @@ class VoiceStateUpdateService:
                     logger.error("an error occurred while running logService", exc_info=error)
 
         # user left channel
-        elif voiceStateBefore.channel and not voiceStateAfter.channel:
+        elif voiceStateBefore.channel and not voiceStateAfter.channel:  # TODO
             logger.debug("%s left channel" % member.name)
 
             try:
@@ -273,7 +278,14 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error("an error occurred while running logService", exc_info=error)
         else:
-            logger.warning("unexpected voice state update from %s" % member.name)
+            logger.warning("unexpected voice state update from %s" % member.name)  # TODO
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't commit changes", exc_info=error)
+        finally:
+            session.close()
 
     def _saveDiscordUser(self, dcUserDb: dict, database: Database_Old):
         """

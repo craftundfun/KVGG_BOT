@@ -112,7 +112,7 @@ class UpdateTimeService:
 
     async def updateTimesAndExperience(self, member: Member, dcUserDb: DiscordUser):
         """
-        Updates the time online, stream (if the member is streaming) and writes new formatted values
+        Updates the time online, stream (if the member is streaming)
 
         :return:
         """

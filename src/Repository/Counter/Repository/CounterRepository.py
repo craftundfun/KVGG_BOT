@@ -41,11 +41,12 @@ def getCounterDiscordMapping(member: Member, counterName: str, session: Session)
 
         try:
             session.execute(insertQuery)
-            checkpoint.commit()
+            session.commit()
         except Exception as error:
             logger.error(f"couldn't insert new CounterDiscordMapping for {member.display_name} and {counterName}",
                          exc_info=error, )
             checkpoint.rollback()
+            checkpoint.close()
 
             return None
 
@@ -54,6 +55,7 @@ def getCounterDiscordMapping(member: Member, counterName: str, session: Session)
         except Exception as error:
             logger.error(f"couldn't fetch newly inserted CounterDiscordMapping for {member.display_name} "
                          f"and {counterName}", exc_info=error)
+            checkpoint.close()
 
             return None
     except Exception as error:

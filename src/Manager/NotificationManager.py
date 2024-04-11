@@ -20,6 +20,7 @@ from src.Repository.Experience.Repository.ExperienceRepository import getExperie
 from src.Repository.Newsletter.Entity.Newsletter import Newsletter
 from src.Repository.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDiscordMapping
 from src.Repository.Quest.Entity.Quest import Quest
+from src.Repository.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -47,7 +48,7 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
         settings = getNotificationSettings(member, session)
@@ -98,7 +99,7 @@ class NotificationService:
 
         await self._sendMessage(member, message, NotificationType.XP_INVENTORY)
 
-    async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
+    async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[QuestDiscordMapping]):
         """
         Informs the member about new quests.
 
@@ -110,7 +111,7 @@ class NotificationService:
         message = f"__**Du hast folgende neue {time.value.capitalize()}-Quests**__:\n\n"
 
         for quest in quests:
-            message += f"- {quest['description']}\n"
+            message += f"- {quest.quest.description}\n"
 
         message = message.rstrip()
 
@@ -267,7 +268,7 @@ class NotificationService:
 
             quests = None
 
-        message = (f"Hey, guten {daytime}. Du warst vor{days} Tagen, {hours} Stunden und {minutes} Minuten zuletzt "
+        message = (f"Hey, guten {daytime}. Du warst vor {days} Tagen, {hours} Stunden und {minutes} Minuten zuletzt "
                    f"online. ")
 
         if onlineTime:

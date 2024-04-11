@@ -223,7 +223,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} requested xp-spin")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(member, session)):
@@ -288,7 +288,7 @@ class ExperienceService:
                 session.rollback()
                 session.close()
 
-                return "Es gabe einen Fehler"
+                return "Es gab einen Fehler"
             else:
                 return (f"Du hast einen XP-Boost gewonnen!!! Für "
                         f"{int(ExperienceParameter.XP_BOOST_SPIN_DURATION.value / 60)} Stunde(n) bekommst du "
@@ -317,11 +317,13 @@ class ExperienceService:
         """
         Searches the database for open xp-spin reminders and notifies the member
         """
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
-        getQuery = select(Experience).where(Experience.time_to_send_spin_reminder.is_not(None),
-                                            Experience.time_to_send_spin_reminder <= datetime.now(), )
+        # noinspection PyTypeChecker
+        # noinspection PyUnresolvedReferences
+        getQuery = select(Experience.discord_user).where(Experience.time_to_send_spin_reminder.is_not(None),
+                                                         Experience.time_to_send_spin_reminder <= datetime.now(), )
 
         try:
             xps = session.scalars(getQuery).all()
@@ -392,7 +394,7 @@ class ExperienceService:
         """
         logger.debug(f"{requestingMember.display_name} requested xp for {requestedMember.display_name}")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(requestedMember, session)):
@@ -420,7 +422,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} requested xp-inventory")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(member, session)):
@@ -641,7 +643,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} gets XP")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
         xp = getExperience(member, session)

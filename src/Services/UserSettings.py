@@ -57,7 +57,7 @@ class UserSettings:
         :raise ConnectionError: if the database connection cant be established
         :return: Answer
         """
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
         if not (settings := getNotificationSettings(member, session)):
@@ -131,9 +131,10 @@ class UserSettings:
         """
         logger.debug(f"{member.display_name} requested a change of his / her WhatsApp settings")
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
+        # noinspection PyTypeChecker
         getQuery = (select(WhatsappSetting)
                     .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
                                                                .where(DiscordUser.user_id == str(member.id))

@@ -25,6 +25,7 @@ from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
+from src.Manager.BackgroundServiceManager import BackgroundServices
 from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
@@ -140,14 +141,11 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
-        # print(getDiscordUser(self.get_guild(GuildId.GUILD_KVGG.value).get_member(416967436617777163), getSession()).counter_mappings)
-
         await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
                                                                      name="Checkt Datenbank auf Konsistenz", ))
 
         try:
-            # await self.databaseRefreshService.startUp()  # TODO
-            pass
+            await self.databaseRefreshService.startUp()  # TODO
         except ConnectionError as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
@@ -201,7 +199,7 @@ class MyClient(discord.Client):
 
         global backgroundServices
 
-        # backgroundServices = BackgroundServices(self)  # TODO
+        backgroundServices = BackgroundServices(self)  # TODO
 
     async def on_message(self, message: discord.Message):
         """

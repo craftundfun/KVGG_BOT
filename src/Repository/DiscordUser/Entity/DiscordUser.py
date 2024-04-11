@@ -20,8 +20,8 @@ class DiscordUser(Base):
     muted_at = Column(DateTime)
     full_muted_at = Column(DateTime)
     time_streamed = Column(BigInteger, nullable=False, default=0)
-    started_stream_at = Column(DateTime)
-    started_webcam_at = Column(DateTime)
+    started_stream_at = Column(DateTime)  # TODO maybe remove -> the bot does not use them
+    started_webcam_at = Column(DateTime)  # TODO maybe remove -> the bot does not use them
     profile_picture_discord = Column(String(300))
     university_time_online = Column(BigInteger)
     felix_counter_start = Column(DateTime)
@@ -29,7 +29,7 @@ class DiscordUser(Base):
     discord_name = Column(String(255))
 
     user = relationship("User", back_populates="discord_user")
-    whatsapp_setting = relationship("WhatsappSetting", back_populates="discord_user")
+    whatsapp_setting = relationship("WhatsappSetting", back_populates="discord_user", uselist=False)
     experience = relationship("Experience", back_populates="discord_user")
     counter_mappings = relationship("CounterDiscordMapping", back_populates="discord_user")
 

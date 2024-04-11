@@ -40,9 +40,7 @@ class MinutelyJobRunner:
             return
 
         for member in self.client.get_all_members():
-            dcUserDb = getDiscordUser(member, session)
-
-            if not dcUserDb:
+            if not (dcUserDb := getDiscordUser(member, session)):
                 logger.warning(f"couldn't fetch DiscordUser for {member.display_name} from the database")
 
                 continue
@@ -50,15 +48,6 @@ class MinutelyJobRunner:
             try:
                 # updating time and experience
                 await self.updateTimeManager.updateTimesAndExperience(member, dcUserDb)
-
-                # we have to commit here, otherwise we have a transaction-locked error: a possible solution is to
-                # rewrite "everything" -> FML
-                # try:
-                #     session.commit()
-                # except Exception as error:
-                #     logger.error("couldn't commit", exc_info=error)
-
-                #     continue
 
                 # updating game statistics
                 await self.gameDiscordService.increaseGameRelationsForMember(member, session)

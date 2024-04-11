@@ -76,6 +76,10 @@ class RelationService:
                             AchievementParameter.RELATION_STREAM,
                             relation.value,
                         )
+                case RelationTypeEnum.UNIVERSITY:
+                    pass
+                case _:
+                    logger.error(f"undefined enum-entry was reached: {type}")
 
             try:
                 session.commit()
@@ -84,7 +88,7 @@ class RelationService:
                              f"{member_2.display_name}",
                              exc_info=error, )
         else:
-            logger.error("couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+            logger.error(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
                          f"{member_2.display_name}")
 
     async def increaseAllRelations(self):
@@ -97,7 +101,7 @@ class RelationService:
         universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
         allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
         for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:
@@ -120,13 +124,12 @@ class RelationService:
             # for every member with every member
             for i in range(len(members)):
                 for j in range(i + 1, len(members)):
-                    logger.debug(f"looking at {members[i].name} and {members[j].name}")
+                    logger.debug(f"looking at {members[i].display_name} and {members[j].display_name}")
 
                     # depending on the channel increase correct relation
-                    if channel in whatsappChannels:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ONLINE, session)
-                    else:
-                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.UNIVERSITY, session)
+                    relation_type = RelationTypeEnum.ONLINE if channel in whatsappChannels \
+                        else RelationTypeEnum.UNIVERSITY
+                    await self.increaseRelation(members[i], members[j], relation_type, session)
 
                     # increase streaming relation if both are streaming at the same time
                     if (members[i].voice.self_stream or members[i].voice.self_video) and \

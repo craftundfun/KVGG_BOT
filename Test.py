@@ -1,24 +1,16 @@
-from sqlalchemy import create_engine, MetaData
-from sqlalchemy.orm import Session
+from sqlalchemy.sql import select
 
-from src.Helper.ReadParameters import Parameters, getParameter
-from src.Repository.User.Entity.User import User
+from src.Manager.DatabaseManager import getSession
+from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 
-engine = create_engine(
-    f'mysql+mysqlconnector://{getParameter(Parameters.USER)}:{getParameter(Parameters.PASSWORD)}@{getParameter(Parameters.HOST)}/{getParameter(Parameters.NAME)}',
-    echo=False)
+session = getSession()
 
-metadata = MetaData()
-metadata.reflect(bind=engine)
+getQuery = select(WhatsappSetting)
 
-with Session(engine) as session:
-    #getQuery = (select(WhatsappSetting)
-    #            .join(User, WhatsappSetting.discord_user_id == User.discord_user_id)
-    #            .where(User.phone_number.is_not(None),
-    #                   User.api_key_whats_app.is_not(None), ))
+try:
+    dcUsersDb = session.scalars(getQuery).all()
+except Exception as error:
+    print(error)
+else:
+    print(dcUsersDb[0].suspend_times)
 
-    # print(session.scalars(getQuery).all())
-    result: list[User] = session.query(User).where(User.phone_number != "", User.api_key_whats_app != "").all()
-
-    for user in result:
-        print(f"{user.discord_user.whatsapp_setting}")

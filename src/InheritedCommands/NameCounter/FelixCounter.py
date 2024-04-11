@@ -63,6 +63,8 @@ class FelixCounter(Counter):
 
         # time to start is not yet reached
         if dcUserDb.felix_counter_start > datetime.now():
+            logger.debug(f"{dcUserDb.username} has not yet reached the start time of the Felix-Counter")
+
             return
 
         if not (counterDiscordMapping := getCounterDiscordMapping(member, "felix", session)):

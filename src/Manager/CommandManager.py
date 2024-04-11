@@ -166,10 +166,10 @@ class CommandService:
                 function = self.counterService.accessNameCounterAndEdit
 
             case Commands.WHATSAPP:
-                function = self.userSettings.manageWhatsAppSettings  # TODO
+                function = self.userSettings.manageWhatsAppSettings
 
             case Commands.LEADERBOARD:
-                data = await LeaderboardService(self.client).getLeaderboard()  # TODO
+                data = await LeaderboardService(self.client).getLeaderboard()
 
                 await PaginationView(
                     ctx=interaction,
@@ -183,40 +183,40 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.XP_SPIN:
-                function = self.experienceService.spinForXpBoost  # TODO
+                function = self.experienceService.spinForXpBoost
 
             case Commands.XP_INVENTORY:
-                function = self.experienceService.handleXpInventory  # TODO
+                function = self.experienceService.handleXpInventory
 
             case Commands.XP:
-                function = self.experienceService.handleXpRequest  # TODO
+                function = self.experienceService.handleXpRequest
 
             case Commands.NOTIFICATION_SETTING:
-                function = self.userSettings.changeNotificationSetting  # TODO
+                function = self.userSettings.changeNotificationSetting
 
             case Commands.FELIX_TIMER:
-                function = self.userInputService.handleFelixTimer  # TODO
+                function = self.userInputService.handleFelixTimer
 
             case Commands.WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.addOrEditSuspendDay  # TODO
+                function = self.whatsappHelper.addOrEditSuspendDay
 
             case Commands.RESET_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.resetSuspendSetting  # TODO
+                function = self.whatsappHelper.resetSuspendSetting
 
             case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
-                function = self.whatsappHelper.listSuspendSettings  # TODO
+                function = self.whatsappHelper.listSuspendSettings
 
             case Commands.WEATHER:
-                function = self.apiService.getWeather  # TODO
+                function = self.apiService.getWeather
 
             case Commands.CURRENCY_CONVERTER:
-                function = self.apiService.convertCurrency  # TODO
+                function = self.apiService.convertCurrency
 
             case Commands.QRCODE:
-                function = self.apiService.generateQRCode  # TODO
+                function = self.apiService.generateQRCode
 
             case Commands.CREATE_REMINDER:
-                function = self.reminderService.createReminder  # TODO
+                function = self.reminderService.createReminder
 
             case Commands.LIST_REMINDERS:
                 data = self.reminderService.listReminders(**kwargs)  # TODO

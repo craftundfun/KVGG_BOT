@@ -1,30 +1,24 @@
-from datetime import datetime
-from typing import Optional
-
-from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
 
 
 class MessageQueue(Base):
-    __tablename__ = "message_queue"
+    __tablename__ = 'message_queue'
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    message: Mapped[str]
-    created_at: Mapped[datetime]
-    sent_at: Mapped[Optional[datetime]]
-    error: Mapped[Optional[bool]]
-    time_to_sent: Mapped[Optional[datetime]]
-    is_join_message: Mapped[Optional[bool]]
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    message = Column(String, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    sent_at = Column(DateTime)
+    error = Column(Boolean)
+    time_to_sent = Column(DateTime)
+    trigger_user_id = Column(Integer, ForeignKey('discord.id'))
+    is_join_message = Column(Boolean)
 
-    trigger_user_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
-    trigger_discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
-
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
-    user: Mapped["User"] = relationship("User")
+    user = relationship('User')
+    trigger_user = relationship('DiscordUser')
 
     def __repr__(self):
-        return f"MessageQueue(id={self.id}, DiscordUser={self.trigger_discord_user}, User={self.user})"
+        return f"MessageQueue(id={self.id}, DiscordUser={self.trigger_user}, User={self.user})"
