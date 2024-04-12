@@ -244,6 +244,7 @@ class MyClient(discord.Client):
         logger.debug("received deleted message")
 
         await self.quotesManager.deleteQuote(message)
+        await self.memeService.deleteMeme(message)
 
     async def on_raw_message_edit(self, message: RawMessageUpdateEvent):
         """

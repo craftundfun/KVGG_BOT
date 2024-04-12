@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 import dateutil.relativedelta
-from discord import Message, Client, RawMessageUpdateEvent
+from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
@@ -63,9 +63,12 @@ class MemeService:
         if not dcUserDb:
             logger.warning("no dcUserDb, cant save meme to database")
 
-        query = "INSERT INTO meme (message_id, discord_id, created_at) VALUES (%s, %s, %s)"
+        query = "INSERT INTO meme (message_id, discord_id, created_at, media_link) VALUES (%s, %s, %s, %s)"
 
-        if not database.runQueryOnDatabase(query, (message.id, dcUserDb['id'], datetime.now(),)):
+        if not database.runQueryOnDatabase(query, (message.id,
+                                                   dcUserDb['id'],
+                                                   datetime.now(),
+                                                   message.attachments[0].url,)):
             logger.error("couldn't save meme to database")
 
             await self.notificationService.sendStatusReport(message.author,
@@ -143,7 +146,7 @@ class MemeService:
         """
         query = ("SELECT * "
                  "FROM meme "
-                 "WHERE created_at > %s "
+                 "WHERE created_at > %s AND deleted_at IS NULL "
                  "ORDER BY likes DESC "
                  "LIMIT 1 "
                  "OFFSET %s")
@@ -173,6 +176,12 @@ class MemeService:
 
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
         logger.debug("choose meme winner and granted boost")
+
+        meme['winner'] = 1
+        query, nones = writeSaveQuery('meme', meme['id'], meme)
+
+        if not database.runQueryOnDatabase(query, nones):
+            logger.error("couldn't update meme to database")
 
     async def _chooseLoser(self, database: Database_Old, sinceTime: datetime, channel, offset: int = 0):
         """
@@ -231,16 +240,28 @@ class MemeService:
         if len(message.attachments) == 0:
             logger.debug(f"removing meme from {message.author.display_name}")
 
-            query = "DELETE FROM meme WHERE message_id = %s"
+            query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
 
-            if not database.runQueryOnDatabase(query, (message.id,)):
-                logger.error("couldn't delete meme")
+            if not database.runQueryOnDatabase(query, (datetime.now(), message.id,)):
+                logger.error("couldn't update meme")
 
             try:
                 await message.delete()
             except Exception as error:
-                logger.error("couldn't delete meme", exc_info=error)
+                logger.error("couldn't pdate meme", exc_info=error)
 
             await self.notificationService.sendStatusReport(message.author,
                                                             "Dein Meme wurde wieder entfernt, da du deinen Anhang "
                                                             "gelöscht hast!")
+
+    async def deleteMeme(self, message: RawMessageDeleteEvent):
+        if message.channel_id != ChannelId.CHANNEL_MEMES.value:
+            return
+
+        database = Database_Old()
+        query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
+
+        if not database.runQueryOnDatabase(query, (datetime.now(), message.message_id,)):
+            logger.error("couldn't update meme to database")
+        else:
+            logger.debug("updated meme in database")
