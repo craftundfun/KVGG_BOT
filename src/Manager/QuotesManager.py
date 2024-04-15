@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
-from sqlalchemy import select, func
+from sqlalchemy import select, func, insert
 
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
@@ -16,7 +16,7 @@ from src.Services.Database_Old import Database_Old
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getQuotesChannel(client: Client):
+def getQuoteChannel(client: Client):
     """
     Returns the Quotes-Channel
 
@@ -72,22 +72,31 @@ class QuotesManager:
         Checks if a new quote was entered in the Quotes-Channel
 
         :param message:
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database_Old()
-        channel = getQuotesChannel(self.client)
+        if message.channel.id != ChannelId.CHANNEL_QUOTES.value:
+            logger.debug(f"message by {message.author.display_name} was not a quote")
 
-        if channel is not None and (channel.id == message.channel.id):
-            logger.info("quote detected")
+            return
 
-            query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
+        logger.info("quote detected")
 
-            if database.runQueryOnDatabase(query, (message.content, message.id,)):
-                await self.notificationService.sendStatusReport(message.author,
-                                                                "Dein Zitat wurde in unserer Datenbank gespeichert!")
+        if not (session := getSession()):
+            return
 
-                logger.debug("sent dm to %s" % message.author.name)
+        insertQuery = insert(Quote).values(quote=message.content,
+                                           message_external_id=message.id, )
+
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't insert new Quote", exc_info=error)
+            session.rollback()
+        else:
+            logger.debug("new Quote saved to database")
+        finally:
+            session.close()
 
     async def updateQuote(self, message: RawMessageUpdateEvent):
         """
@@ -97,7 +106,7 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        channel = getQuotesChannel(self.client)
+        channel = getQuoteChannel(self.client)
         database = Database_Old()
 
         if channel is not None and channel.id == message.channel_id:
@@ -145,7 +154,7 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        channel = getQuotesChannel(self.client)
+        channel = getQuoteChannel(self.client)
         database = Database_Old()
 
         if channel is not None and channel.id == message.channel_id:
