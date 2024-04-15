@@ -135,13 +135,13 @@ class ProcessUserInput:
 
             if not command:
                 await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
-                self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member)
+                self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member, session)
                 await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value,
                                                            member=member, )
 
                 dcUserDb.message_count_all_time += 1
             else:
-                self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member)
+                self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member, session)
 
                 # default is 0
                 dcUserDb.command_count_all_time += 1
@@ -316,11 +316,11 @@ class ProcessUserInput:
                 session.close()
 
             if isinstance(time, OnlineTime.OnlineTime):
-                self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, user, correction)
+                self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, user, session, correction)
 
                 logger.debug(f"increased statistics for {user.display_name}")
             elif isinstance(time, StreamTime.StreamTime):
-                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, user, correction)
+                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, user, session, correction)
 
                 logger.debug(f"increased statistics for {user.display_name}")
 

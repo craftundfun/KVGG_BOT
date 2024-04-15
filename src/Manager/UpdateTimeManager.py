@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from discord import Client, VoiceChannel, Member
+from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
@@ -110,7 +111,7 @@ class UpdateTimeService:
 
         return True
 
-    async def updateTimesAndExperience(self, member: Member, dcUserDb: DiscordUser):
+    async def updateTimesAndExperience(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Updates the time online, stream (if the member is streaming)
 
@@ -139,7 +140,7 @@ class UpdateTimeService:
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
             logger.debug(f"increased online-xp for {member.display_name}")
 
-            self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member)
+            self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member, session)
             logger.debug(f"increased online statistics for {member.display_name}")
 
             # increase time for streaming
@@ -153,7 +154,7 @@ class UpdateTimeService:
                                                            member=member)
                 logger.debug(f"increased stream-xp for {member.display_name}")
 
-                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member)
+                self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member, session)
                 logger.debug(f"increased stream statistics for {member.display_name}")
 
             self.experienceService.reduceXpBoostsTime(member)

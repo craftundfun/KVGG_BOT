@@ -16,16 +16,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Manager.DatabaseManager import getSession
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Repository.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Repository.MessageQueue.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
-from src.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser_OLD
 from src.Repository.User.Entity.User import User
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -119,57 +116,70 @@ class WhatsAppHelper:
                 logger.debug(f"message for university channels by {triggerDcUserDb}")
                 self._queueWhatsAppMessage(triggerDcUserDb, update.channel, user, session)
 
-    def sendOfflineNotification(self, dcUserDb: dict, update: VoiceState, member: Member):
+    def sendOfflineNotification(self, dcUserDb: DiscordUser, update: VoiceState, member: Member, session: Session):
         """
         Creates an offline notification, but only for allowed channels and users who are opted in
 
         :param dcUserDb: DiscordUser that caused the notification
         :param update: VoiceStateUpdate
         :param member: Member that caused the notification
-        :raise ConnectionError: If the database connection can't be established
+        :param session: Session of the database connection
         :return:
         """
-        logger.debug("creating Offline-Notification for %s" % member.name)
+        logger.debug(f"creating Offline-Notification for {member.display_name}")
 
-        database = Database_Old()
-
-        if lastOnline := dcUserDb['joined_at']:
+        if lastOnline := dcUserDb.joined_at:
             diff: timedelta = datetime.now() - lastOnline
 
             if diff.days <= 0:
                 if diff.seconds <= WhatsAppParameter.WAIT_UNTIL_SEND_LEAVE.value * 60:
-                    self._retractMessagesFromMessageQueue(dcUserDb, True, database)
-                    logger.debug("retracted messages from database due to fast rejoin")
+                    self._retractMessagesFromMessageQueue(dcUserDb, True, session)
+                    logger.debug(f"retracted messages from database due to fast rejoin for {dcUserDb}")
 
                     return
 
         if not self._canSendMessage(dcUserDb, WhatsAppParameter.SEND_LEAVE_AFTER_X_MINUTES_AFTER_LAST_ONLINE.value):
-            logger.debug("cant send messages yet again")
+            logger.debug(f"cant send messages yet again for {dcUserDb}")
 
             return
 
-        if not (users := self._getUsersForMessage(database)):  # TODO
-            logger.debug("no users for messages")
+        if not (users := self._getUsersForMessage(session)):
+            logger.debug(f"no users for messages by {dcUserDb}")
 
             return
 
         for user in users:
-            if user['discord_user_id'] == dcUserDb['id']:
+            if user.discord_user_id == dcUserDb.id:
                 logger.debug("dont sent message to trigger user")
+
+                continue
+
+            if not (dcUserDbReceiver := user.discord_user):
+                logger.error(f"{user} has no DiscordUser")
+
+                continue
+
+            if not (whatsappSetting := dcUserDbReceiver.whatsapp_setting):
+                logger.error(f"{dcUserDbReceiver} has no WhatsappSetting")
 
                 continue
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
             if (update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
-                    and user['receive_leave_notification']):
-                logger.debug("message for gaming channels")
-                self._queueWhatsAppMessage(dcUserDb, None, user, member.name, database)
-            elif (update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
-                  and user['receive_uni_leave_notification']):
-                logger.debug("message for university channels")
-                self._queueWhatsAppMessage(dcUserDb, None, user, member.name, database)
+                    and whatsappSetting.receive_leave_notification):
+                logger.debug(f"message for gaming channels by {dcUserDb}")
+                self._queueWhatsAppMessage(dcUserDb, None, user, session)
 
-    def switchChannelFromOutstandingMessages(self, dcUserDb: dict, channelName: str, member: Member):
+            elif (update.channel in getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
+                  and whatsappSetting.receive_uni_leave_notification):
+                logger.debug(f"message for university channels by {dcUserDb}")
+                self._queueWhatsAppMessage(dcUserDb, None, user, session)
+
+    def switchChannelFromOutstandingMessages(self,
+                                             dcUserDb: DiscordUser,
+                                             channelName: str,
+                                             member: Member,
+                                             session: Session, ):
         """
         If a DiscordUser switches channel within a timeinterval the unsent message will be edited
 
@@ -179,34 +189,27 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        logger.debug("editing message from %s caused by changing channels" % dcUserDb['username'])
+        logger.debug(f"editing message from {dcUserDb} caused by changing channels")
 
-        if (messages := getUnsentMessagesFromTriggerUser_OLD(dcUserDb, True)) is None:
-            logger.debug("no messages to edit")
+        if not (messages := getUnsentMessagesFromTriggerUser(dcUserDb, True, session)):
+            logger.debug(f"no messages to edit for {dcUserDb}")
 
             return
 
         if len(messages) == 0:
-            logger.debug("no messages to edit")
+            logger.debug(f"no messages to edit for {dcUserDb}")
 
             return
 
-        database = Database_Old()
-
         for message in messages:
-            message['message'] = (f"{member.nick if member.nick else member.name} "
-                                  f"({member.name}) ist nun im Channel {channelName}.")
+            message.message = f"{member.display_name} ({member.name}) ist nun im Channel {channelName}."
 
-            query, nones = writeSaveQuery(
-                'message_queue',
-                message['id'],
-                message,
-            )
-
-            if not database.runQueryOnDatabase(query, nones):
-                logger.critical("couldn't save message to database")
-
-        logger.debug("saved changes to database")
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit changes to {messages}", exc_info=error)
+        else:
+            logger.debug(f"saved changes to database for {dcUserDb}")
 
     def _canSendMessage(self, dcUserDb: DiscordUser, intervalTime: int) -> bool:
         """
@@ -247,16 +250,20 @@ class WhatsAppHelper:
             return
 
         for message in messages:
+            # noinspection PyTypeChecker
             deleteQuery = delete(MessageQueue).where(MessageQueue.id == message.id)
 
             try:
                 session.execute(deleteQuery)
-                session.commit()
             except Exception as error:
                 logger.error(f"couldn't delete MessageQueue for {message}", exc_info=error)
-                session.rollback()
 
                 return
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't delete {messages} from database", exc_info=error)
 
     def _queueWhatsAppMessage(self,
                               triggerDcUserDb: DiscordUser,

@@ -60,8 +60,6 @@ def getStatisticsForUser(type: StatisticsParameter,
             if stat.statistic_time in times:
                 times.remove(stat.statistic_time)
 
-        print(times)
-
         if StatisticsParameter.WEEKLY.value in times:
             if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
                 return None

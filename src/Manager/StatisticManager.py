@@ -2,11 +2,11 @@ import logging
 from datetime import datetime
 
 from discord import Member, Client
+from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.GuildId import GuildId
-from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser_OLD
 from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
@@ -78,18 +78,16 @@ class StatisticManager:
 
                 continue
 
-    def increaseStatistic(self, type: StatisticsParameter, member: Member, value: int = 1):
+    def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
         """
         Increases the value of the given statistic in each time period.
 
         :param type: The type of the statistic
         :param member: The member whose statistic is increases
         :param value: The value to add, standard value of 1.
+        :param session: The session to use for the database
         """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
-
-        if not (session := getSession()):  # TODO get session from outside
-            return
 
         statistics: list[CurrentDiscordStatistic] = getStatisticsForUser(type, member, session)
 
@@ -111,11 +109,8 @@ class StatisticManager:
             session.commit()
         except Exception as error:
             logger.error(f"couldn't commit increase of statistics for {member.display_name}", exc_info=error)
-            session.rollback()
 
             return
-        finally:
-            session.close()
 
     async def runRetrospectForUsers(self, time: StatisticsParameter):
         """

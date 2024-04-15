@@ -52,7 +52,7 @@ class GameDiscordService:
                     relation.time_played_online += 1
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
-                    self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member)
+                    self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
 
                     if (relation.time_played_online % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
                         await self.achievementService.sendAchievementAndGrantBoost(member,

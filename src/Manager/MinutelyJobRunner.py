@@ -47,7 +47,7 @@ class MinutelyJobRunner:
 
             try:
                 # updating time and experience
-                await self.updateTimeManager.updateTimesAndExperience(member, dcUserDb)
+                await self.updateTimeManager.updateTimesAndExperience(member, dcUserDb, session)
 
                 # updating game statistics
                 await self.gameDiscordService.increaseGameRelationsForMember(member, session)
