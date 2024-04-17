@@ -9,6 +9,7 @@ from src.DiscordParameters.QuestParameter import QuestDates
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
+from src.Manager.DatabaseManager import getSession
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.MemeService import MemeService
@@ -166,6 +167,9 @@ class BackgroundServices(commands.Cog):
         """
         now = datetime.datetime.now()
 
+        if not (session := getSession()):
+            return
+
         if now.weekday() == 0:
             logger.debug("running weekly statistics")
 
@@ -175,7 +179,7 @@ class BackgroundServices(commands.Cog):
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
             try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY.value)
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY, session)
             except Exception as error:
                 logger.error("couldn't save weekly statistics", exc_info=error)
 
@@ -189,7 +193,7 @@ class BackgroundServices(commands.Cog):
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
             try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.MONTHLY.value)
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.MONTHLY, session)
             except Exception as error:
                 logger.error("couldn't save weekly statistics", exc_info=error)
 
@@ -203,6 +207,6 @@ class BackgroundServices(commands.Cog):
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
             try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY.value)
+                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY, session)
             except Exception as error:
                 logger.error("couldn't save weekly statistics", exc_info=error)

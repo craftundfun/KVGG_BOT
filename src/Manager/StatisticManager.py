@@ -1,7 +1,9 @@
 import logging
 from datetime import datetime
+from typing import Sequence
 
 from discord import Member, Client
+from sqlalchemy import select, insert, delete
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
@@ -9,7 +11,9 @@ from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser_OLD
+from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
+from src.Repository.Statistic.Entity.StatisticLog import StatisticLog
 from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
 from src.Services.Database_Old import Database_Old
 
@@ -23,60 +27,77 @@ class StatisticManager:
 
         self.notificationService = NotificationService(self.client)
 
-    # TODO save also activity and stream times (add statistic_type column first)
-    def saveStatisticsToStatisticLog(self, time: StatisticsParameter):
+    def saveStatisticsToStatisticLog(self, time: StatisticsParameter, session: Session):
         """
         Saves the statistics (currently only online statistic) to the statistic-log database.
 
         :param time: Time to add statistics to
+        :param session: The session to use for the database
         """
-        query = ("SELECT * "
-                 "FROM current_discord_statistic "
-                 "WHERE statistic_time = %s")
-        insertQuery = ("INSERT INTO statistic_log (time_online, type, discord_user_id, created_at) "
-                       "VALUES (%s, %s, %s, %s)")
-        deleteQuery = "DELETE FROM current_discord_statistic WHERE id = %s"
-        now = datetime.now()
-        listOfInsertedUsers = []
-        database = Database_Old()
+        for type in StatisticsParameter.getTypeValues():
+            # noinspection PyTypeChecker
+            getQuery = select(CurrentDiscordStatistic).where(CurrentDiscordStatistic.statistic_time == time.value,
+                                                             CurrentDiscordStatistic.statistic_type == type, )
 
-        if not (userStatistics := database.fetchAllResults(query, (time,))):
-            logger.error(f"couldn't fetch all statistics for {time}")
-
-            return
-
-        for data in userStatistics:
-            logger.debug(f"running statistic for DiscordID: {data['discord_id']}")
-
-            # only create statistic log if the type is online
-            if data['statistic_type'] == StatisticsParameter.ONLINE.value and data['value'] > 0:
-                if not database.runQueryOnDatabase(insertQuery, (data['value'], time, data['discord_id'], now)):
-                    logger.error(f"couldn't insert statistics for DiscordID: {data['discord_id']}")
-
-                listOfInsertedUsers.append(data['discord_id'])
-
-            # delete statistic regardless of the type
-            if not database.runQueryOnDatabase(deleteQuery, (data['id'],)):
-                logger.error(f"couldn't delete statistics for DiscordID: {data['discord_id']}")
-
-        query = "SELECT id FROM discord"
-
-        if not (users := database.fetchAllResults(query)):
-            logger.error(f"couldn't fetch all DiscordUsers")
-
-            return
-
-        # add "empty" statistics for users without any
-        for user in users:
-            if user['id'] in listOfInsertedUsers:
-                continue
-
-            logger.debug(f"DiscordID: {user['id']} had no previous online statistics, inserting 0")
-
-            if not database.runQueryOnDatabase(insertQuery, (0, time, user['id'], now)):
-                logger.error(f"couldn't insert statistics for DiscordID: {user['id']}")
+            try:
+                statistics: Sequence[CurrentDiscordStatistic] = session.scalars(getQuery).all()
+            except Exception as error:
+                logger.error(f"couldn't fetch statistics of type {type} for {time}", exc_info=error)
 
                 continue
+
+            usersWithStatistics = []
+
+            for statistic in statistics:
+                insertQuery = insert(StatisticLog).values(type=time.value,
+                                                          statistic_type=type,
+                                                          created_at=datetime.now(),
+                                                          discord_user_id=(discordUserId := statistic.discord_id),
+                                                          value=(value := statistic.value), )
+                # noinspection PyTypeChecker
+                deleteQuery = delete(CurrentDiscordStatistic).where(CurrentDiscordStatistic.id == statistic.id)
+                usersWithStatistics += [statistic.discord_id]
+
+                try:
+                    session.execute(insertQuery)
+                    session.execute(deleteQuery)
+                except Exception as error:
+                    logger.error("couldn't insert or delete statistics", exc_info=error)
+                else:
+                    logger.debug(f"inserted statistics of type {type} and value {value} for ID: {discordUserId}")
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error("couldn't commit statistics", exc_info=error)
+
+            getQuery = select(DiscordUser).where(DiscordUser.id.notin_(usersWithStatistics))
+
+            try:
+                usersWithoutStatistics: Sequence[DiscordUser] = session.scalars(getQuery).all()
+            except Exception as error:
+                logger.error("couldn't fetch users without statistics", exc_info=error)
+
+                return
+
+            for user in usersWithoutStatistics:
+                insertQuery = insert(StatisticLog).values(type=time.value,
+                                                          statistic_type=type,
+                                                          created_at=datetime.now(),
+                                                          discord_user_id=user.id,
+                                                          value=0, )
+
+                try:
+                    session.execute(insertQuery)
+                except Exception as error:
+                    logger.error("couldn't insert statistics for user without statistics", exc_info=error)
+                else:
+                    logger.debug(f"inserted statistics of type {type} and value 0 for {user}")
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error("couldn't commit statistics", exc_info=error)
 
     def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
         """

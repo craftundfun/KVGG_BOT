@@ -13,3 +13,7 @@ class StatisticsParameter(Enum):
     MESSAGE = "message"
     COMMAND = "command"
     ACTIVITY = "activity"
+
+    @classmethod
+    def getTypeValues(cls) -> list[str]:
+        return [cls.ONLINE.value, cls.STREAM.value, cls.MESSAGE.value, cls.COMMAND.value, cls.ACTIVITY.value]
