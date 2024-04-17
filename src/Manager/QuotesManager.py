@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
-from sqlalchemy import select, func, insert
+from sqlalchemy import select, func, insert, delete
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.Id.ChannelId import ChannelId
@@ -11,7 +11,6 @@ from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.Quote.Entity.Quote import Quote
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -157,12 +156,24 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        channel = getQuoteChannel(self.client)
-        database = Database_Old()
+        if message.channel_id != ChannelId.CHANNEL_QUOTES.value:
+            return
 
-        if channel is not None and channel.id == message.channel_id:
-            logger.debug("delete quote from database")
+        logger.debug("deleted quote detected")
 
-            query = "DELETE FROM quotes WHERE message_external_id = %s"
+        if not (session := getSession()):
+            return
 
-            database.runQueryOnDatabase(query, (message.message_id,))
+        # noinspection PyTypeChecker
+        deleteQuery = delete(Quote).where(Quote.message_external_id == message.message_id)
+
+        try:
+            session.execute(deleteQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't delete Quote", exc_info=error)
+            session.rollback()
+        else:
+            logger.debug("successfully deleted quote from database")
+        finally:
+            session.close()
