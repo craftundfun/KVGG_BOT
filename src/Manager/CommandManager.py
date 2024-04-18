@@ -118,7 +118,7 @@ class CommandService:
         :return:
         """
         # increase command counter
-        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)  # TODO
+        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
 
         try:
             # special case for images

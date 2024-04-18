@@ -11,6 +11,7 @@ from discord import Message, Client, Member, VoiceChannel
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
@@ -21,7 +22,6 @@ from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeywor
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
@@ -106,7 +106,7 @@ class ProcessUserInput:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        logger.debug("increasing message-count for %s" % member.name)
+        logger.debug(f"increasing message-count for {member.display_name}")
 
         if not channel:
             logger.error("no channel provided")
