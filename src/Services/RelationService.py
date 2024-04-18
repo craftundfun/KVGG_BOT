@@ -7,13 +7,11 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
-from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
 from src.Repository.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -135,59 +133,3 @@ class RelationService:
                     if (members[i].voice.self_stream or members[i].voice.self_video) and \
                             (members[j].voice.self_stream or members[j].voice.self_video):
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM, session)
-
-    async def getLeaderboardFromType(self, type: RelationTypeEnum, limit: int = 3) -> str | None:
-        """
-        Returns the top 3 relations from the given type
-
-        :param limit:
-        :param type: RelationTypeEnum to choose which relation to look at
-        :raise ConnectionError: If the database connection can't be established
-        :return:
-        """
-        database = Database_Old()
-
-        answer = ""
-        query = "SELECT * " \
-                "FROM discord_user_relation " \
-                "WHERE type = %s AND value > 0 " \
-                "ORDER BY value DESC " \
-                "LIMIT %s"
-        relations = database.fetchAllResults(query, (type.value, limit,))
-
-        if relations:
-            logger.debug("fetched top three relations from database")
-
-            query = "SELECT username FROM discord WHERE id = %s"
-
-            for index, relation in enumerate(relations, 1):
-                dcUserDb_1 = database.fetchOneResult(query, (relation['discord_user_id_1'],))
-
-                if not dcUserDb_1:
-                    answer += "\t%d: Es gab hier einen Fehler!\n" % index
-
-                    logger.debug("couldn't fetch the first DiscordUser for relation %d" % relation['id'])
-
-                    continue
-
-                dcUserDb_2 = database.fetchOneResult(query, (relation['discord_user_id_2'],))
-
-                if not dcUserDb_2:
-                    answer += "\t%d: Es gab hier einen Fehler!\n" % index
-
-                    logger.debug("couldn't fetch the second DiscordUser for relation %d" % relation['id'])
-
-                    continue
-
-                answer += "\t%d: %s und %s - %s Stunden\n" % (
-                    index, dcUserDb_1['username'], dcUserDb_2['username'], getFormattedTime(relation['value']))
-
-            if answer == "":
-                logger.warning("there was a problem with the DiscordUsers everytime")
-
-                return None
-            return answer
-        else:
-            logger.debug("couldn't fetch data from database, type: %s" % type.value)
-
-            return None

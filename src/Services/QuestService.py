@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Id.Categories import TrackedCategories
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
@@ -431,34 +430,3 @@ class QuestService:
         session.close()
 
         return answer
-
-    async def remindToFulFillQuests(self, questDate: QuestDates):
-        """
-        Reminds all currently online users about eventual unfinished quests.
-
-        :param questDate: The date of the quest to remind
-        """
-        database = Database_Old()
-
-        def _getChannels():
-            for voiceChannel in self.client.get_guild(GuildId.GUILD_KVGG.value).voice_channels:
-                if voiceChannel.category.id in TrackedCategories.getValues():
-                    yield voiceChannel
-
-        for channel in _getChannels():
-            for member in channel.members:
-                query = ("SELECT qdm.current_value, q.value_to_reach, q.description, q.unit "
-                         "FROM quest_discord_mapping AS qdm INNER JOIN quest AS q ON q.id = qdm.quest_id "
-                         "WHERE q.time_type = %s AND qdm.current_value < q.value_to_reach "
-                         "AND qdm.discord_id = ("
-                         "SELECT id "
-                         "FROM discord AS d "
-                         "WHERE d.user_id = %s"
-                         ")")
-
-                if not (unfinishedQuests := database.fetchAllResults(query, (questDate.value, member.id,))):
-                    logger.debug(f"no unfinished quests for {member.display_name}")
-
-                    continue
-                else:
-                    await self.notificationService.notifyAboutUnfinishedQuests(questDate, unfinishedQuests, member)

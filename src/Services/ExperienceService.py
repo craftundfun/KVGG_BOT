@@ -17,7 +17,6 @@ from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
 from src.Repository.Experience.Entity.Experience import Experience
 from src.Repository.Experience.Repository.ExperienceRepository import getExperience
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -371,18 +370,6 @@ class ExperienceService:
 
         session.close()
 
-    def getXpValue(self, dcUserDb: dict) -> dict | None:
-        """
-        Returns the xp for the given discord user
-
-        :param dcUserDb:
-        :raise ConnectionError: If the database connection can't be established
-        :return:
-        """
-        logger.debug("requested xp from %s" % dcUserDb['username'])
-
-        return self._getExperience(dcUserDb['user_id'], Database_Old())
-
     def handleXpRequest(self, requestingMember: Member, requestedMember: Member) -> str:
         """
         Handles the XP-Request of the given tag
@@ -694,40 +681,6 @@ class ExperienceService:
                                                   (xp.xp_amount % AchievementParameter.XP_AMOUNT.value))))
 
         session.close()
-
-    def sendXpLeaderboard(self, member: Member) -> string:
-        """
-        Answers the Xp-Leaderboard
-
-        :param member: Member, who called the command
-        :raise ConnectionError: If the database connection can't be established
-        :return:
-        """
-        logger.debug("%s requested XP-Leaderboard" % member.name)
-
-        database = Database_Old()
-
-        query = "SELECT d.username, e.xp_amount " \
-                "FROM experience e LEFT JOIN discord d ON e.discord_user_id = d.id " \
-                "WHERE e.xp_amount != 0 " \
-                "ORDER BY e.xp_amount DESC " \
-                "LIMIT 10"
-
-        users = database.fetchAllResults(query)
-
-        if not users:
-            logger.critical("couldn't fetch data from database - or the results were None")
-
-            return "Es gab ein Problem."
-
-        reply = "--------------------\n"
-        reply += "__**Leaderboard - XP**__\n"
-        reply += "--------------------\n\n"
-
-        for index, user in enumerate(users):
-            reply += "%d. %s - %s XP\n" % (index, user['username'], '{:,}'.format(user['xp_amount']).replace(',', '.'))
-
-        return reply
 
     # TODO test
     def reduceXpBoostsTime(self, member: Member):

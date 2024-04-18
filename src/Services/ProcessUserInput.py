@@ -14,7 +14,6 @@ from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Helper.SendDM import sendDM
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id import ChannelId
 from src.Id.Categories import TrackedCategories
 from src.Id.RoleId import RoleId
@@ -23,7 +22,6 @@ from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
 from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
@@ -152,29 +150,6 @@ class ProcessUserInput:
             logger.error(f"could not commit: {dcUserDb}", exc_info=error)
         finally:
             session.close()
-
-    def _saveDiscordUserToDatabase(self, data: dict, database: Database_Old) -> bool:
-        """
-        Helper to save a DiscordUser from this class into the database
-
-        :param data: Data
-        :param database:
-        :return:
-        """
-        query, nones = writeSaveQuery(
-            "discord",
-            data['id'],
-            data
-        )
-
-        if database.runQueryOnDatabase(query, nones):
-            logger.debug("saved changed DiscordUser to database")
-
-            return True
-
-        logger.critical("couldn't save DiscordUser to database")
-
-        return False
 
     async def moveUsers(self, channel: VoiceChannel, member: Member) -> str:
         """

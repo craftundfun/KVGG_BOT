@@ -4,49 +4,15 @@ from discord import Member
 from sqlalchemy import select
 
 from src.DiscordParameters.NotificationType import NotificationType
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Manager.DatabaseManager import getSession
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Repository.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 class UserSettings:
-
-    def __init__(self):
-        pass
-
-    def _saveToDatabase(self, param: dict, tableName: str, database: Database_Old) -> bool:
-        """
-        Saves the changes to the database.
-        """
-        query, nones = writeSaveQuery(tableName, param['id'], param)
-
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error(f"couldn't save changes to database")
-
-            return False
-
-        return True
-
-    def _getNotificationSettings(self, member: Member, database: Database_Old) -> dict | None:
-        """
-        Returns the notification settings from the given Member.
-
-        :param member: Member to fetch the settings of
-        """
-        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
-
-        if not (settings := database.fetchOneResult(query, (member.id,))):
-            logger.error(f"couldn't fetch settings for {member.name} from database")
-
-            return None
-
-        return settings
-
     def changeNotificationSetting(self, member: Member, kind: str, switch: bool) -> str:
         """
         Changes the notification setting for coming online
