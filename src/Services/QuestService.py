@@ -5,8 +5,9 @@ from datetime import datetime
 from enum import Enum
 
 from discord import Client, Member
-from sqlalchemy import select, null, insert
+from sqlalchemy import select, null, insert, delete
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
@@ -17,7 +18,6 @@ from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.Quest.Entity.Quest import Quest
 from src.Repository.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
-from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -162,22 +162,27 @@ class QuestService:
         Resets all the quest from the given time and creates new ones for members who are currently online.
 
         :param time: Time to reset the quests and create new ones
-        :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
+        if not (session := getSession()):
+            return
 
-        query = "DELETE FROM quest_discord_mapping " \
-                "WHERE quest_id IN " \
-                "(SELECT id FROM quest WHERE time_type = %s)"
-
-        if not database.runQueryOnDatabase(query, (time.value,)):
-            logger.error("failure to run query on database")
+        deleteQuery = (delete(QuestDiscordMapping)
+                       .where(QuestDiscordMapping.quest_id.in_(select(Quest.id)
+                                                               .where(Quest.time_type == time.value)
+                                                               .scalar_subquery())))
+        try:
+            session.execute(deleteQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't delete quests from database", exc_info=error)
+            session.rollback()
+            session.close()
 
             return
         else:
-            logger.debug(f"resettet {time.value}-quests")
+            logger.debug(f"deleted {time.value}-quests")
 
-        await self._createQuestsForAllUsers(time, database)
+        await self._createQuestsForAllUsers(time, session)
 
     async def _informMemberAboutNewQuests(self,
                                           member: Member,
@@ -210,35 +215,33 @@ class QuestService:
 
         await self.notificationService.informAboutNewQuests(member, time, list(quests))
 
-    async def _createQuestsForAllUsers(self, time: QuestDates, database: Database_Old):
+    async def _createQuestsForAllUsers(self, time: QuestDates, session: Session):
         """
         Creates new quests for all online users, so they have new ones right at zero 'o clock.
 
         :param time: Type of quests
         """
         members = self.client.get_guild(GuildId.GUILD_KVGG.value).members
-        query = "SELECT user_id FROM discord"
-
-        if not (ids := database.fetchAllResults(query)):
-            logger.error("couldn't fetch all ids from discord database")
-
-            return
-
-        memberIds = []
-
-        for id in ids:
-            memberIds.append(int(id['user_id']))
 
         for member in members:
             if member.bot:
                 continue
 
-            if member.id not in memberIds:
-                logger.warning(f"{member.display_name} not in database, continuing")
+            # noinspection PyTypeChecker
+            getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id))
+
+            try:
+                dcUserDb = session.scalars(getQuery).one()
+            except NoResultFound:
+                logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")
+
+                continue
+            except Exception as error:
+                logger.error(f"couldn't fetch DiscordUser for {member.display_name}", exc_info=error)
 
                 continue
 
-            await self._createQuestForMember(member, time, database)
+            await self._createQuestForMember(member, dcUserDb, time, session)
 
             # if member is not online don't add progress to certain quests
             if not member.voice:
@@ -246,9 +249,9 @@ class QuestService:
 
             # weil wir die online user hier sowieso schon haben: checke direkt auf streak und online
             await self.addProgressToQuest(member, QuestType.ONLINE_STREAK)
-            logger.debug(f"added progress for {member.name} for online streak")
+            logger.debug(f"added progress for {member.name} for online streak if applicable")
             await self.addProgressToQuest(member, QuestType.DAYS_ONLINE)
-            logger.debug(f"added progress for {member.name} for days online")
+            logger.debug(f"added progress for {member.name} for days online if applicable")
 
     async def checkQuestsForJoinedMember(self, member: Member, session: Session):
         """
