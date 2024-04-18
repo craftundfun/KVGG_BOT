@@ -1,11 +1,10 @@
 import logging
-from os import environ
 
 from discord import Member
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 
-IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
+IN_DOCKER = False  # TODO environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 logger = logging.getLogger("KVGG_BOT")
 
 
