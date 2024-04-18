@@ -15,14 +15,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
-from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
-from src.Id.Categories import TrackedCategories, UniversityCategory
-from src.Manager.DatabaseManager import getSession
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Entities.MessageQueue.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Entities.User.Entity.User import User
+from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
+from src.Id.Categories import TrackedCategories, UniversityCategory
+from src.Manager.DatabaseManager import getSession
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -509,8 +509,6 @@ class WhatsAppHelper:
         :return:
         """
         suspendTimes = whatsappSetting.suspend_times
-
-        print("SuspendTime:", suspendTimes)  # TODO
 
         if not suspendTimes:
             logger.debug(f"no suspend times found for {whatsappSetting.discord_user}")
