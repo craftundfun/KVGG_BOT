@@ -3,7 +3,8 @@ from datetime import datetime
 
 import dateutil.relativedelta
 from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
-from sqlalchemy import insert
+from sqlalchemy import insert, select, update
+from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
@@ -91,18 +92,29 @@ class MemeService:
                                                         "Dein Meme wurde für den monatlichen Contest eingetragen!", )
         await self.questService.addProgressToQuest(message.author, QuestType.MEME_COUNT)
 
-    async def changeLikeCounterOfMessage(self, message: Message):
+    async def changeLikeCounterOfMeme(self, message: Message):
         """
         Updates the counter of likes in the corresponding database field.
 
         :param message: Message that was reacted to
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database_Old()
-        query = "SELECT * FROM meme WHERE message_id = %s"
+        if not (session := getSession()):
+            return
 
-        if not (meme := database.fetchOneResult(query, (message.id,))):
-            logger.warning("couldn't fetch meme from database")
+        # noinspection PyTypeChecker
+        getQuery = select(Meme).where(Meme.message_id == message.id)
+
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.debug("no meme with id {message.id} found in database")
+            session.close()
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
+            session.close()
 
             return
 
@@ -115,17 +127,23 @@ class MemeService:
             elif reaction.emoji == self.DOWNVOTE:
                 downvotes = reaction.count
             else:
-                logger.warning("unknown reaction found - ignoring")
+                logger.warning(f"unknown reaction found: {reaction.emoji} - ignoring")
 
                 continue
 
-        meme['likes'] = upvotes - downvotes
-        query, nones = writeSaveQuery('meme', meme['id'], meme)
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.id).values(likes=upvotes - downvotes)
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error("couldn't update meme to database")
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't update {meme} in database", exc_info=error)
+            session.rollback()
         else:
-            logger.debug("updated meme to database")
+            logger.debug(f"updated {meme} to database")
+        finally:
+            session.close()
 
     async def chooseWinnerAndLoser(self):
         """

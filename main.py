@@ -122,7 +122,7 @@ class MyClient(discord.Client):
         if not message:
             return
 
-        await self.memeService.changeLikeCounterOfMessage(message)
+        await self.memeService.changeLikeCounterOfMeme(message)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
         await self._prepareForMemeService(payload)
