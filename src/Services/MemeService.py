@@ -4,10 +4,10 @@ from datetime import datetime
 import dateutil.relativedelta
 from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
 from sqlalchemy import insert, select, update
+from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
@@ -149,7 +149,11 @@ class MemeService:
         """
         Chooses both winner and loser for meme.
         """
-        database = Database_Old()
+        if not (session := getSession()):
+            logger.error("couldn't choose winner of memes, no database connection")
+
+            return
+
         lastMonth = datetime.now() - dateutil.relativedelta.relativedelta(months=1)
         sinceTime = lastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -158,34 +162,40 @@ class MemeService:
 
             return
 
-        await self._chooseLoser(database, sinceTime, channel)
-        await self._chooseWinner(database, sinceTime, channel)
+        await self._chooseLoser(session, sinceTime, channel)
+        await self._chooseWinner(session, sinceTime, channel)
 
-    async def _chooseWinner(self, database: Database_Old, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseWinner(self, session: Session, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a winner for the last month, notifies, pins and grants an XP-Boost.
 
-        :param database: Database instance
+        :param session: Database instance
         :param sinceTime: Timestamp of the earliest meme to take in consideration, usually one month ago
         :param channel: Meme-Channel
         :param offset: Offset in the database results, increase if we couldn't get a message previously
         """
-        query = ("SELECT * "
-                 "FROM meme "
-                 "WHERE created_at > %s AND deleted_at IS NULL "
-                 "ORDER BY likes DESC "
-                 "LIMIT 1 "
-                 "OFFSET %s")
+        getQuery = (select(Meme)
+                    .where(Meme.created_at > sinceTime,
+                           Meme.deleted_at.is_(None))
+                    .order_by(Meme.likes.desc())
+                    .limit(1)
+                    .offset(offset))
 
-        if not (meme := database.fetchOneResult(query, (sinceTime, offset,))):
-            logger.error("couldn't fetch any memes from database")
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.error("no meme found in database")
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
 
             return
 
-        if not (message := await channel.fetch_message(meme['message_id'])):
+        if not (message := await channel.fetch_message(meme.message_id)):
             logger.error("couldn't fetch message from channel, trying next one")
 
-            await self._chooseWinner(database, sinceTime, channel, offset + 1)
+            await self._chooseWinner(session, sinceTime, channel, offset + 1)
 
             return
 
@@ -203,36 +213,47 @@ class MemeService:
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
         logger.debug("choose meme winner and granted boost")
 
-        meme['winner'] = 1
-        query, nones = writeSaveQuery('meme', meme['id'], meme)
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.id == meme.id).values(winner=True)
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error("couldn't update meme to database")
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
+            session.rollback()
+        finally:
+            session.close()
 
-    async def _chooseLoser(self, database: Database_Old, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseLoser(self, session: Session, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a loser for the last month, notifies and grants an XP-Boost.
-        :param database: Database instance
+        :param session: Database instance
         :param sinceTime: Timestamp of the earliest meme to take in consideration, usually one month ago
         :param channel: Meme-Channel
         :param offset: Offset in the database results, increase if we couldn't get a message previously
         """
-        query = ("SELECT * "
-                 "FROM meme "
-                 "WHERE created_at > %s "
-                 "ORDER BY likes "
-                 "LIMIT 1 "
-                 "OFFSET %s")
+        getQuery = (select(Meme)
+                    .where(Meme.created_at > sinceTime)
+                    .order_by(Meme.likes)
+                    .limit(1)
+                    .offset(offset))
 
-        if not (meme := database.fetchOneResult(query, (sinceTime, offset,))):
-            logger.error("couldn't fetch any memes from database")
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.error("no meme found in database")
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
 
             return
 
-        if not (message := await channel.fetch_message(meme['message_id'])):
-            logger.error("couldn't fetch message from channel, trying next one")
+        if not (message := await channel.fetch_message(meme.message_id)):
+            logger.warning("couldn't fetch message from channel, trying next one")
 
-            await self._chooseLoser(database, sinceTime, channel, offset + 1)
+            await self._chooseLoser(session, sinceTime, channel, offset + 1)
 
             return
 
@@ -243,7 +264,7 @@ class MemeService:
         )
 
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.WORST_MEME_OF_THE_MONTH)
-        logger.debug("choose meme loser and granted boost")
+        logger.debug(f"choose meme loser and granted boost for {meme}")
 
     async def updateMeme(self, message: RawMessageUpdateEvent):
         """

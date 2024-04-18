@@ -93,7 +93,7 @@ class ExperienceService:
 
             return
 
-        if not (session := getSession()):
+        if not (session := getSession()):  # TODO outside
             return
 
         if not (xp := getExperience(member, session)):
