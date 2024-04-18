@@ -10,12 +10,10 @@ from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.CurrentDiscordStatisticRepository import getStatisticsForUser_OLD
 from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
 from src.Repository.Statistic.Entity.StatisticLog import StatisticLog
 from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
-from src.Services.Database_Old import Database_Old
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -99,6 +97,7 @@ class StatisticManager:
             except Exception as error:
                 logger.error("couldn't commit statistics", exc_info=error)
 
+    # noinspection PyMethodMayBeStatic
     def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
         """
         Increases the value of the given statistic in each time period.
@@ -133,81 +132,30 @@ class StatisticManager:
 
             return
 
-    async def runRetrospectForUsers(self, time: StatisticsParameter):
+    async def runRetrospectForUsers(self, time: StatisticsParameter, session: Session):
         """
         Creates a retrospect for all users who have statistics for the given time period.
 
         :param time: Time period to send the retrospect for
+        :param session: The session to use for the database
         """
-        database = Database_Old()
-        query = ("SELECT DISTINCT d.id, d.user_id "
-                 "FROM discord d INNER JOIN current_discord_statistic cds ON cds.discord_id = d.id")
+        getQuery = (select(DiscordUser)
+                    .distinct()
+                    .join(CurrentDiscordStatistic)
+                    .where(CurrentDiscordStatistic.statistic_time == time.value))
 
-        if not (users := database.fetchAllResults(query)):
-            logger.error("couldn't fetch all users from database to create retrospects")
-
-            return
-
-        if not (guild := self.client.get_guild(GuildId.GUILD_KVGG.value)):
-            logger.error("couldn't fetch guild")
+        try:
+            dcUsersDb: Sequence[DiscordUser] = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch all users from database to create retrospects", exc_info=error)
 
             return
 
-        for user in users:
-            logger.debug(f"creating retrospect for user_id: {user['user_id']}")
+        for dcUserDb in dcUsersDb:
+            logger.debug(f"creating retrospect for {dcUserDb}")
 
-            member = guild.get_member(int(user['user_id']))
-
-            if not member:
-                logger.warning("couldn't fetch member from guild")
-
-                continue
-
-            def getStatisticForTime(statistics: list[dict]) -> dict | None:
-                """
-                Filters all the given statistics for the wanted time.
-
-                [statistic.YEAR, statistic.MONTH, statistic.WEEK] =wanted is week> [statistic.WEEK]
-                """
-                if not statistics:
-                    return None
-
-                for stat in statistics:
-                    if stat['statistic_time'] == time.value:
-                        return stat
-
-                return None
-
-            statistics = dict()
-            statistics[StatisticsParameter.ONLINE.value] = (
-                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.ONLINE, member))
-            )
-            statistics[StatisticsParameter.STREAM.value] = (
-                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.STREAM, member))
-            )
-            statistics[StatisticsParameter.MESSAGE.value] = (
-                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.MESSAGE, member))
-            )
-            statistics[StatisticsParameter.COMMAND.value] = (
-                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.COMMAND, member))
-            )
-            statistics[StatisticsParameter.ACTIVITY.value] = (
-                getStatisticForTime(getStatisticsForUser_OLD(database, StatisticsParameter.ACTIVITY, member))
-            )
-
-            allNone = True
-            allZero = True
-
-            for key in statistics.keys():
-                if statistics[key]:
-                    allNone = False
-
-                    if statistics[key]['value'] != 0:
-                        allZero = False
-
-            if allNone or allZero:
-                logger.debug(f"{member.display_name} has no statistics this {time.value}: "
-                             f"allNone = {allNone}, allZero = {allZero}")
+            if not (member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb.user_id))):
+                logger.error(f"couldn't fetch member from guild for {dcUserDb}")
 
                 continue
 
@@ -224,25 +172,51 @@ class StatisticManager:
 
                         return "FEHLER"
 
+            statistics: Sequence[CurrentDiscordStatistic | None] = dcUserDb.current_discord_statistics
             message = f"__**Hey {member.display_name}, hier ist dein Rückblick für {getCorrectTimePeriod()}!**__\n\n"
+            # if there are no statistics, the message will not be sent
+            modified = False
+            # Define the order of the statistics
+            order = {
+                StatisticsParameter.ONLINE.value: 1,
+                StatisticsParameter.STREAM.value: 2,
+                StatisticsParameter.ACTIVITY.value: 3,
+                StatisticsParameter.MESSAGE.value: 4,
+                StatisticsParameter.COMMAND.value: 5
+            }
+            # Sort the statistics based on the defined order
+            sorted_statistics = sorted(statistics, key=lambda s: order.get(s.statistic_type, float('inf')))
 
-            if (online := statistics[StatisticsParameter.ONLINE.value]) and online['value'] > 0:
-                message += f"-\tDu warst {getFormattedTime(online['value'])} Stunden online.\n"
+            for statistic in sorted_statistics:
+                match statistic.statistic_type:
+                    case StatisticsParameter.ONLINE.value:
+                        if statistic.value > 0:
+                            message += f"-\tDu warst {getFormattedTime(statistic.value)} Stunden online.\n"
+                            modified = True
+                    case StatisticsParameter.STREAM.value:
+                        if statistic.value > 0:
+                            message += f"-\tDu hast insgesamt {getFormattedTime(statistic.value)} Stunden gestreamt.\n"
+                            modified = True
+                    case StatisticsParameter.MESSAGE.value:
+                        if statistic.value > 0:
+                            message += f"-\tDu hast {statistic.value} Nachrichten verfasst.\n"
+                            modified = True
+                    case StatisticsParameter.COMMAND.value:
+                        if statistic.value > 0:
+                            message += f"-\tDu hast mich {statistic.value} Mal genutzt (aka. Commands genutzt).\n"
+                            modified = True
+                    case StatisticsParameter.ACTIVITY.value:
+                        if statistic.value > 0:
+                            message += (f"-\tDu hast {getFormattedTime(statistic.value)} Stunden gespielt oder "
+                                        f"Programme genutzt.\n")
+                            modified = True
+                    case _:
+                        logger.error(f"undefined enum entry was reached: {statistic.statistic_type} for {dcUserDb}")
 
-            if (stream := statistics[StatisticsParameter.STREAM.value]) and stream['value'] > 0:
-                message += (f"-\tDu hast insgesamt {getFormattedTime(stream['value'])} Stunden "
-                            f"gestreamt.\n")
+                        continue
 
-            if (activity := statistics[StatisticsParameter.ACTIVITY.value]) and activity['value'] > 0:
-                message += (f"-\tDu hast {getFormattedTime(activity['value'])} Stunden gespielt oder "
-                            f"Programme genutzt.\n")
-
-            if (messageStatistic := statistics[StatisticsParameter.MESSAGE.value]) and messageStatistic['value'] > 0:
-                message += f"-\tDu hast ganze {messageStatistic['value']} Nachrichten verfasst.\n"
-
-            if (command := statistics[StatisticsParameter.COMMAND.value]) and command['value'] > 0:
-                message += f"-\tDu hast mich {command['value']} Mal genutzt (aka. Commands genutzt).\n"
-
-            await self.notificationService.sendRetrospect(member, message.rstrip("\n"))
-
-            logger.debug(f"sent retrospect to {member.display_name}")
+            if modified:
+                await self.notificationService.sendRetrospect(member, message.rstrip("\n"))
+                logger.debug(f"sent retrospect to {member.display_name}")
+            else:
+                logger.debug(f"no statistics for {dcUserDb}")

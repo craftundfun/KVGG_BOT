@@ -174,7 +174,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running weekly statistics")
 
             try:
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY)
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
@@ -188,7 +188,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running monthly statistics")
 
             try:
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY)
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 
@@ -202,7 +202,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running yearly statistics")
 
             try:
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY)
+                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
 

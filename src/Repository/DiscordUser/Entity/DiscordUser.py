@@ -32,6 +32,7 @@ class DiscordUser(Base):
     whatsapp_setting = relationship("WhatsappSetting", back_populates="discord_user", uselist=False)
     experience = relationship("Experience", back_populates="discord_user")
     counter_mappings = relationship("CounterDiscordMapping", back_populates="discord_user")
+    current_discord_statistics = relationship("CurrentDiscordStatistic", back_populates="discord_user")
 
     def __repr__(self):
         return f"DiscordUser(id={self.id}, username={self.username})"
