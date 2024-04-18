@@ -282,24 +282,31 @@ class MemeService:
 
             return
 
-        database = Database_Old()
+        if len(message.attachments) != 0:
+            return
 
-        if len(message.attachments) == 0:
-            logger.debug(f"removing meme from {message.author.display_name}")
+        if not (session := getSession()):
+            return
 
-            query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
+        logger.debug(f"removing meme from {message.author.display_name}")
 
-            if not database.runQueryOnDatabase(query, (datetime.now(), message.id,)):
-                logger.error("couldn't update meme")
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.id).values(deleted_at=datetime.now())
 
-            try:
-                await message.delete()
-            except Exception as error:
-                logger.error("couldn't pdate meme", exc_info=error)
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
 
-            await self.notificationService.sendStatusReport(message.author,
-                                                            "Dein Meme wurde wieder entfernt, da du deinen Anhang "
-                                                            "gelöscht hast!")
+        try:
+            await message.delete()
+        except Exception as error:
+            logger.error("couldn't delete meme from database", exc_info=error)
+
+        await self.notificationService.sendStatusReport(message.author,
+                                                        "Dein Meme wurde wieder entfernt, da du deinen Anhang "
+                                                        "gelöscht hast!")
 
     async def deleteMeme(self, message: RawMessageDeleteEvent):
         if message.channel_id != ChannelId.CHANNEL_MEMES.value:
