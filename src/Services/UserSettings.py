@@ -1,18 +1,17 @@
 import logging
 
 from discord import Member
-from sqlalchemy import select
 
 from src.DiscordParameters.NotificationType import NotificationType
-from src.Manager.DatabaseManager import getSession
-from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Entities.DiscordUser.Repository.WhatsappSettingRepository import getWhatsappSetting
+from src.Manager.DatabaseManager import getSession
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 class UserSettings:
+    # noinspection PyMethodMayBeStatic
     def changeNotificationSetting(self, member: Member, kind: str, switch: bool) -> str:
         """
         Changes the notification setting for coming online
@@ -84,6 +83,7 @@ class UserSettings:
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
+    # noinspection PyMethodMayBeStatic
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
         """
         Lets the user change their WhatsApp settings
@@ -92,7 +92,6 @@ class UserSettings:
         :param type: Type of messages (gaming or university)
         :param action: Action of the messages (join or leave)
         :param switch: Switch (on / off)
-        :raise ConnectionError: if the database connection can't be established
         :return:
         """
         logger.debug(f"{member.display_name} requested a change of his / her WhatsApp settings")
@@ -100,20 +99,10 @@ class UserSettings:
         if not (session := getSession()):  # TODO outside
             return "Es gab einen Fehler!"
 
-        # noinspection PyTypeChecker
-        getQuery = (select(WhatsappSetting)
-                    .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
-                                                               .where(DiscordUser.user_id == str(member.id))
-                                                               .scalar_subquery())))
+        if not (whatsappSettings := getWhatsappSetting(member, session)):
+            logger.warning("no WhatsappSetting found for {member.display_name}")
 
-        try:
-            whatsappSettings = session.scalars(getQuery).one()  # TODO maybe as repo
-        except Exception as error:
-            logger.error(f"couldn't fetch WhatsappSetting for {member.display_name}", exc_info=error)
-            session.rollback()
-            session.close()
-
-            return "Es gab ein Problem!"
+            return "Du bist nicht für Whatsapp-Nachrichten bei uns eingetragen!"
 
         if type == 'Gaming':
             # !whatsapp join

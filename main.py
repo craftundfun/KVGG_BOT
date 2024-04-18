@@ -19,6 +19,7 @@ from sqlalchemy import select
 from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
+from src.Entities.Counter.Entity.Counter import Counter
 from src.Helper import ReadParameters
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
@@ -31,7 +32,6 @@ from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Entities.Counter.Entity.Counter import Counter
 from src.Services.MemeService import MemeService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService
