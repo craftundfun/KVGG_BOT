@@ -1,6 +1,5 @@
 import logging
 import os
-import random
 import smtplib
 from email.message import EmailMessage
 
@@ -27,7 +26,8 @@ def send_exception_mail(message: str):
         return
 
     exception_recipients = ExceptionEmailAddresses.getValues()
-    subject = funnySubject[random.randint(0, len(funnySubject) - 1)]
+    # TODO subject = funnySubject[random.randint(0, len(funnySubject) - 1)]
+    subject = "SQLAlchemy-Stacktrace"
 
     for exception_recipient in exception_recipients:
         email = EmailMessage()
@@ -37,7 +37,7 @@ def send_exception_mail(message: str):
         email.set_content(f"Stacktrace: {message}")
 
         try:
-            with smtplib.SMTP_SSL(getParameter(param.EMAIL_SERVER), getParameter(param.EMAIL_PORT)) as server:
+            with smtplib.SMTP_SSL(getParameter(param.EMAIL_SERVER), int(getParameter(param.EMAIL_PORT))) as server:
                 server.login(getParameter(param.EMAIL_USERNAME), getParameter(param.EMAIL_PASSWORD))
                 server.send_message(email)
         except Exception as error:
