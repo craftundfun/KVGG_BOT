@@ -11,8 +11,8 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Id.ChannelId import ChannelId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Repository.Meme.Entity.Meme import Meme
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Meme.Entity.Meme import Meme
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType

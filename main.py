@@ -31,7 +31,7 @@ from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Repository.Counter.Entity.Counter import Counter
+from src.Entities.Counter.Entity.Counter import Counter
 from src.Services.MemeService import MemeService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService

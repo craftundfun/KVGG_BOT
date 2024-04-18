@@ -14,10 +14,10 @@ from src.DiscordParameters.QuestParameter import QuestDates
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Repository.Quest.Entity.Quest import Quest
-from src.Repository.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Quest.Entity.Quest import Quest
+from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Services.ExperienceService import ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")

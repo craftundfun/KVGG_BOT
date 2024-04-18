@@ -3,7 +3,7 @@ from __future__ import annotations
 import string
 from abc import ABC, abstractmethod
 
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
 
 class Time(ABC):

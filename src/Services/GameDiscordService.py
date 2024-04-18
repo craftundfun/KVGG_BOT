@@ -11,7 +11,7 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.Game.Repository.DiscordGameRepository import getGameDiscordRelation
+from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")

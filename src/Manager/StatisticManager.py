@@ -10,10 +10,10 @@ from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
-from src.Repository.Statistic.Entity.StatisticLog import StatisticLog
-from src.Repository.Statistic.Repository.StatisticRepository import getStatisticsForUser
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
+from src.Entities.Statistic.Entity.StatisticLog import StatisticLog
+from src.Entities.Statistic.Repository.StatisticRepository import getStatisticsForUser
 
 logger = logging.getLogger("KVGG_BOT")
 

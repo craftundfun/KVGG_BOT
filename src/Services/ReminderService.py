@@ -13,11 +13,11 @@ from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAga
 from src.Helper.SendDM import sendDM, separator
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
-from src.Repository.MessageQueue.Entity.MessageQueue import MessageQueue
-from src.Repository.Reminder.Entity.Reminder import Reminder
-from src.Repository.User.Entity.User import User
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
+from src.Entities.Reminder.Entity.Reminder import Reminder
+from src.Entities.User.Entity.User import User
 from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")

@@ -13,14 +13,14 @@ from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Repository.Experience.Entity.Experience import Experience
-from src.Repository.Experience.Repository.ExperienceRepository import getExperience
-from src.Repository.Newsletter.Entity.Newsletter import Newsletter
-from src.Repository.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDiscordMapping
-from src.Repository.Quest.Entity.Quest import Quest
-from src.Repository.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Entities.Experience.Entity.Experience import Experience
+from src.Entities.Experience.Repository.ExperienceRepository import getExperience
+from src.Entities.Newsletter.Entity.Newsletter import Newsletter
+from src.Entities.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDiscordMapping
+from src.Entities.Quest.Entity.Quest import Quest
+from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")

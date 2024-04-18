@@ -14,9 +14,9 @@ from sqlalchemy import select
 from src.DiscordParameters.Colors import Colors
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.Game.Repository.DiscordGameRepository import getMostPlayedGames
-from src.Repository.UserRelation.Entity.DiscordUserRelation import DiscordUserRelation
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Game.Repository.DiscordGameRepository import getMostPlayedGames
+from src.Entities.UserRelation.Entity.DiscordUserRelation import DiscordUserRelation
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationTypeEnum
 from src.View.PaginationView import PaginationViewDataItem, PaginationViewDataTypes

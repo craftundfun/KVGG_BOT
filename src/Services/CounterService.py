@@ -10,9 +10,9 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Id.RoleId import RoleId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.TTSManager import TTSService
-from src.Repository.Counter.Entity.Counter import Counter
-from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Counter.Entity.Counter import Counter
+from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
 from src.Services.VoiceClientService import VoiceClientService

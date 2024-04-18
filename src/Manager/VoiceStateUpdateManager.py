@@ -11,7 +11,7 @@ from src.Manager.ChannelManager import ChannelService
 from src.Manager.DatabaseManager import getSession
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
 

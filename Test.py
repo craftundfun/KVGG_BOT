@@ -1,7 +1,7 @@
 from sqlalchemy.sql import select
 
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 
 session = getSession()
 

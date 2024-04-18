@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from src.Helper.SendDM import sendDM, separator
 from src.InheritedCommands.NameCounter.Counter import Counter
-from src.Repository.Counter.Repository.CounterRepository import getCounterDiscordMapping
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'

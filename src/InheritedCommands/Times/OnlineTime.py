@@ -4,7 +4,7 @@ import string
 
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.InheritedCommands.Times.Time import Time
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
 
 class OnlineTime(Time):

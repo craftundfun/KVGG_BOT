@@ -18,11 +18,11 @@ from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
-from src.Repository.MessageQueue.Entity.MessageQueue import MessageQueue
-from src.Repository.MessageQueue.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
-from src.Repository.User.Entity.User import User
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
+from src.Entities.MessageQueue.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
+from src.Entities.User.Entity.User import User
 
 logger = logging.getLogger("KVGG_BOT")
 

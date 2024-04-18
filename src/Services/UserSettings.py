@@ -5,9 +5,9 @@ from sqlalchemy import select
 
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Manager.DatabaseManager import getSession
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Repository.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
-from src.Repository.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
 
 logger = logging.getLogger("KVGG_BOT")
 

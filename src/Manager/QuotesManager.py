@@ -10,7 +10,7 @@ from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.Quote.Entity.Quote import Quote
+from src.Entities.Quote.Entity.Quote import Quote
 
 logger = logging.getLogger("KVGG_BOT")
 

@@ -13,7 +13,7 @@ from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
 

@@ -15,8 +15,8 @@ from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
-from src.Repository.Experience.Entity.Experience import Experience
-from src.Repository.Experience.Repository.ExperienceRepository import getExperience
+from src.Entities.Experience.Entity.Experience import Experience
+from src.Entities.Experience.Repository.ExperienceRepository import getExperience
 
 logger = logging.getLogger("KVGG_BOT")
 

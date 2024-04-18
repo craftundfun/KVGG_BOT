@@ -10,7 +10,7 @@ from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
 from src.Manager.UpdateTimeManager import UpdateTimeService
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationService

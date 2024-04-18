@@ -21,7 +21,7 @@ from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeywor
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
-from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType

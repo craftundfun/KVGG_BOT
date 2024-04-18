@@ -11,7 +11,7 @@ from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
-from src.Repository.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
+from src.Entities.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
 
 logger = logging.getLogger("KVGG_BOT")
 
