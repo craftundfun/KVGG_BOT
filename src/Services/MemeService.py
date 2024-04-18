@@ -3,12 +3,15 @@ from datetime import datetime
 
 import dateutil.relativedelta
 from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
+from sqlalchemy import insert
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUserOld
+from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Repository.Meme.Entity.Meme import Meme
 from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
@@ -57,30 +60,35 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
-        database = Database_Old()
-        dcUserDb = getDiscordUserOld(message.author, database)
+        if not (session := getSession()):
+            return
 
-        if not dcUserDb:
-            logger.warning("no dcUserDb, cant save meme to database")
+        if not (dcUserDb := getDiscordUser(message.author, session)):
+            logger.error(f"couldn't fetch DiscordUser for {message.author.display_name} from database")
 
-        query = "INSERT INTO meme (message_id, discord_id, created_at, media_link) VALUES (%s, %s, %s, %s)"
+        insertQuery = insert(Meme).values(message_id=message.id,
+                                          discord_id=dcUserDb.id,
+                                          created_at=datetime.now(),
+                                          media_link=message.attachments[0].url, )
 
-        if not database.runQueryOnDatabase(query, (message.id,
-                                                   dcUserDb['id'],
-                                                   datetime.now(),
-                                                   message.attachments[0].url,)):
-            logger.error("couldn't save meme to database")
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't insert Meme into database", exc_info=error)
+            session.rollback()
 
             await self.notificationService.sendStatusReport(message.author,
                                                             "Es gab einen Fehler dein Meme zu speichern! "
                                                             "Bitte lade es später noch einmal hoch.")
-
             return
         else:
             logger.debug("saved new meme to database")
+        finally:
+            session.close()
 
         await self.notificationService.sendStatusReport(message.author,
-                                                        "Dein Meme wurde für den monatlichen Contest eingetragen!")
+                                                        "Dein Meme wurde für den monatlichen Contest eingetragen!", )
         await self.questService.addProgressToQuest(message.author, QuestType.MEME_COUNT)
 
     async def changeLikeCounterOfMessage(self, message: Message):

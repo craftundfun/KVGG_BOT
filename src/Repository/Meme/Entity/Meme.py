@@ -1,23 +1,23 @@
-from datetime import datetime
-
+from sqlalchemy import Column, BigInteger, DateTime, Boolean, Text
 from sqlalchemy import ForeignKey
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
 from src.Repository.BaseClass import Base
 
 
 class Meme(Base):
-    __tablename__ = "meme"
+    __tablename__ = 'meme'
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    message_id: Mapped[int]
-    likes: Mapped[int]
-    created_at: Mapped[datetime]
-
-    discord_id: Mapped[int] = mapped_column(ForeignKey("discord.id"))
-    discord_user: Mapped["DiscordUser"] = relationship("DiscordUser")
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    message_id = Column(BigInteger, nullable=False)
+    discord_id = Column(BigInteger, ForeignKey('discord.id'), nullable=False)
+    likes = Column(BigInteger, default=0, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    media_link = Column(Text)
+    winner = Column(Boolean, default=False, nullable=False)
+    deleted_at = Column(DateTime)
+    # noinspection PyTypeChecker
+    discord_user = relationship("DiscordUser", foreign_keys=discord_id)
 
     def __repr__(self):
         return f"Meme(id={self.id}, DiscordUser={self.discord_user})"
