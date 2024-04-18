@@ -12,3 +12,4 @@ matplotlib
 fastapi
 uvicorn
 sqlalchemy
+python-dotenv

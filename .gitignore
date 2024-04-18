@@ -1,4 +1,5 @@
 parameters.yaml
+parameters.env
 .idea
 .github
 **/__pycache__

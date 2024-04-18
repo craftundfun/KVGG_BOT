@@ -69,4 +69,4 @@ class MyClient(discord.Client):
 
 if __name__ == '__main__':
     client = MyClient(intents=discord.Intents.all(), reconnect=True, )
-    client.run(token=ReadParameters.getParameter(ReadParameters.Parameters.TOKEN))
+    client.run(token=ReadParameters.getParameter(ReadParameters.Parameters.DISCORD_TOKEN))

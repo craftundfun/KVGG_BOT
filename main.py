@@ -273,7 +273,7 @@ class MyClient(discord.Client):
 
 
 # reads the token
-token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
+token = ReadParameters.getParameter(ReadParameters.Parameters.DISCORD_TOKEN)
 
 # sets the intents of the client to the default ones
 intents = discord.Intents.all()

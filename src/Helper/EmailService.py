@@ -37,8 +37,8 @@ def send_exception_mail(message: str):
         email.set_content(f"Stacktrace: {message}")
 
         try:
-            with smtplib.SMTP_SSL(getParameter(param.EMAIL_HOST), getParameter(param.PORT)) as server:
-                server.login(getParameter(param.EMAIL_USER), getParameter(param.EMAIL_PASSWORD))
+            with smtplib.SMTP_SSL(getParameter(param.EMAIL_SERVER), getParameter(param.EMAIL_PORT)) as server:
+                server.login(getParameter(param.EMAIL_USERNAME), getParameter(param.EMAIL_PASSWORD))
                 server.send_message(email)
         except Exception as error:
             print("An error occurred while sending an email!\n", error)
