@@ -233,16 +233,16 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_REMINDER:
-                function = self.reminderService.deleteReminder  # TODO
+                function = self.reminderService.deleteReminder
 
             case Commands.PLAY_SOUND:
-                function = self.soundboardService.playSound  # TODO
+                function = self.soundboardService.playSound
 
             case Commands.STOP_SOUND:
-                function = self.voiceClientService.stop  # TODO
+                function = self.voiceClientService.stop
 
             case Commands.KNEIPE:
-                function = self.channelService.createKneipe  # TODO
+                function = self.channelService.createKneipe
 
             case Commands.LIST_SOUNDS:
                 data = await self.soundboardService.listPersonalSounds(**kwargs)  # TODO
@@ -259,19 +259,19 @@ class CommandService:
                 function = "Pagination-View"
 
             case Commands.DELETE_SOUND:
-                function = self.soundboardService.deletePersonalSound  # TODO
+                function = self.soundboardService.deletePersonalSound
 
             case Commands.LIST_QUESTS:
-                function = self.questService.listQuests  # TODO
+                function = self.questService.listQuests
 
             case Commands.CREATE_COUNTER:
-                function = self.counterService.createNewCounter  # TODO
+                function = self.counterService.createNewCounter
 
             case Commands.LIST_COUNTERS:
-                function = self.counterService.listAllCounters  # TODO
+                function = self.counterService.listAllCounters
 
             case Commands.CREATE_TIMER:
-                function = self.reminderService.createTimer  # TODO
+                function = self.reminderService.createTimer
 
             case _:
                 logger.error("undefined enum entry was reached!")

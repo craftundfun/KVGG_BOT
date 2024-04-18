@@ -145,7 +145,7 @@ class MyClient(discord.Client):
                                                                      name="Checkt Datenbank auf Konsistenz", ))
 
         try:
-            await self.databaseRefreshService.startUp()  # TODO
+            await self.databaseRefreshService.startUp()
         except ConnectionError as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
@@ -199,7 +199,7 @@ class MyClient(discord.Client):
 
         global backgroundServices
 
-        backgroundServices = BackgroundServices(self)  # TODO
+        backgroundServices = BackgroundServices(self)
 
     async def on_message(self, message: discord.Message):
         """

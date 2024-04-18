@@ -9,10 +9,6 @@ from sqlalchemy.orm import Session
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Helper.GetFormattedTime import getFormattedTime
-from src.Helper.SendDM import sendDM, separator
-from src.Id.Categories import UniversityCategory
-from src.Manager.DatabaseManager import getSession
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
 from src.Entities.Experience.Entity.Experience import Experience
@@ -21,6 +17,10 @@ from src.Entities.Newsletter.Entity.Newsletter import Newsletter
 from src.Entities.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDiscordMapping
 from src.Entities.Quest.Entity.Quest import Quest
 from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Helper.GetFormattedTime import getFormattedTime
+from src.Helper.SendDM import sendDM, separator
+from src.Id.Categories import UniversityCategory
+from src.Manager.DatabaseManager import getSession
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -36,7 +36,9 @@ class NotificationService:
 
         self.xpService = ExperienceService(self.client)
 
-    async def _sendMessage(self, member: Member,
+    # noinspection PyMethodMayBeStatic
+    async def _sendMessage(self,
+                           member: Member,
                            content: str,
                            typeOfMessage: NotificationType,
                            useSeparator: bool = True):
@@ -57,7 +59,6 @@ class NotificationService:
             logger.error(f"no notification settings for {member.display_name}, aborting sending message")
 
             return
-        # TODO look if it really works
         elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
             logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
