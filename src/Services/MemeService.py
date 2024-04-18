@@ -13,7 +13,6 @@ from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
 from src.Repository.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Repository.Meme.Entity.Meme import Meme
-from src.Services.Database_Old import Database_Old
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType
@@ -312,14 +311,24 @@ class MemeService:
                                                         "Dein Meme wurde wieder entfernt, da du deinen Anhang "
                                                         "gelöscht hast!")
 
+    # noinspection PyMethodMayBeStatic
     async def deleteMeme(self, message: RawMessageDeleteEvent):
         if message.channel_id != ChannelId.CHANNEL_MEMES.value:
             return
 
-        database = Database_Old()
-        query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
+        if not (session := getSession()):
+            return
 
-        if not database.runQueryOnDatabase(query, (datetime.now(), message.message_id,)):
-            logger.error("couldn't update meme to database")
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.message_id).values(deleted_at=datetime.now())
+
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
+            session.rollback()
         else:
             logger.debug("updated meme in database")
+        finally:
+            session.close()
