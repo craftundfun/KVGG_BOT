@@ -298,11 +298,15 @@ class MemeService:
             session.commit()
         except Exception as error:
             logger.error("couldn't update meme to database", exc_info=error)
+        else:
+            logger.debug("set deleted_at for meme in database")
 
         try:
             await message.delete()
         except Exception as error:
             logger.error("couldn't delete meme from database", exc_info=error)
+        else:
+            logger.debug("deleted meme from channel")
 
         await self.notificationService.sendStatusReport(message.author,
                                                         "Dein Meme wurde wieder entfernt, da du deinen Anhang "
