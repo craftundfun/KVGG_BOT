@@ -7,7 +7,6 @@ from src.Entities.BaseClass import Base
 
 # from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
-# TODO make repository out of this for users with phone number and api key
 class WhatsappSetting(Base):
     __tablename__ = 'whatsapp_setting'
 
