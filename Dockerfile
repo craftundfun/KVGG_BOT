@@ -20,6 +20,6 @@ ARG PROD=True
 ENV AM_I_IN_A_DOCKER_CONTAINER ${PROD}
 ENV TZ=Europe/Berlin
 
-EXPOSE 8001  # TODO
+# EXPOSE 8000 TODO
 
 CMD ["python3", "./main.py"]
