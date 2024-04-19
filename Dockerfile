@@ -10,14 +10,9 @@ COPY Web ./Web
 RUN apt-get update && apt-get install -y ffmpeg
 RUN pip install -r requirements.txt
 RUN apt-get install libffi-dev
-
-
-ENV PATH="/usr/bin/ffmpeg:${PATH}"
-
 RUN mkdir "Logs"
 
-ARG PROD=True
-ENV AM_I_IN_A_DOCKER_CONTAINER ${PROD}
+ENV PATH="/usr/bin/ffmpeg:${PATH}"
 ENV TZ=Europe/Berlin
 
 EXPOSE 8000

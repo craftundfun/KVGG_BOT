@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import argparse
 import logging.handlers
 import os
 import os.path
@@ -21,6 +22,7 @@ from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Entities.Counter.Entity.Counter import Counter
 from src.Helper import ReadParameters
+from src.Helper.ReadParameters import getParameter, Parameters
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
@@ -58,8 +60,8 @@ clientHandler.setFormatter(CustomFormatterFile())
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(CustomFormatter())
 
-# docker container
-if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+# production
+if getParameter(Parameters.PRODUCTION):
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.DEBUG)
     consoleHandler.setLevel(logging.INFO)
@@ -104,9 +106,7 @@ class MyClient(discord.Client):
 
         await member.add_roles(roleMitglied, roleUni, reason="Automatic role by bot")
 
-        logger.debug("%s received the following roles: %s, %s" % (
-            member.nick if member.nick else member.name, roleMitglied.name, roleUni.name)
-                     )
+        logger.debug(f"{member.display_name} received the following roles: {roleMitglied.name}, {roleUni.name}")
 
     async def on_member_remove(self, member):
         pass
@@ -149,14 +149,14 @@ class MyClient(discord.Client):
         except ConnectionError as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
-            logger.info("users fetched and updated")
+            logger.info("users fetched and updated by DatabaseRefreshService")
 
         if not (guild := client.get_guild(GuildId.GUILD_KVGG.value)):
             logger.error("couldn't fetch guild")
 
             return
 
-        if len(sys.argv) > 1 and sys.argv[1] == "-clean":
+        if commandLineArguments.clean:
             logger.debug("REMOVING COMMANDS FROM GUILD")
 
             tree.clear_commands(guild=guild)
@@ -180,13 +180,13 @@ class MyClient(discord.Client):
         try:
             logger.debug("trying to set activity")
 
-            if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+            if bool(int(getParameter(Parameters.PRODUCTION))):
                 await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
                                                                        name="auf deine Aktivität", ))
             else:
                 await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
                                                                              name="Ich schaue nur \U0001F440"
-                                                                             if sys.argv[1] == "-clean"
+                                                                             if commandLineArguments.clean
                                                                              else "Werde getestet \U0001F605", ))
         except Exception as error:
             logger.warning("activity couldn't be set", exc_info=error)
@@ -208,31 +208,28 @@ class MyClient(discord.Client):
         :param message:
         :return:
         """
-        logger.debug("received new message")
+        logger.debug(f"received new message from {message.author.display_name}")
 
-        if not message.author.bot and not message.content == "":
-            if not message.channel:
-                logger.debug("no channel")
+        if message.author.bot:
+            return
+
+        try:
+            # DM
+            if isinstance(message.channel, DMChannel):
+                logger.debug("received direct message")
+
+                await self.soundboardService.manageDirectMessage(message)
 
                 return
+        except Exception as error:
+            print(error)
 
-            try:
-                await self.processUserInput.raiseMessageCounter(message.author, message.channel)
-                await self.quotesManager.checkForNewQuote(message)
-                await self.memeService.checkIfMemeAndPrepareReactions(message)
-            except Exception as error:
-                logger.error("failure to run message functions", exc_info=error)
-
-        # empty message but on server
-        elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
+        try:
+            await self.processUserInput.raiseMessageCounter(message.author, message.channel)
+            await self.quotesManager.checkForNewQuote(message)
             await self.memeService.checkIfMemeAndPrepareReactions(message)
-
-        # empty message but as DM
-        elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):
-            await self.soundboardService.manageDirectMessage(message)
-
-        else:
-            logger.debug("message empty or from a bot")
+        except Exception as error:
+            logger.error("failure to run message functions", exc_info=error)
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -288,6 +285,13 @@ commandService = CommandService(client)
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-clean",
+                    help="removes all commands from the guild",
+                    action="store_true",
+                    required=False, )
+commandLineArguments = parser.parse_args()
 
 """ANSWER JOKE"""
 

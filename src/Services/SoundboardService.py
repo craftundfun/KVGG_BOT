@@ -128,6 +128,7 @@ class SoundboardService:
             ),
             loop,
         )
+        logger.debug(f"initiated download of file from {message.author.display_name}")
 
         if response.status_code != 200:
             asyncio.run_coroutine_threadsafe(
@@ -138,6 +139,7 @@ class SoundboardService:
                 ),
                 loop,
             )
+            logger.error(f"couldn't download file from Discord - status code: {response.status_code}")
 
             return
 
@@ -178,10 +180,11 @@ class SoundboardService:
                     loop,
                 )
                 os.remove(filepath)
+                logger.debug("mp3 was too long - removed from filesystem")
 
                 return
-        except Exception as error:
-            logger.debug(f"user {message.author.name} did not upload a mp3", exc_info=error)
+        except Exception:
+            logger.debug(f"user {message.author.name} did not upload a mp3")
             os.remove(filepath)
 
             # warn user
@@ -189,7 +192,7 @@ class SoundboardService:
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Bitte lade eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten, melde " +
-                    "dich bei unserem Support." + separator
+                    "dich bei unserem Support." + separator,
                 ),
                 loop,
             )
@@ -216,6 +219,11 @@ class SoundboardService:
         """
         if not message.author:
             logger.warning("DM had no author given")
+
+            return
+
+        if not message.attachments:
+            logger.debug(f"DM had no attachments by {message.author.name}")
 
             return
 

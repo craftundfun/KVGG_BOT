@@ -36,7 +36,7 @@ def getNotificationSettings(member: Member, session: Session) -> NotificationSet
 
         return None
     except NoResultFound:
-        logger.debug("found no notification setting for {member.display_name}")
+        logger.debug(f"found no notification setting for {member.display_name}")
 
         # noinspection PyTypeChecker
         insertQuery = (insert(NotificationSetting)

@@ -1,3 +1,4 @@
+import html
 import logging
 from pathlib import Path
 
@@ -29,6 +30,7 @@ def get_plot(name: str, random):
     :param name: Name of the picture to export
     :param random: Random number to avoid discord caching => ignore it
     """
+    name = html.escape(name)
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():

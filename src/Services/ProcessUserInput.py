@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import string
 from datetime import datetime, timedelta
 
@@ -14,9 +13,10 @@ from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Helper.MoveMembesToVoicechannel import moveMembers
+from src.Helper.ReadParameters import getParameter, Parameters
 from src.Helper.SendDM import sendDM
-from src.Id import ChannelId
 from src.Id.Categories import TrackedCategories
+from src.Id.ChannelId import ChannelId
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
@@ -29,7 +29,6 @@ from src.Services.RelationService import RelationService
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
-ARE_WE_IN_DOCKER = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 def getUserIdByTag(tag: string) -> int | None:
@@ -126,23 +125,22 @@ class ProcessUserInput:
 
             return
 
-        # if we are in docker, don't count a message from the test environment
-        if (channel.id != ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value
-                or (not ARE_WE_IN_DOCKER and channel.id == ChannelId.ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value)):
-            logger.debug("can grant an increase of the message counter")
+        if channel.id != ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value or not getParameter(Parameters.PRODUCTION):
+            logger.debug(f"can grant an increase of the message counter for {dcUserDb}")
 
-            if not command:
+            if command:
+                self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member, session)
+
+                dcUserDb.command_count_all_time += 1
+            else:
                 await self.questService.addProgressToQuest(member, QuestType.MESSAGE_COUNT)
                 self.statisticManager.increaseStatistic(StatisticsParameter.MESSAGE, member, session)
                 await self.experienceService.addExperience(ExperienceParameter.XP_FOR_MESSAGE.value,
                                                            member=member, )
 
                 dcUserDb.message_count_all_time += 1
-            else:
-                self.statisticManager.increaseStatistic(StatisticsParameter.COMMAND, member, session)
-
-                # default is 0
-                dcUserDb.command_count_all_time += 1
+        else:
+            logger.debug(f"can't grant an increase of the message counter for {dcUserDb}")
 
         try:
             session.commit()

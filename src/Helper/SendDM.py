@@ -2,9 +2,9 @@ import logging
 
 from discord import Member
 
+from src.Helper.ReadParameters import Parameters, getParameter
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 
-IN_DOCKER = False  # TODO environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 logger = logging.getLogger("KVGG_BOT")
 
 
@@ -21,8 +21,9 @@ async def sendDM(member: Member, content: str):
     :raise TypeError: /
     """
     # if not in docker dont sent DMs
-    if not IN_DOCKER:
-        logger.debug("not in docker")
+    if not getParameter(Parameters.PRODUCTION):
+        logger.debug("not in production, so not sending DMs")
+
         # if user is Bjarne still send DMs
         if not member.id == 416967436617777163:  # and not member.id == 214465971576897536:
             return
@@ -33,7 +34,7 @@ async def sendDM(member: Member, content: str):
         await member.create_dm()
 
         if not member.dm_channel:
-            raise Exception("couldn't create DM channel with %s" % member.name)
+            raise Exception(f"couldn't create DM channel with {member.display_name}")
 
     for part in splitStringAtMaxLength(content):
         await member.dm_channel.send(part)

@@ -2,6 +2,7 @@ import functools
 import logging
 import os
 from enum import Enum
+from typing import Any
 
 from dotenv import load_dotenv
 
@@ -28,10 +29,11 @@ class Parameters(Enum):
     EMAIL_USERNAME = 7
     EMAIL_PASSWORD = 8
     API_KEY = 9
+    PRODUCTION = 10
 
 
-@functools.lru_cache(maxsize=32)
-def getParameter(param: Parameters) -> str:
+@functools.lru_cache(maxsize=128)
+def getParameter(param: Parameters) -> Any:
     match param:
         case Parameters.DATABASE_HOST:
             return os.getenv("DATABASE_HOST")
@@ -46,13 +48,15 @@ def getParameter(param: Parameters) -> str:
         case Parameters.EMAIL_SERVER:
             return os.getenv("EMAIL_SERVER")
         case Parameters.EMAIL_PORT:
-            return os.getenv("EMAIL_PORT")
+            return int(os.getenv("EMAIL_PORT"))
         case Parameters.EMAIL_USERNAME:
             return os.getenv("EMAIL_USERNAME")
         case Parameters.EMAIL_PASSWORD:
             return os.getenv("EMAIL_PASSWORD")
         case Parameters.API_KEY:
             return os.getenv("API_KEY")
+        case Parameters.PRODUCTION:
+            return bool(int(os.getenv("PRODUCTION")))
         case _:
             logger.error(f"parameter {param} not found")
 
