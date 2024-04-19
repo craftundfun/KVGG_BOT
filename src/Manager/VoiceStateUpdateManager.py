@@ -6,12 +6,12 @@ from datetime import datetime
 from discord import Member, VoiceState, Client
 from sqlalchemy import null
 
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.ChannelManager import ChannelService
 from src.Manager.DatabaseManager import getSession
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
 
@@ -96,8 +96,7 @@ class VoiceStateUpdateService:
             dcUserDb.started_webcam_at = null()
 
             try:
-                await self.notificationService.runNotificationsForMember(member, dcUserDb,
-                                                                         session)  # TODO create repository for QuestDiscordMapping
+                await self.notificationService.runNotificationsForMember(member, dcUserDb, session)
             except Exception as error:
                 logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
@@ -137,7 +136,7 @@ class VoiceStateUpdateService:
             await runLogService(Events.JOINED_VOICE_CHAT)
 
         # user changed channel or changed status
-        elif voiceStateBefore.channel and voiceStateAfter.channel:  # TODO
+        elif voiceStateBefore.channel and voiceStateAfter.channel:
             logger.debug("member changes status or voice channel")
 
             # status changed

@@ -50,7 +50,7 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         settings = getNotificationSettings(member, session)

@@ -11,13 +11,13 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
-from src.Id.GuildId import GuildId
-from src.Manager.DatabaseManager import getSession
-from src.Manager.NotificationManager import NotificationService
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Entities.Quest.Entity.Quest import Quest
 from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
+from src.Manager.NotificationManager import NotificationService
 from src.Services.ExperienceService import ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -54,7 +54,7 @@ class QuestService:
         :param value: Optional value to overwrite the standard increase of one
         :raise ConnectionError: If the database connection cant be established
         """
-        if not (session := getSession()):  # TODO get session from outside
+        if not (session := getSession()):
             return
 
         # noinspection PyTypeChecker
@@ -362,9 +362,8 @@ class QuestService:
         Lists all the quests from a user.
 
         :param member: Member, who requested his quests
-        :raise ConnectionError: If the database connection cant be established
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         # noinspection PyTypeChecker

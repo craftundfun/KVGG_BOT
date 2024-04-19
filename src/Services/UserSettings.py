@@ -19,10 +19,9 @@ class UserSettings:
         :param member: Member, who wants to change the settings
         :param kind: Type of setting
         :param switch: New value
-        :raise ConnectionError: if the database connection cant be established
         :return: Answer
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if not (settings := getNotificationSettings(member, session)):
@@ -96,7 +95,7 @@ class UserSettings:
         """
         logger.debug(f"{member.display_name} requested a change of his / her WhatsApp settings")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if not (whatsappSettings := getWhatsappSetting(member, session)):

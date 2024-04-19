@@ -9,15 +9,15 @@ from sqlalchemy import select, insert, null, delete
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
-from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
-from src.Helper.SendDM import sendDM, separator
-from src.Id.GuildId import GuildId
-from src.Manager.DatabaseManager import getSession
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Entities.Reminder.Entity.Reminder import Reminder
 from src.Entities.User.Entity.User import User
+from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
+from src.Helper.SendDM import sendDM, separator
+from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
@@ -291,7 +291,7 @@ class ReminderService:
 
         :return:
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         getQuery = select(Reminder).where(Reminder.time_to_sent.is_not(None))

@@ -343,7 +343,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         # noinspection PyTypeChecker
@@ -441,7 +441,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         # noinspection PyTypeChecker
@@ -537,7 +537,7 @@ class WhatsAppHelper:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         # noinspection PyTypeChecker

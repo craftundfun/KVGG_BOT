@@ -241,7 +241,7 @@ class ProcessUserInput:
 
         logger.debug(f"{member.name} requested {time.getName()}-Time from {user.display_name}")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab ein Problem!"
 
         if not (dcUserDb := getDiscordUser(user, session)):
@@ -352,7 +352,7 @@ class ProcessUserInput:
         """
         logger.debug(f"handling Felix-Timer for {requestedMember.display_name} by {requestingMember.display_name}")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab ein Problem!"
 
         if not (dcUserDb := getDiscordUser(requestedMember, session)):

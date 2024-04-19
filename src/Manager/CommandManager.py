@@ -219,7 +219,7 @@ class CommandService:
                 function = self.reminderService.createReminder
 
             case Commands.LIST_REMINDERS:
-                data = self.reminderService.listReminders(**kwargs)  # TODO
+                data = self.reminderService.listReminders(**kwargs)
 
                 await PaginationView(
                     ctx=interaction,
@@ -245,7 +245,7 @@ class CommandService:
                 function = self.channelService.createKneipe
 
             case Commands.LIST_SOUNDS:
-                data = await self.soundboardService.listPersonalSounds(**kwargs)  # TODO
+                data = await self.soundboardService.listPersonalSounds(**kwargs)
 
                 await PaginationView(
                     ctx=interaction,

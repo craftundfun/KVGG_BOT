@@ -6,12 +6,12 @@ from discord import ChannelType, Member, Client, VoiceChannel
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Entities.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
-from src.Entities.UserRelation.Repository.DiscordUserRelationRepository import getRelationBetweenUsers
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -99,7 +99,7 @@ class RelationService:
         universityChannels: list[VoiceChannel] = getVoiceChannelsFromCategoryEnum(self.client, UniversityCategory)
         allTrackedChannels: list[VoiceChannel] = whatsappChannels + universityChannels
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         for channel in self.client.get_guild(GuildId.GUILD_KVGG.value).channels:

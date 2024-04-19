@@ -12,11 +12,11 @@ from sqlalchemy import null, select
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.Entities.Experience.Entity.Experience import Experience
+from src.Entities.Experience.Repository.ExperienceRepository import getExperience
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
-from src.Entities.Experience.Entity.Experience import Experience
-from src.Entities.Experience.Repository.ExperienceRepository import getExperience
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -93,7 +93,7 @@ class ExperienceService:
 
             return
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         if not (xp := getExperience(member, session)):
@@ -222,7 +222,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} requested xp-spin")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(member, session)):
@@ -316,7 +316,7 @@ class ExperienceService:
         """
         Searches the database for open xp-spin reminders and notifies the member
         """
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         # noinspection PyTypeChecker
@@ -381,7 +381,7 @@ class ExperienceService:
         """
         logger.debug(f"{requestingMember.display_name} requested xp for {requestedMember.display_name}")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(requestedMember, session)):
@@ -409,7 +409,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} requested xp-inventory")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if not (xp := getExperience(member, session)):
@@ -630,7 +630,7 @@ class ExperienceService:
         """
         logger.debug(f"{member.display_name} gets XP")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return
 
         xp = getExperience(member, session)
@@ -682,7 +682,6 @@ class ExperienceService:
 
         session.close()
 
-    # TODO test
     def reduceXpBoostsTime(self, member: Member):
         """
         Reduces the active boosts time from the given member.
@@ -725,11 +724,11 @@ class ExperienceService:
         except Exception as error:
             logger.error(f"couldn't save Experience for {member.display_name}", exc_info=error)
             session.rollback()
-            session.close()
 
             return
+        finally:
+            session.close()
 
-        session.close()
         logger.debug(f"reduced xp boosts for {member.display_name}")
 
         return
