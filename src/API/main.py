@@ -5,6 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 
+from src.Helper.ReadParameters import getParameter, Parameters
+
 logger = logging.getLogger("API")
 
 app = FastAPI()
@@ -17,7 +19,7 @@ def run_server():
     # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-22-04
     uvicorn.run(app,
                 host="0.0.0.0",
-                port=8001,  # TODO 8000 or with parameter
+                port=getParameter(Parameters.API_PORT),
                 ssl_certfile=basepath.joinpath("Web/selfsigned.crt"),
                 ssl_keyfile=basepath.joinpath("Web/selfsigned.key").absolute().as_posix())
 
