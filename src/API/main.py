@@ -17,7 +17,7 @@ def run_server():
     # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-22-04
     uvicorn.run(app,
                 host="0.0.0.0",
-                port=8000,
+                port=8001,  # TODO 8000 or with parameter
                 ssl_certfile=basepath.joinpath("Web/selfsigned.crt"),
                 ssl_keyfile=basepath.joinpath("Web/selfsigned.key").absolute().as_posix())
 
