@@ -17,4 +17,4 @@ ENV TZ=Europe/Berlin
 
 EXPOSE 8000
 
-CMD ["python3", "./main.py"]
+CMD ["python3", "./main.py", "-clean"]

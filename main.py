@@ -180,7 +180,7 @@ class MyClient(discord.Client):
         try:
             logger.debug("trying to set activity")
 
-            if bool(int(getParameter(Parameters.PRODUCTION))):
+            if getParameter(Parameters.PRODUCTION):
                 await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
                                                                        name="auf deine Aktivität", ))
             else:
