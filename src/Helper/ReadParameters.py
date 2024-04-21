@@ -28,8 +28,9 @@ class Parameters(Enum):
     EMAIL_PORT = 6
     EMAIL_USERNAME = 7
     EMAIL_PASSWORD = 8
-    API_KEY = 9
+    API_NINJA_KEY = 9
     PRODUCTION = 10
+    API_PORT = 11
 
 
 @functools.lru_cache(maxsize=128)
@@ -53,10 +54,12 @@ def getParameter(param: Parameters) -> Any:
             return os.getenv("EMAIL_USERNAME")
         case Parameters.EMAIL_PASSWORD:
             return os.getenv("EMAIL_PASSWORD")
-        case Parameters.API_KEY:
+        case Parameters.API_NINJA_KEY:
             return os.getenv("API_KEY")
         case Parameters.PRODUCTION:
             return bool(int(os.getenv("PRODUCTION")))
+        case Parameters.API_PORT:
+            return int(os.getenv("API_PORT"))
         case _:
             logger.error(f"parameter {param} not found")
 

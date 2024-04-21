@@ -15,7 +15,7 @@ class ApiServices:
     basepath = Path(__file__).parent.parent.parent
 
     def __init__(self):
-        self.apiKey = getParameter(Parameters.API_KEY)
+        self.apiKey = getParameter(Parameters.API_NINJA_KEY)
 
     # noinspection PyMethodMayBeStatic
     async def getJoke(self, category: str) -> str:
