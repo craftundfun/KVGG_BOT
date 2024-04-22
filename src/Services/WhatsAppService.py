@@ -101,10 +101,11 @@ class WhatsAppHelper:
             return
 
         for user in users:
+            # user definitely has a DiscordUser here due to the query above
             discordUser: DiscordUser = user.discord_user
 
             if not discordUser.whatsapp_setting:
-                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user.discord_user_id))
+                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(discordUser.user_id))
 
                 if not member:
                     logger.error(f"couldn't fetch member for {user.discord_user}")
