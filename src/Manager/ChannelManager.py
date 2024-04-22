@@ -193,7 +193,7 @@ class ChannelService:
                 continue
 
             if len(channel.members) == 0:
-                logger.debug(f"{channel.name} ({channel.id}) channel free to move" % (channel.name, channel.id))
+                logger.debug(f"{channel.name} ({channel.id}) channel free to move")
 
                 return channel
 
