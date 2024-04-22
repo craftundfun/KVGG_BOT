@@ -4,14 +4,14 @@ import logging
 from datetime import datetime
 
 from discord import Member, VoiceState, Client
+from sqlalchemy import null
 
-from src.Helper.WriteSaveQuery import writeSaveQuery
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.ChannelManager import ChannelService
+from src.Manager.DatabaseManager import getSession
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.WhatsAppService import WhatsAppHelper
 
@@ -38,74 +38,95 @@ class VoiceStateUpdateService:
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
-        :raise ConnectionError: If the database connection cant be established
+        Handles the VoiceStateUpdate and updates the database accordingly
+
+        :param member: Member, who raised the VoiceStateUpdate
+        :param voiceStateBefore: VoiceState before the update
+        :param voiceStateAfter: VoiceState after the update
+        :return:
         """
-        database = Database()
         voiceStates = (voiceStateBefore, voiceStateAfter)
 
-        logger.debug("%s raised a VoiceStateUpdate" % member.name)
+        logger.debug(f"{member.display_name} raised a VoiceStateUpdate")
 
         if not member:
-            logger.debug("member was not a member")
+            logger.debug(f"{member.display_name} was not a member")
 
             return
         elif member.bot:
-            logger.debug("member was a bot")
+            logger.debug(f"{member.display_name} was a bot")
 
             return
 
-        dcUserDb = getDiscordUser(member, database)
+        if not (session := getSession()):
+            return
 
-        if not dcUserDb:
-            logger.warning("couldn't fetch DiscordUser for %s!" % member.name)
+        if not (dcUserDb := getDiscordUser(member, session)):
+            logger.error(f"couldn't fetch DiscordUser for {member.display_name}")
+            session.close()
 
             return
 
         async def runLogService(event: Events):
-            # runs the log service so we don't need the exception handling all the time
+            # runs the log service, so we don't need the exception handling all the time
             try:
                 await self.logService.sendLog(member, voiceStates, event)
-            except Exception as error:
-                logger.error("failure to run LogService", exc_info=error)
+            except Exception as e:
+                logger.error("failure to run LogService", exc_info=e)
 
         # user joined channel
         if not voiceStateBefore.channel and voiceStateAfter.channel:
-            logger.debug("%s joined channel" % member.name)
+            logger.debug(f"{member.display_name} joined channel")
 
-            dcUserDb['channel_id'] = voiceStateAfter.channel.id
-            dcUserDb['joined_at'] = datetime.now()
+            dcUserDb.channel_id = str(voiceStateAfter.channel.id)
+            dcUserDb.joined_at = datetime.now()
 
             # if user joined with (full) mute
             if voiceStateAfter.self_mute or voiceStateAfter.mute:
-                dcUserDb['muted_at'] = datetime.now()
+                dcUserDb.muted_at = datetime.now()
             elif not voiceStateAfter.self_mute and not voiceStateAfter.mute:
-                dcUserDb['muted_at'] = None
+                dcUserDb.muted_at = null()
 
             if voiceStateAfter.self_deaf or voiceStateAfter.deaf:
-                dcUserDb['full_muted_at'] = datetime.now()
+                dcUserDb.full_muted_at = datetime.now()
             elif not voiceStateAfter.self_deaf and not voiceStateAfter.self_deaf:
-                dcUserDb['full_muted_at'] = None
+                dcUserDb.full_muted_at = null()
 
-            dcUserDb['started_stream_at'] = None
-            dcUserDb['started_webcam_at'] = None
+            dcUserDb.started_stream_at = null()
+            dcUserDb.started_webcam_at = null()
+
+            # commit here to avoid having a lock on the user
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error("couldn't commit changes", exc_info=error)
+                session.close()
+
+                return
 
             try:
-                await self.notificationService.runNotificationsForMember(member, dcUserDb)
+                await self.notificationService.runNotificationsForMemberUponJoining(member, dcUserDb, session)
             except Exception as error:
-                logger.error(f"failure while running notifications for {member}", exc_info=error)
+                logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
             try:
                 await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
             except Exception as error:
-                logger.error(f"failure while running felix timer for {member}", exc_info=error)
+                logger.error(f"failure while running felix timer for {dcUserDb}", exc_info=error)
 
             # save user so a whatsapp message can be sent properly
-            self._saveDiscordUser(dcUserDb, database)
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't commit changes for {dcUserDb}", exc_info=error)
+                session.close()
+
+                return
 
             try:
-                self.waHelper.sendOnlineNotification(member, voiceStateAfter)
+                self.waHelper.sendOnlineNotification(dcUserDb, voiceStateAfter, session)
             except Exception as error:
-                logger.error(f"failure while running sendOnlineNotification for {member}", exc_info=error)
+                logger.error(f"failure while running sendOnlineNotification for {dcUserDb}", exc_info=error)
 
             try:
                 # move is the last step to avoid channel confusion
@@ -113,9 +134,8 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error(f"failure while running checkChannelForMoving for {member}", exc_info=error)
 
-            # create new quests and check the progress of existing ones
+            # check the progress of existing quests
             try:
-                await self.questService.checkQuestsForJoinedMember(member)
                 await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
                 await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             except Exception as error:
@@ -129,106 +149,104 @@ class VoiceStateUpdateService:
 
             # status changed
             if voiceStateBefore.channel == voiceStateAfter.channel:
-                logger.debug("%s changed status" % member.name)
+                logger.debug(f"{member.display_name} changed status")
 
                 now = datetime.now()
 
                 # self mute
                 if not voiceStateBefore.self_mute and voiceStateAfter.self_mute:
                     # dont overwrite previous existing value
-                    if not dcUserDb['muted_at']:
-                        dcUserDb['muted_at'] = now
+                    if not dcUserDb.muted_at:
+                        dcUserDb.muted_at = now
 
                     await runLogService(Events.SELF_MUTE)
                 # not self mute
                 elif voiceStateBefore.self_mute and not voiceStateAfter.self_mute:
                     # dont go over server mute
                     if not voiceStateAfter.mute:
-                        dcUserDb['muted_at'] = None
+                        dcUserDb.muted_at = null()
 
                     await runLogService(Events.SELF_NOT_MUTE)
 
                 # server mute
                 if not voiceStateBefore.mute and voiceStateAfter.mute:
                     # dont overwrite previous existing value
-                    if not dcUserDb['muted_at']:
-                        dcUserDb['muted_at'] = now
+                    if not dcUserDb.muted_at:
+                        dcUserDb.muted_at = now
 
                     await runLogService(Events.MUTE)
                 # not server mute
                 elif voiceStateBefore.mute and not voiceStateAfter.mute:
                     # dont go over self mute
                     if not voiceStateAfter.self_mute:
-                        dcUserDb['muted_at'] = None
+                        dcUserDb.muted_at = null()
 
                     await runLogService(Events.NOT_MUTE)
 
                 # self deaf
                 if not voiceStateBefore.self_deaf and voiceStateAfter.self_deaf:
                     # dont overwrite previous existing value
-                    if not dcUserDb['full_muted_at']:
-                        dcUserDb['full_muted_at'] = now
+                    if not dcUserDb.full_muted_at:
+                        dcUserDb.full_muted_at = now
 
                     await runLogService(Events.SELF_DEAF)
                 # not self deaf
                 elif voiceStateBefore.self_deaf and not voiceStateAfter.self_deaf:
                     # dont go over server deaf
                     if not voiceStateAfter.deaf:
-                        dcUserDb['full_muted_at'] = None
+                        dcUserDb.full_muted_at = null()
 
                     await runLogService(Events.SELF_NOT_DEAF)
 
                 # server deaf
                 if not voiceStateBefore.deaf and voiceStateAfter.deaf:
                     # dont overwrite previous existing value
-                    if not dcUserDb['full_muted_at']:
-                        dcUserDb['full_muted_at'] = now
+                    if not dcUserDb.full_muted_at:
+                        dcUserDb.full_muted_at = now
 
                     await runLogService(Events.DEAF)
                 # not server deaf
                 elif voiceStateBefore.deaf and not voiceStateAfter.deaf:
                     # dont go over server deaf
                     if not voiceStateAfter.self_deaf:
-                        dcUserDb['full_muted_at'] = None
+                        dcUserDb.full_muted_at = null()
 
                     await runLogService(Events.NOT_DEAF)
 
                 # if user started stream
                 if not voiceStateBefore.self_stream and voiceStateAfter.self_stream:
-                    dcUserDb['started_stream_at'] = now
+                    dcUserDb.started_stream_at = now
 
                     await runLogService(Events.START_STREAM)
                 elif voiceStateBefore.self_stream and not voiceStateAfter.self_stream:
-                    dcUserDb['started_stream_at'] = None
+                    dcUserDb.started_stream_at = None
 
                     await runLogService(Events.END_STREAM)
 
                 # if user started webcam
                 if not voiceStateBefore.self_video and voiceStateAfter.self_video:
-                    dcUserDb['started_webcam_at'] = now
+                    dcUserDb.started_webcam_at = now
 
                     await runLogService(Events.START_WEBCAM)
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
-                    dcUserDb['started_webcam_at'] = None
+                    dcUserDb.started_webcam_at = None
 
                     await runLogService(Events.END_WEBCAM)
 
-                dcUserDb['username'] = member.display_name
-
-                self._saveDiscordUser(dcUserDb, database)
             # channel changed
             else:
-                logger.debug("%s changed channel" % member.name)
+                logger.debug(f"{member.display_name} changed channel")
 
-                dcUserDb['channel_id'] = voiceStateAfter.channel.id
-
-                self._saveDiscordUser(dcUserDb, database)
+                dcUserDb.channel_id = str(voiceStateAfter.channel.id)
 
                 try:
-                    self.waHelper.switchChannelFromOutstandingMessages(dcUserDb, voiceStateAfter.channel.name, member)
+                    self.waHelper.switchChannelFromOutstandingMessages(dcUserDb,
+                                                                       voiceStateAfter.channel.name,
+                                                                       member,
+                                                                       session, )
                 except Exception as error:
-                    logger.error(f"failure while running switchChannelFromOutstandingMessages for {member}",
-                                 exc_info=error)
+                    logger.error(f"failure while running switchChannelFromOutstandingMessages for {dcUserDb}",
+                                 exc_info=error, )
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
 
@@ -240,22 +258,21 @@ class VoiceStateUpdateService:
 
         # user left channel
         elif voiceStateBefore.channel and not voiceStateAfter.channel:
-            logger.debug("%s left channel" % member.name)
+            logger.debug(f"{member.display_name} left channel")
 
             try:
-                self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member)
+                self.waHelper.sendOfflineNotification(dcUserDb, voiceStateBefore, member, session)
             except Exception as error:
-                logger.error(f"failure while running switchChannelFromOutstandingMessages for {member}", exc_info=error)
+                logger.error(f"failure while running switchChannelFromOutstandingMessages for {member}",
+                             exc_info=error, )
 
-            dcUserDb['channel_id'] = None
-            dcUserDb['joined_at'] = None
-            dcUserDb['muted_at'] = None
-            dcUserDb['full_muted_at'] = None
-            dcUserDb['started_stream_at'] = None
-            dcUserDb['started_webcam_at'] = None
-            dcUserDb['last_online'] = datetime.now()
-
-            self._saveDiscordUser(dcUserDb, database)
+            dcUserDb.channel_id = None
+            dcUserDb.joined_at = None
+            dcUserDb.muted_at = None
+            dcUserDb.full_muted_at = None
+            dcUserDb.started_stream_at = None
+            dcUserDb.started_webcam_at = None
+            dcUserDb.last_online = datetime.now()
 
             await ChannelService.manageKneipe(voiceStateBefore.channel)
 
@@ -264,22 +281,11 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error("an error occurred while running logService", exc_info=error)
         else:
-            logger.warning("unexpected voice state update from %s" % member.name)
+            logger.error(f"unexpected voice state update from {dcUserDb}")
 
-    def _saveDiscordUser(self, dcUserDb: dict, database: Database):
-        """
-        Saves the given DiscordUser to our database
-
-        :param dcUserDb: DiscordUser to save
-        :return:
-        """
-        query, nones = writeSaveQuery(
-            'discord',
-            dcUserDb['id'],
-            dcUserDb
-        )
-
-        if not database.runQueryOnDatabase(query, nones):
-            logger.critical("couldn't save DiscordUser to database")
-        else:
-            logger.debug("updated %s" % dcUserDb['username'])
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't commit changes", exc_info=error)
+        finally:
+            session.close()

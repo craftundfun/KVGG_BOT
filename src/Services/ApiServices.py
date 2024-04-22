@@ -15,21 +15,26 @@ class ApiServices:
     basepath = Path(__file__).parent.parent.parent
 
     def __init__(self):
-        self.apiKey = getParameter(Parameters.API_KEY)
+        self.apiKey = getParameter(Parameters.API_NINJA_KEY)
 
+    # noinspection PyMethodMayBeStatic
     async def getJoke(self, category: str) -> str:
+        """
+        Returns a joke after requesting if from the API.
+
+        :param category: Optional category choice by the user
+        """
         payload = {
             'language': 'de',
             'category': category,
         }
-
         answer = requests.get(
             'https://witzapi.de/api/joke',
             params=payload,
         )
 
         if answer.status_code != 200:
-            logger.warning("API sent an invalid response!")
+            logger.warning(f"joke-API sent an invalid response! Code: {answer.status_code}")
 
             return "Es gab Probleme beim Erreichen der API - kein Witz."
 
@@ -52,6 +57,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for weather")
+
             answerWeather = await client.get(
                 self.url + "weather",
                 params=payload,
@@ -61,6 +67,7 @@ class ApiServices:
             )
 
             logger.debug("calling API for air-quality")
+
             answerAir = await client.get(
                 self.url + "airquality",
                 params=payload,
@@ -82,11 +89,10 @@ class ApiServices:
         answerAir = answerAir.content.decode('utf-8')
         dataAir = json.loads(answerAir)
 
-        return "Aktuell sind es in %s %d°C. Die gefühlte Temperatur liegt bei %s°C. Es herrscht eine " \
-               "Luftfeuchtigkeit von %d Prozent. Es ist zu %s Prozent bewölkt. Der Luftqualitätsindex liegt " \
-               "bei %s (von maximal 500)." % (
-            city, dataWeather['temp'], dataWeather['feels_like'], dataWeather['humidity'],
-            dataWeather['cloud_pct'], dataAir['overall_aqi'])
+        return (f"Aktuell sind es in {city} {dataWeather['temp']}°C. Die gefühlte Temperatur liegt bei "
+                f"{dataWeather['feels_like']}°C. Es herrscht eine Luftfeuchtigkeit von {dataWeather['humidity']} "
+                f"Prozent. Es ist zu {dataWeather['cloud_pct']} Prozent bewölkt. Der Luftqualitätsindex liegt bei "
+                f"{dataAir['overall_aqi']} (von maximal 500).")
 
     async def convertCurrency(self, have: str, want: str, amount: float) -> str:
         """
@@ -108,6 +114,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for currency-conversion")
+
             answer = await client.get(
                 self.url + "convertcurrency",
                 params=payload,
@@ -127,8 +134,7 @@ class ApiServices:
         data = answer.content.decode('utf-8')
         data = json.loads(data)
 
-        return "%s %s sind %s %s." % (
-            data['old_amount'], data['old_currency'], data['new_amount'], data['new_currency'])
+        return f"{data['old_amount']} {data['old_currency']} sind {data['new_amount']} {data['new_currency']}."
 
     async def generateQRCode(self, text: str) -> Path | str:
         """
@@ -147,6 +153,7 @@ class ApiServices:
 
         async with httpx.AsyncClient() as client:
             logger.debug("calling API for QR-Code generation")
+
             answer = await client.get(
                 "https://api.qrserver.com/v1/create-qr-code/",
                 params=payload,

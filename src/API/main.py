@@ -1,8 +1,11 @@
+import html
 import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
+
+from src.Helper.ReadParameters import getParameter, Parameters
 
 logger = logging.getLogger("API")
 
@@ -16,7 +19,7 @@ def run_server():
     # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-22-04
     uvicorn.run(app,
                 host="0.0.0.0",
-                port=8000,
+                port=getParameter(Parameters.API_PORT),
                 ssl_certfile=basepath.joinpath("Web/selfsigned.crt"),
                 ssl_keyfile=basepath.joinpath("Web/selfsigned.key").absolute().as_posix())
 
@@ -29,6 +32,7 @@ def get_plot(name: str, random):
     :param name: Name of the picture to export
     :param random: Random number to avoid discord caching => ignore it
     """
+    name = html.escape(name)
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():

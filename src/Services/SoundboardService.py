@@ -2,13 +2,13 @@ import asyncio
 import logging
 import os
 import threading
-from asyncio import sleep, AbstractEventLoop
+from asyncio import AbstractEventLoop
 from pathlib import Path
 from urllib.parse import urlparse
 
 import discord
 import requests
-from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, ClientException, Message
+from discord import Client, Member, Message
 from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
@@ -28,6 +28,8 @@ class SoundboardService:
     def __init__(self, client: Client):
         self.client = client
 
+        self.voiceClientService = VoiceClientService(self.client)
+
     async def deletePersonalSound(self, ctx: discord.interactions.Interaction, row: int) -> str:
         """
         Deletes the file at position row.
@@ -41,14 +43,14 @@ class SoundboardService:
         )
 
         if not (0 <= row - 1 < len((dir := os.listdir(path)))):
-            logger.debug(f"user chose row {row - 1}, but that was not possible")
+            logger.debug(f"{ctx.user.display_name} chose row {row - 1}, but that was not possible")
 
             return "Deine Auswahl steht nicht zur Verfügung!"
 
         try:
             os.remove(os.path.join(path, dir[row - 1]))
         except FileNotFoundError as error:
-            logger.error("user has no sounds uploaded yet", exc_info=error)
+            logger.error(f"{ctx.user.display_name} has no sounds uploaded yet", exc_info=error)
 
             return "Diese Datei hat nicht existiert."
         except Exception as error:
@@ -71,9 +73,8 @@ class SoundboardService:
                     seconds = MP3(os.path.join(path, filepath)).info.length
                     data += [PaginationViewDataItem(field_name=f"__**{index}. {filepath}**__",
                                                     field_value=f"**Dauer**: {str(seconds)[:4]} Sekunden")]
-
         except FileNotFoundError as error:
-            logger.warning("user has no sounds uploaded yet", exc_info=error)
+            logger.warning(f"{ctx.user.display_name} has no sounds uploaded yet", exc_info=error)
 
             return [PaginationViewDataItem(field_name="Du hast keine Dateien hochgeladen. Wenn du welche hochladen" +
                                                       " möchtest, dann schicke sie mir einfach per DM.")]
@@ -127,6 +128,7 @@ class SoundboardService:
             ),
             loop,
         )
+        logger.debug(f"initiated download of file from {message.author.display_name}")
 
         if response.status_code != 200:
             asyncio.run_coroutine_threadsafe(
@@ -137,6 +139,7 @@ class SoundboardService:
                 ),
                 loop,
             )
+            logger.error(f"couldn't download file from Discord - status code: {response.status_code}")
 
             return
 
@@ -177,10 +180,11 @@ class SoundboardService:
                     loop,
                 )
                 os.remove(filepath)
+                logger.debug("mp3 was too long - removed from filesystem")
 
                 return
-        except Exception as error:
-            logger.debug(f"user {message.author.name} did not upload a mp3", exc_info=error)
+        except Exception:
+            logger.debug(f"user {message.author.name} did not upload a mp3")
             os.remove(filepath)
 
             # warn user
@@ -188,7 +192,7 @@ class SoundboardService:
                 sendDM(
                     self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(authorId),
                     "Bitte lade eine gültige .mp3 Datei hoch. Sollte der Fehler weiterhin auftreten, melde " +
-                    "dich bei unserem Support." + separator
+                    "dich bei unserem Support." + separator,
                 ),
                 loop,
             )
@@ -218,6 +222,11 @@ class SoundboardService:
 
             return
 
+        if not message.attachments:
+            logger.debug(f"DM had no attachments by {message.author.name}")
+
+            return
+
         attachments = message.attachments
         loop = asyncio.get_event_loop()
 
@@ -239,7 +248,8 @@ class SoundboardService:
         if not self.searchInPersonalFiles(member=member, search=sound):
             logger.debug(f"file {sound} not found")
 
-            return "Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als PN schickst."
+            return ("Der Sound existiert nicht. Du kannst den Sound hochladen indem du ihn mir als Privatnachricht "
+                    "schickst.")
 
         if not (voiceState := member.voice):
             return "Du bist mit keinem Channel verbunden!"
@@ -249,83 +259,7 @@ class SoundboardService:
 
         filepath = f"{member.id}/{sound}"
 
-        if not await VoiceClientService(self.client).play(voiceState.channel, self.path + filepath, ctx, False):
+        if not await self.voiceClientService.play(voiceState.channel, self.path + filepath, ctx, False):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."
-
-    @DeprecationWarning
-    async def __playSound(self, channel: VoiceChannel, filepath: str, ctx: discord.interactions.Interaction) -> bool:
-        """
-        Tries to play the sound in the given channel.
-
-        :param channel: Channel to play the sound in
-        :param filepath: sound to play
-        :param ctx: Interaction to tell the user the sound is playing
-        :return:
-        """
-        try:
-            voiceClient: VoiceClient = await channel.connect()
-        except ClientException:
-            logger.warning("already connected to a voicechannel")
-
-            return False
-        except Exception as error:
-            logger.error("an error occurred while joining a voice channel", exc_info=error)
-
-            return False
-
-        if voiceClient.is_playing():
-            logger.debug("currently playing a sound")
-
-            return False
-
-        file = FFmpegPCMAudio(source=(filepath := self.path + filepath))
-        duration = MP3(filepath).info.length
-
-        try:
-            voiceClient.play(file)
-            await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
-
-            await sleep(duration)
-        except Exception as error:
-            logger.error("a problem occurred during playing a sound in %s" % channel.name, exc_info=error)
-
-            return False
-        else:
-            return True
-        finally:
-            await voiceClient.disconnect()
-
-    @DeprecationWarning
-    async def stop(self, member: Member) -> str:
-        """
-        If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the
-        channel.
-
-        :param member:
-        :return:
-        """
-        if not (voiceState := member.voice):
-            logger.debug("%s was not in a channel" % member.name)
-
-            return "Du befindest dich aktuell in keinem VoiceChannel!"
-
-        voiceClient = self.client.get_guild(GuildId.GUILD_KVGG.value).voice_client
-
-        if not voiceClient:
-            logger.debug("bot is not connected to a voice channel")
-
-            return "Der Bot ist aktuell in keinem Channel aktiv."
-
-        channelBot = voiceClient.channel
-
-        if voiceState.channel != channelBot:
-            logger.debug("%s and the bot are not connected to the same channel" % member.name)
-
-            return "Du befindest nicht im selben Channel wie der Bot!"
-
-        await voiceClient.disconnect(force=True)
-        logger.debug("sound was stopped by %s" % member.name)
-
-        return "Das Abspielen des Sounds wurde beendet."

@@ -3,83 +3,86 @@ import logging
 from discord import Member
 
 from src.DiscordParameters.NotificationType import NotificationType
-from src.Helper.WriteSaveQuery import writeSaveQuery
-from src.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Services.Database import Database
+from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Entities.DiscordUser.Repository.WhatsappSettingRepository import getWhatsappSetting
+from src.Manager.DatabaseManager import getSession
 
 logger = logging.getLogger("KVGG_BOT")
 
 
 class UserSettings:
-
-    def __init__(self):
-        pass
-
-    def _saveToDatabase(self, param: dict, tableName: str, database: Database) -> bool:
-        """
-        Saves the changes to the database.
-        """
-        query, nones = writeSaveQuery(tableName, param['id'], param)
-
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error(f"couldn't save changes to database")
-
-            return False
-
-        return True
-
-    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
-        """
-        Returns the notification settings from the given Member.
-
-        :param member: Member to fetch the settings of
-        """
-        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
-
-        if not (settings := database.fetchOneResult(query, (member.id,))):
-            logger.error(f"couldn't fetch settings for {member.name} from database")
-
-            return None
-
-        return settings
-
-    def changeNotificationSetting(self, member: Member, kind: str, setting: bool) -> str:
+    # noinspection PyMethodMayBeStatic
+    def changeNotificationSetting(self, member: Member, kind: str, switch: bool) -> str:
         """
         Changes the notification setting for coming online
 
         :param member: Member, who wants to change the settings
         :param kind: Type of setting
-        :param setting: New value
-        :raise ConnectionError: if the database connection cant be established
+        :param switch: New value
         :return: Answer
         """
-        database = Database()
-        settings = getNotificationSettings(member, database)
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        if not settings:
-            logger.error("couldn't fetch settings")
+        if not (settings := getNotificationSettings(member, session)):
+            logger.error(f"couldn't fetch NotificationSettings for {member.display_name}")
+            session.close()
 
-            return "Es gab ein Problem!"
+            return "Es gab einen Fehler!"
 
-        # database rows
-        settings_keys = NotificationType.getValues()
+        setting = None
 
-        if kind in settings_keys:
-            settings[kind] = 1 if setting else 0
-        else:
-            logger.critical(f"undefined value was reached: {kind}")
+        for notificationSetting in NotificationType.getObjects():
+            if notificationSetting.value.lower() == kind.lower():
+                setting = notificationSetting
 
-            return "Es gab ein Problem! Es wurde nichts geändert."
+                break
 
-        if not self._saveToDatabase(settings, "notification_setting", database):
-            logger.critical("couldn't save changes to database")
+        if not setting:
+            logger.error(f"couldn't find NotificationSettingObject for {kind}")
+            session.close()
 
-            return "Es gab ein Problem! Es wurde nichts geändert."
+            return "Es gab einen Fehler!"
 
-        logger.debug("saved changes to database")
+        match setting:
+            case NotificationType.NOTIFICATION:
+                settings.notifications = switch
+            case NotificationType.DOUBLE_XP:
+                settings.double_xp = switch
+            case NotificationType.WELCOME_BACK:
+                settings.welcome_back = switch
+            case NotificationType.QUEST:
+                settings.quest = switch
+            case NotificationType.XP_INVENTORY:
+                settings.xp_inventory = switch
+            case NotificationType.XP_SPIN:
+                settings.xp_spin = switch
+            case NotificationType.STATUS:
+                settings.status_report = switch
+            case NotificationType.RETROSPECT:
+                settings.retrospect = switch
+            case _:
+                logger.error(f"undefined enum entry was reached: {setting}")
+                session.rollback()
+                session.close()
+
+                return "Es gab einen Fehler!"
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit NotificationSettings for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        session.close()
+        logger.debug(f"saved NotificationSettings for {member.display_name}")
 
         return "Deine Einstellung wurde erfolgreich gespeichert!"
 
+    # noinspection PyMethodMayBeStatic
     async def manageWhatsAppSettings(self, member: Member, type: str, action: str, switch: str) -> str:
         """
         Lets the user change their WhatsApp settings
@@ -88,75 +91,71 @@ class UserSettings:
         :param type: Type of messages (gaming or university)
         :param action: Action of the messages (join or leave)
         :param switch: Switch (on / off)
-        :raise ConnectionError: if the database connection can't be established
         :return:
         """
-        logger.debug("%s requested a change of his / her WhatsApp settings" % member.name)
+        logger.debug(f"{member.display_name} requested a change of his / her WhatsApp settings")
 
-        database = Database()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
-        query = "SELECT * " \
-                "FROM whatsapp_setting " \
-                "WHERE discord_user_id = (SELECT id FROM discord WHERE user_id = %s)"
+        if not (whatsappSettings := getWhatsappSetting(member, session)):
+            logger.warning("no WhatsappSetting found for {member.display_name}")
 
-        whatsappSettings = database.fetchOneResult(query, (member.id,))
-
-        if not whatsappSettings:
-            logger.warning("couldn't fetch corresponding settings!")
-
-            return "Du bist nicht als User für WhatsApp-Nachrichten bei uns registriert!"
+            return "Du bist nicht für Whatsapp-Nachrichten bei uns eingetragen!"
 
         if type == 'Gaming':
             # !whatsapp join
             if action == 'join':
                 # !whatsapp join on
                 if switch == 'on':
-                    whatsappSettings['receive_join_notification'] = 1
+                    whatsappSettings.receive_join_notification = True
                 # !whatsapp join off
                 elif switch == 'off':
-                    whatsappSettings['receive_join_notification'] = 0
+                    whatsappSettings.receive_join_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
             # !whatsapp leave
             elif action == 'leave':
                 # !whatsapp leave on
                 if switch == 'on':
-                    whatsappSettings['receive_leave_notification'] = 1
+                    whatsappSettings.receive_leave_notification = True
                 # !whatsapp leave off
                 elif switch == 'off':
-                    whatsappSettings['receive_leave_notification'] = 0
+                    whatsappSettings.receive_leave_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
         # !whatsapp uni
         elif type == 'Uni':
             if action == 'join':
                 if switch == 'on':
-                    whatsappSettings['receive_uni_join_notification'] = 1
+                    whatsappSettings.receive_uni_join_notification = True
                 elif switch == 'off':
-                    whatsappSettings['receive_uni_join_notification'] = 0
+                    whatsappSettings.receive_uni_join_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
             elif action == 'leave':
                 if switch == 'on':
-                    whatsappSettings['receive_uni_leave_notification'] = 1
+                    whatsappSettings.receive_uni_leave_notification = True
                 elif switch == 'off':
-                    whatsappSettings['receive_uni_leave_notification'] = 0
+                    whatsappSettings.receive_uni_leave_notification = False
                 else:
-                    logger.critical("undefined entry was reached")
+                    logger.error("undefined entry was reached")
 
                     return "Es gab ein Problem."
 
-        if self._saveToDatabase(whatsappSettings, "whatsapp_setting", database):
-            logger.debug("saved changes to database")
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't commit changes for {member.display_name} and {whatsappSettings}", exc_info=error)
+            session.rollback()
+            session.close()
 
-            return "Deine Einstellung wurde übernommen!"
+            return "Es gab ein Problem!"
         else:
-            logger.critical("couldn't save changes to database")
-
-            return "Es gab ein Problem beim Speichern deiner Einstellung."
+            return "Deine Einstellung wurde übernommen!"

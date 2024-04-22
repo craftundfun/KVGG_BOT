@@ -21,7 +21,7 @@ class AchievementParameter(Enum):
     STREAM = "stream"
     XP = "xp"
     RELATION_ONLINE = "relation_online"
-    RELATON_STREAM = "relation_stream"
+    RELATION_STREAM = "relation_stream"
     COOKIE = "cookie"
     ANNIVERSARY = "anniversary"
     DAILY_QUEST = "daily_quest"

@@ -1,4 +1,6 @@
 parameters.yaml
+parameters.env
 .idea
 .github
 **/__pycache__
+venv

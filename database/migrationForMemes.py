@@ -2,12 +2,12 @@ import sys
 from datetime import datetime
 
 import discord
+from src.Services.Database import Database
 
 from src.Helper import ReadParameters
 from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
-from src.Services.Database import Database
 
 
 class MyClient(discord.Client):
@@ -69,4 +69,4 @@ class MyClient(discord.Client):
 
 if __name__ == '__main__':
     client = MyClient(intents=discord.Intents.all(), reconnect=True, )
-    client.run(token=ReadParameters.getParameter(ReadParameters.Parameters.TOKEN))
+    client.run(token=ReadParameters.getParameter(ReadParameters.Parameters.DISCORD_TOKEN))

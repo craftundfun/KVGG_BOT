@@ -101,23 +101,22 @@ class AchievementService:
         :return:
         """
         # import here to avoid circular import
-        from src.Services.ProcessUserInput import getTagStringFromId
         from src.Services.ExperienceService import ExperienceService
 
         xpService = ExperienceService(self.client)
 
         if type(kind.value) != str:
-            logger.critical("false argument type")
+            logger.error(f"false argument type: {kind}")
 
             return
         elif not self.channel:
-            logger.critical("cant reach channel")
+            logger.error("cant reach channel")
 
             return
 
         hours = int(value / 60)
-        tag_1: str = getTagStringFromId(str(member_1.id))
-        tag_2: str = getTagStringFromId(str(member_2.id))
+        tag_1 = f"<@{member_1.id}>"
+        tag_2 = f"<@{member_2.id}>"
 
         match kind:
             case AchievementParameter.RELATION_ONLINE:
@@ -128,16 +127,16 @@ class AchievementService:
                                                                                               "bekommen!")
                 await xpService.grantXpBoost(member_1, AchievementParameter.RELATION_ONLINE)
                 await xpService.grantXpBoost(member_2, AchievementParameter.RELATION_ONLINE)
-            case AchievementParameter.RELATON_STREAM:
+            case AchievementParameter.RELATION_STREAM:
                 message = (tag_1 + " und " + tag_2 + ", ihr habt schon beide " + str(hours) + " Stunden gemeinsam "
                                                                                               "gestreamt! :cookie:\n\n"
                                                                                               "Dafür habt ihr beide "
                                                                                               "einen XP-Boost "
                                                                                               "bekommen!")
-                await xpService.grantXpBoost(member_1, AchievementParameter.RELATON_STREAM)
-                await xpService.grantXpBoost(member_2, AchievementParameter.RELATON_STREAM)
+                await xpService.grantXpBoost(member_1, AchievementParameter.RELATION_STREAM)
+                await xpService.grantXpBoost(member_2, AchievementParameter.RELATION_STREAM)
             case _:
-                logger.critical("undefined enum entry was reached")
+                logger.error(f"undefined enum entry was reached: {kind}")
 
                 return
 

@@ -5,13 +5,19 @@ from datetime import datetime, timedelta
 
 import discord
 from discord import Member
+from sqlalchemy import select, insert, null, delete
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
+from src.Entities.Reminder.Entity.Reminder import Reminder
+from src.Entities.User.Entity.User import User
 from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
 from src.Helper.SendDM import sendDM, separator
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.GuildId import GuildId
-from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Manager.DatabaseManager import getSession
 from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
@@ -26,15 +32,14 @@ class ReminderService:
         self.client = client
 
     def createTimer(self, member: Member, name: str, minutes: int) -> str:
-        database = Database()
-
-        if not (dcUserDb := getDiscordUser(member, database)):
-            logger.debug("cant proceed, no DiscordUser")
-
-            return "Es gab ein Problem!"
+        """
+        Creates a timer based on the reminder system
+        """
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
         if len(name) > 1000:
-            logger.debug("name for timer is too long")
+            logger.debug(f"name for timer is too long by {member.display_name}")
 
             return "Bitte gib einen kürzeren Namen ein!"
 
@@ -45,28 +50,36 @@ class ReminderService:
         elif minutes > 525960:
             logger.debug(f"{member.display_name} wanted to time a timer for over a year in the future")
 
-            return "Bitte stell deinen Timer auf unter ein Jahr ein!"
+            return "Bitte stell deinen Timer auf unter ein Jahr ein! Das sollte doch möglich sein, oder?"
 
         now = datetime.now()
         timeToSent = now + timedelta(minutes=minutes)
 
-        query = ("INSERT INTO reminder (discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes,"
-                 " is_timer) "
-                 "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+        insertQuery = insert(Reminder).values(discord_user_id=(select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery()),
+                                              content=name,
+                                              time_to_sent=timeToSent,
+                                              sent_at=null(),
+                                              whatsapp=False,
+                                              repeat_in_minutes=null(),
+                                              is_timer=True, )
 
-        if not database.runQueryOnDatabase(query, (dcUserDb['id'],
-                                                   name,
-                                                   timeToSent,
-                                                   None,
-                                                   False,
-                                                   None,
-                                                   True,)):
-            logger.error(f"couldn't save timer for {member.display_name}")
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't save Timer to database for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
             return "Es gab einen Fehler!"
 
+        session.close()
+
         return "Dein Timer wurde gespeichert. Du kannst ihn über `/list_reminder` oder `/delete_reminder` verwalten."
 
+    # noinspection PyMethodMayBeStatic
     def createReminder(self,
                        member: Member,
                        content: str,
@@ -83,36 +96,33 @@ class ReminderService:
         :param whatsapp:
         :param member: Member, whose reminder this is
         :param content: Content of the reminder
-        :param date: Date of the Remider
+        :param date: Date of the Reminder
         :param time: Time of the Reminder
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
-
         if not checkDateAgainstRegex(date):
-            logger.debug("the given date had a incorrect format")
+            logger.debug(f"the given date had a incorrect format by {member.display_name}")
 
             return ("Dein Datum war falsch! Bitte halte dich an das korrekt Format: 'dd/mm/yyyy', 'dd-mm-yyyy' oder "
                     "'dd.mm.yyyy'.")
 
         if not checkTimeAgainstRegex(time):
-            logger.debug("the given time had a incorrect format")
+            logger.debug(f"the given time had a incorrect format by {member.display_name}")
 
             return "Deine Uhrzeit war falsch! Bitte halte dich an das korrekte Format: 'HH:MM' oder 'H:MM'."
 
-        # replace / with .
+        # replace '/' with '.'
         date = date.replace("/", ".")
-        # replace - with . incase the user didn't use /
+        # replace '-' with '.' incase the user didn't use '/'
         date = date.replace("-", ".")
         completeDate = date + " " + time
 
         try:
             date = datetime.strptime(completeDate, "%d.%m.%Y %H:%M")
         except ValueError:
-            logger.debug("%s couldn't be translated to a datetime object" % completeDate)
+            logger.debug(f"{completeDate} couldn't be translated to a datetime object from {member.display_name}")
 
-            return "Es ist ein Fehler beim konvertieren des Datums aufgetreten!"
+            return "Es ist ein Fehler beim Konvertieren des Datums aufgetreten!"
 
         def __getMinutesLeft() -> int | None:
             if repeatTime and repeatType:
@@ -138,7 +148,7 @@ class ReminderService:
                 date = date + timedelta(minutes=minutes)
 
                 if date < datetime.now():
-                    logger.debug("user chose a date in the past and repetition was also in past")
+                    logger.debug(f"{member.display_name} chose a date in the past and repetition was also in past")
 
                     return ("Dein Zeitpunkt inklusive der Wiederholung liegt in der Vergangenheit! "
                             "Bitte wähle einen in der Zukunft!")
@@ -150,51 +160,60 @@ class ReminderService:
                 return "Dein Zeitpunkt liegt in der Vergangenheit! Bitte wähle einen in der Zukunft!"
 
         if len(content) > 1000:
-            logger.debug("content is too long")
+            logger.debug(f"content is too long by {member.display_name}")
 
             return "Bitte gib einen kürzeren Text ein!"
 
         minutesLeft = __getMinutesLeft()
 
-        if not (dcUserDb := getDiscordUser(member, database)):
-            logger.debug("cant proceed, no DiscordUser")
-
-            return "Es gab ein Problem!"
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
         if whatsapp:
-            query = "SELECT * " \
-                    "FROM whatsapp_setting " \
-                    "WHERE discord_user_id = %s"
-            data = database.fetchOneResult(query, (dcUserDb['id'],))
-
-            if not data:
-                logger.debug("User cannot receive whatsapp notifications")
+            # noinspection PyTypeChecker
+            getQuery = (select(WhatsappSetting)
+                        .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
+                                                                   .where(DiscordUser.user_id == str(member.id))
+                                                                   .scalar_subquery())))
+            try:
+                whatsappSetting = session.scalars(getQuery).one()
+            except NoResultFound:
+                logger.debug(f"{member.display_name} cannot receive whatsapp notifications")
 
                 answerAppendix = "Allerdings kannst du keine Whatsapp-Benachrichtigungen bekommen."
-                whatsapp = False
+                whatsapp: bool = False
+            except Exception as error:
+                logger.error(f"couldn't fetch WhatsappSettings for {member.display_name}", exc_info=error)
+                session.rollback()
+                session.close()
+
+                return "Es ist ein Fehler aufgetreten!"
             else:
-                logger.debug("user registered for whatsapp reminder as well")
-
-                whatsapp = True
-
-            # delete unnecessary data overhead
-            del data
+                whatsapp: bool = True
         else:
-            whatsapp = False
+            whatsapp: bool = False
 
-        query = "INSERT INTO reminder " \
-                "(discord_user_id, content, time_to_sent, sent_at, whatsapp, repeat_in_minutes) " \
-                "VALUES (%s, %s, %s, %s, %s, %s)"
+        # noinspection PyTypeChecker
+        insertQuery = insert(Reminder).values(content=content,
+                                              time_to_sent=date,
+                                              sent_at=null(),
+                                              whatsapp=whatsapp,
+                                              repeat_in_minutes=minutesLeft,
+                                              discord_user_id=(select(DiscordUser.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery()), )
 
-        if database.runQueryOnDatabase(query, (dcUserDb['id'],
-                                               content,
-                                               date,
-                                               None,
-                                               whatsapp,
-                                               minutesLeft,)):
-            logger.debug("saved new reminder to database")
-        else:
-            return "Es gab ein Problem beim speicher des Reminders."
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't insert new Reminder for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        session.close()
 
         return "Deine Erinnerung wurde erfolgreich gespeichert! " + \
             (answerAppendix if 'answerAppendix' in locals() else "")
@@ -207,15 +226,26 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
-        query = "SELECT * " \
-                "FROM reminder " \
-                "WHERE (SELECT id FROM discord WHERE user_id = %s) = discord_user_id " \
-                "and time_to_sent IS NOT NULL"
-        reminders = database.fetchAllResults(query, (int(member.id),))
+        if not (session := getSession()):
+            return [PaginationViewDataItem(field_name="Es gab einen Fehler!")]
+
+        getQuery = (select(Reminder)
+                    .where(Reminder.discord_user_id == (select(DiscordUser.id)
+                                                        .where(DiscordUser.user_id == str(member.id))
+                                                        .scalar_subquery()),
+                           Reminder.time_to_sent is not None, ))
+
+        try:
+            reminders = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch reminders for {member.display_name}", exc_info=error)
+
+            return [PaginationViewDataItem(field_name="Es gab einen Fehler!")]
+        finally:
+            session.close()
 
         if not reminders:
-            logger.debug("reminders for %s were empty" % member.name)
+            logger.debug(f"{member.display_name} has no active reminders")
 
             return [PaginationViewDataItem(field_name="Du hast aktuell keine Reminder.")]
 
@@ -238,20 +268,20 @@ class ReminderService:
         allReminder: [PaginationViewDataItem] = []
 
         for reminder in reminders:
-            repetition = getTimeFromRepeatInMinutes(reminder['repeat_in_minutes'])
+            repetition = getTimeFromRepeatInMinutes(reminder.repeat_in_minutes)
 
             allReminder += [
                 PaginationViewDataItem(
-                    field_name=f"__**{reminder['content']}**__",
-                    field_value=f"**Zeitpunkt**: {reminder['time_to_sent'].strftime('%d.%m.%Y %H:%M')} Uhr\n "
+                    field_name=f"__**{reminder.content}**__",
+                    field_value=f"**Zeitpunkt**: {reminder.time_to_sent.strftime('%d.%m.%Y %H:%M')} Uhr\n "
                                 f"**Wiederholung**: {'aktiviert - alle %d Tage, %d Stunden, %d Minuten' % (repetition[0], repetition[1], repetition[2]) if repetition else 'deaktiviert'}\n"
-                                f"**Whatsapp**: {'aktiviert' if reminder['whatsapp'] else 'deaktiviert'}\n"
-                                f"**Typ**: {'Reminder' if not reminder['is_timer'] else 'Timer'}\n"
-                                f"**ID**: {reminder['id']}"
+                                f"**Whatsapp**: {'aktiviert' if reminder.whatsapp else 'deaktiviert'}\n"
+                                f"**Typ**: {'Reminder' if not reminder.is_timer else 'Timer'}\n"
+                                f"**ID**: {reminder.id}"
                 )
             ]
 
-        logger.debug("listed all reminders from %s" % member.name)
+        logger.debug(f"listed all reminders from {member.display_name}")
 
         return allReminder
 
@@ -259,39 +289,36 @@ class ReminderService:
         """
         Reduces all outstanding reminders times and initiates the sending process
 
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        if not (session := getSession()):
+            return
 
-        query = "SELECT r.*, d.user_id " \
-                "FROM reminder r INNER JOIN discord d on r.discord_user_id = d.id " \
-                "WHERE time_to_sent is NOT NULL"
-        reminders = database.fetchAllResults(query)
+        getQuery = select(Reminder).where(Reminder.time_to_sent.is_not(None))
+
+        try:
+            reminders = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error("couldn't fetch reminders from database", exc_info=error)
+            session.close()
+
+            return
 
         if not reminders:
             logger.debug("no reminders were found")
 
             return
 
-        tempReminders = []
-
         for reminder in reminders:
-            if reminder['time_to_sent'] < datetime.now():
-                reminder = await self._sendReminder(reminder)
+            if reminder.time_to_sent < datetime.now():
+                await self._sendReminder(reminder, session)
 
-            tempReminders.append(reminder)
-
-        reminders = tempReminders
-
-        for reminder in reminders:
-            # remove column that does not exist in the reminder field list
-            reminder.pop('user_id', None)
-
-            query, nones = writeSaveQuery("reminder", reminder['id'], reminder)
-
-            if not database.runQueryOnDatabase(query, nones):
-                logger.critical("couldn't save reminder into database, id: %s" % str(reminder['id']))
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't commit Reminders", exc_info=error)
+        finally:
+            session.close()
 
     def deleteReminder(self, member: Member, id: int) -> str:
         """
@@ -300,44 +327,59 @@ class ReminderService:
 
         :param member:
         :param id:
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
 
         try:
             id = int(id)
         except ValueError:
-            logger.debug("the given string was not a number")
+            logger.debug(f"the given string was not a number by {member.display_name}")
 
             return "Bitte gib eine korrekte ID ein!"
 
-        query = "SELECT r.* " \
-                "FROM reminder r INNER JOIN discord d ON r.discord_user_id = d.id " \
-                "WHERE d.user_id = %s AND r.time_to_sent IS NOT NULL"
+        getQuery = (select(Reminder)
+                    .where(Reminder.discord_user_id == (select(DiscordUser.id)
+                                                        .where(DiscordUser.user_id == str(member.id))
+                                                        .scalar_subquery()),
+                           Reminder.time_to_sent.is_not(None), ))
 
-        reminders = database.fetchAllResults(query, (member.id,))
+        try:
+            reminders = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"error while fetching Reminders for {member.display_name}", exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
 
         if not reminders:
-            logger.debug("no entries to delete")
+            logger.debug(f"no entries to delete for {member.display_name}")
 
             return "Du hast keine aktiven Reminders!"
 
-        if not any(reminder['id'] == id for reminder in reminders):
-            logger.debug("id was not found in personal reminders")
+        if not any(reminder.id == id for reminder in reminders):
+            logger.debug(f"id was not found in personal reminders for {member.display_name}")
 
             return "Du hast keinen Reminder mit dieser ID!"
 
-        query = "DELETE FROM reminder WHERE id = %s"
+        deleteQuery = delete(Reminder).where(Reminder.id == id)
 
-        if not database.runQueryOnDatabase(query, (id,)):
-            logger.critical(f"couldnt save changes to database: {query}, id: {id}")
-        else:
-            logger.debug("deleted entry from database")
+        try:
+            session.execute(deleteQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't delete Reminder for {member.display_name}", exc_info=error)
+            session.rollback()
+            session.close()
 
-        return "Dein Reminder wurde erfolgreich gelöscht."
+            return "Es gab einen Fehler!"
 
-    async def _sendReminder(self, reminder: dict) -> dict:
+        session.close()
+
+        return "Dein Reminder wurde erfolgreich gelöscht!"
+
+    async def _sendReminder(self, reminder: Reminder, session: Session):
         """
         Sends the remainder per DM (and WhatsApp) to the user
 
@@ -345,54 +387,57 @@ class ReminderService:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
-
-        member: Member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(reminder["user_id"]))
+        member: Member = (self
+                          .client
+                          .get_guild(GuildId.GUILD_KVGG.value)
+                          .get_member(int(reminder.discord_user.user_id)))
 
         if not member:
-            logger.warning("couldn't fetch member with userId from Guild")
+            logger.error(f"couldn't fetch {reminder.discord_user} with userId from guild")
 
-            return reminder
+            return
 
-        if reminder['whatsapp']:
-            query = "INSERT INTO message_queue (message, user_id, created_at, trigger_user_id, is_join_message) " \
-                    "VALUES (%s, " \
-                    "(SELECT id FROM user WHERE discord_user_id = " \
-                    "(SELECT id FROM discord WHERE user_id = %s LIMIT 1) LIMIT 1), " \
-                    "%s, " \
-                    "(SELECT id FROM discord WHERE user_id = %s LIMIT 1), " \
-                    "FALSE)"
+        if reminder.whatsapp:
+            message = f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n{reminder.content}"
+            insertQuery = insert(MessageQueue).values(message=message,
+                                                      # noinspection PyTypeChecker
+                                                      trigger_user_id=(select(DiscordUser.id)
+                                                                       .where(DiscordUser.user_id == str(member.id))
+                                                                       .scalar_subquery()),
+                                                      created_at=datetime.now(),
+                                                      # noinspection PyTypeChecker
+                                                      user_id=(select(User.id)
+                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .scalar_subquery()),
+                                                      is_join_message=False, )
 
-            if not database.runQueryOnDatabase(query,
-                                               (f"Hier ist "
-                                                f"{'deine Erinnerung' if not reminder['is_timer'] else 'dein Timer'}"
-                                                f":\n\n" + reminder['content'],
-                                                member.id,
-                                                datetime.now(),
-                                                member.id,)):
-                logger.critical("couldn't save message into database")
+            try:
+                session.execute(insertQuery)
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't insert new MessageQueue for {member.display_name}", exc_info=error)
+                session.rollback()
+
+                return
             else:
-                logger.debug("saved whatsapp into message queue")
+                logger.debug(f"saved whatsapp into MessageQueue for {member.display_name}")
 
         try:
-            await sendDM(member, f"Hier ist {'deine Erinnerung' if not reminder['is_timer'] else 'dein Timer'}:\n\n"
-                         + reminder['content'] + separator)
+            await sendDM(member, f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n"
+                         + reminder.content + separator)
 
-            logger.debug("send reminder to %s" % member.name)
-        except discord.HTTPException as e:
-            logger.error("there was a problem sending the DM", exc_info=e)
-
-            reminder['error'] = True
+            logger.debug(f"send reminder to {member.display_name}")
         except Exception as e:
             logger.error("there was a problem sending the message", exc_info=e)
 
-            reminder['error'] = True
+            reminder.error = True
 
-        if not reminder['repeat_in_minutes']:
-            reminder['time_to_sent'] = None
+        if not reminder.repeat_in_minutes:
+            reminder.time_to_sent = null()
         else:
-            reminder['time_to_sent'] = reminder['time_to_sent'] + timedelta(minutes=reminder['repeat_in_minutes'])
+            # noinspection PyTypeChecker
+            reminder.time_to_sent = reminder.time_to_sent + timedelta(minutes=reminder.repeat_in_minutes)
 
-        reminder['sent_at'] = datetime.now()
+        reminder.sent_at = datetime.now()
 
-        return reminder
+        return

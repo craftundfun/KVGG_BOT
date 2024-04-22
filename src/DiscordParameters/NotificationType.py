@@ -34,6 +34,10 @@ class NotificationType(Enum):
         return set(notificationType.value for notificationType in NotificationType)
 
     @classmethod
+    def getObjects(cls) -> set['NotificationType']:
+        return set(notificationType for notificationType in NotificationType)
+
+    @classmethod
     def getSettingNameForType(cls, settingType: 'NotificationType') -> 'NotificationType':
         match settingType:
             case cls.NOTIFICATION:

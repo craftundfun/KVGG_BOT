@@ -12,6 +12,7 @@ from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
+lock = asyncio.Lock()
 
 
 class ChannelService:
@@ -60,18 +61,16 @@ class ChannelService:
             return "Du musst zwei Benutzer angeben!"
 
         nameMember = member.nick if member.nick else member.name
-        nameMember_1 = member_1.nick if member_1.nick else member_1.name
-        nameMember_2 = member_2.nick if member_2.nick else member_2.name
 
         if not (member_1Voice := member_1.voice) or not (member_2Voice := member_2.voice):
-            logger.debug(f"{nameMember_1} or {nameMember_2} has no voice-state")
+            logger.debug(f"{member_1.display_name} or {member_2.display_name} has no voice-state")
 
-            return f"{nameMember_1} und / oder {nameMember_2} sind nicht online."
+            return f"<@{member_1.id}> und / oder <@{member_2.id}> sind nicht online."
 
         if member_1Voice.channel != member_2Voice.channel:
-            logger.debug(f"{nameMember_1} and {nameMember_2} are not within the same channel")
+            logger.debug(f"{member_1.display_name} and {member_2.display_name} are not within the same channel")
 
-            return f"{nameMember_1} und {nameMember_2} sind nicht im gleichen Channel."
+            return f"<@{member_1.id}> und <@{member_2.id}> sind nicht im gleichen Channel."
 
         if not (memberVoice := member.voice):
             logger.debug(f"{nameMember} is not online -> cant use kneipe")
@@ -80,9 +79,10 @@ class ChannelService:
 
         # check only with member_1, here it's safe they both are in the same channel
         if memberVoice.channel != member_1Voice.channel:
-            logger.debug(f"{nameMember} is not in the same channel as {nameMember_1} and {nameMember_2}")
+            logger.debug(f"{nameMember} is not in the same channel as {member_1.display_name} and "
+                         f"{member_2.display_name}")
 
-            return f"Du bist nicht im VoiceChannel von {nameMember_1} und {nameMember_2}."
+            return f"Du bist nicht im VoiceChannel von <@{member_1.id}> und <@{member_2.id}>."
 
         if member_1Voice.channel.category.id not in TrackedCategories.getValues():
             logger.debug("category was not withing gaming / quatschen / besondere events")
@@ -95,11 +95,12 @@ class ChannelService:
             try:
                 loop.run_until_complete(moveMembers([member_1, member_2], voiceChannel))
             except Exception as error:
-                logger.error("couldn't move %s (%d) into new channel (%d)" % voiceChannel.id, exc_info=error)
+                logger.error(f"couldn't move {member_1.display_name} and {member_2.display_name} into new channel ",
+                             exc_info=error, )
 
                 return "Es ist ein Fehler aufgetreten."
             else:
-                return f"{nameMember_1} und {nameMember_2} wurden erfolgreich verschoben."
+                return f"<@{member_1.id}> und<@ {member_2.id}> wurden erfolgreich verschoben."
         else:
             return "Es ist ein Fehler aufgetreten."
 
@@ -137,40 +138,41 @@ class ChannelService:
         :param member:
         :return:
         """
-        # only move out of this channel
-        if member.voice and member.voice.channel.id != ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
-            return
+        async with lock:
+            # only move out of this channel
+            if member.voice and member.voice.channel.id != ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value:
+                return
 
-        # ignore members who are alone
-        if len(member.voice.channel.members) < 2:
-            return
+            # ignore members who are alone
+            if len(member.voice.channel.members) < 2:
+                return
 
-        channel: VoiceChannel | None = self._findFreeChannel()
+            if not (channelToMove := self._findFreeChannel()):
+                logger.debug("no free channel was found")
 
-        if not channel:
-            return
+                return
 
-        members = member.voice.channel.members
-        loop = asyncio.get_event_loop()
+            members = member.voice.channel.members
+            loop = asyncio.get_event_loop()
 
-        try:
-            loop.run_until_complete(moveMembers(members, channel))
-        except discord.Forbidden:
-            logger.error("dont have rights move the users!")
+            try:
+                loop.run_until_complete(moveMembers(members, channelToMove))
+            except discord.Forbidden:
+                logger.error("dont have rights move the users!")
 
-            return
-        except Exception as error:
-            logger.error("couldn't move %s (%d) into new channel (%d)" % channel.id, exc_info=error)
+                return
+            except Exception as error:
+                logger.error("couldn't move members into new channel", exc_info=error)
 
-            return
+                return
 
-        # send DMs after moving all users to prioritize and speed up the moving process
-        for user in members:
-            await self.notificationService.sendStatusReport(user,
-                                                            "Du wurdest verschoben, da ihr mind. zu zweit "
-                                                            "in 'warte auf Mitspieler/innen' wart.")
+            # send DMs after moving all users to prioritize and speed up the moving process
+            for user in members:
+                await self.notificationService.sendStatusReport(user,
+                                                                "Du wurdest verschoben, da ihr mindestens zu "
+                                                                "zweit in 'warte auf Mitspieler/innen' wart.")
 
-        logger.debug("moved users out of 'warte auf Mitspieler/innen' due to more than 2 users")
+            logger.debug("moved users out of 'warte auf Mitspieler/innen' due to more than 2 users")
 
     def _findFreeChannel(self) -> VoiceChannel | None:
         """
@@ -178,29 +180,23 @@ class ChannelService:
 
         :return:
         """
-        categories = self.client.get_guild(GuildId.GUILD_KVGG.value).categories
+        # list comprehensions are faster than for-loops
+        gaming_category = [category for category in self.client.get_guild(GuildId.GUILD_KVGG.value).categories
+                           if category.id == TrackedCategories.GAMING.value][0]
+        dont_use_channels = [ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value,
+                             ChannelId.CHANNEL_GAMING_EIN_DREIVIERTEL.value,
+                             ChannelId.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value,
+                             ChannelId.CHANNEL_GAMING_SIEBEN_AMERICA.value, ]
 
-        for category in categories:
-            if category.id != TrackedCategories.GAMING.value:
+        for channel in gaming_category.voice_channels:
+            if channel.id in dont_use_channels:
                 continue
 
-            channels = category.voice_channels
-            # return value from guild.categories already sorted them by position
-            # channels = sorted(channels, key=lambda channel: channel.position)
-            dontUseChannels = [ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value,
-                               ChannelId.CHANNEL_GAMING_EIN_DREIVIERTEL.value,
-                               ChannelId.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value,
-                               ChannelId.CHANNEL_GAMING_SIEBEN_AMERICA.value, ]
+            if len(channel.members) == 0:
+                logger.debug(f"{channel.name} ({channel.id}) channel free to move")
 
-            for channel in channels:
-                if channel.id in dontUseChannels:
-                    continue
+                return channel
 
-                if len(channel.members) == 0:
-                    logger.debug("%s (%d) channel free to move" % (channel.name, channel.id))
+        logger.debug("all channels are occupied")
 
-                    return channel
-
-            logger.debug("all voice channels are full")
-
-            return None
+        return None

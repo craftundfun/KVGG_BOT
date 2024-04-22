@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 class Counter(ABC):
 
-    def __init__(self, name: string, dcUserDb):
+    def __init__(self, name: str, dcUserDb):
         self.name = name
         self.dcUserDb = dcUserDb
 

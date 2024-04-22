@@ -4,6 +4,7 @@ import string
 
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.InheritedCommands.Times.Time import Time
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
 
 class UniversityTime(Time):
@@ -11,22 +12,12 @@ class UniversityTime(Time):
     def __init__(self):
         super().__init__('Uni')
 
-    def increaseTime(self, dcUserDb, value: int, updateFormattedTime: bool = True):
-        dcUserDb['university_time_online'] = dcUserDb['university_time_online'] + value
+    def increaseTime(self, dcUserDb: DiscordUser, value: int):
+        dcUserDb.university_time_online += value
 
-        if updateFormattedTime:
-            dcUserDb['formated_university_time'] = getFormattedTime(dcUserDb['university_time_online'])
+    def getTime(self, dcUserDb: DiscordUser) -> int | None:
+        return dcUserDb.university_time_online
 
-    def getTime(self, dcUserDb) -> int | None:
-        return dcUserDb['university_time_online']
-
-    def getFormattedTime(self, dcUserDb) -> string:
-        return dcUserDb['formated_university_time']
-
-    def getStringForTime(self, dcUserDb) -> string:
-        if dcUserDb['formated_university_time'] is None:
-            return "Es liegt keine formatierte Zeit vor!"
-        return "<@%s> hat bereits %s Stunden studiert!" % (dcUserDb['user_id'], dcUserDb['formated_university_time'])
-
-    def setFormattedTime(self, dcUserDb, time: string):
-        dcUserDb['formated_university_time'] = time
+    def getStringForTime(self, dcUserDb: DiscordUser) -> string:
+        return (f"<@{dcUserDb.user_id}> hat bereits {getFormattedTime(dcUserDb.university_time_online)} "
+                f"Stunden studiert!")

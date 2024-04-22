@@ -1,10 +1,8 @@
 import logging
-import os
-import random
 import smtplib
 from email.message import EmailMessage
 
-from src.Helper.ReadParameters import Parameters as param
+from src.Helper.ReadParameters import Parameters
 from src.Helper.ReadParameters import getParameter
 from src.Id.ExceptionEmailAddresses import ExceptionEmailAddresses
 
@@ -20,14 +18,11 @@ funnySubject = [
 
 
 def send_exception_mail(message: str):
-    # check if we are in docker -> if yes send email
-    SECRET_KEY = os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
-
-    if not SECRET_KEY:
-        return
+    # if not getParameter(Parameters.PRODUCTION):  # TODO insert before deploy
+    #    return
 
     exception_recipients = ExceptionEmailAddresses.getValues()
-    subject = funnySubject[random.randint(0, len(funnySubject) - 1)]
+    subject = "Beta"  # funnySubject[random.randint(0, len(funnySubject) - 1)]  # TODO
 
     for exception_recipient in exception_recipients:
         email = EmailMessage()
@@ -37,8 +32,8 @@ def send_exception_mail(message: str):
         email.set_content(f"Stacktrace: {message}")
 
         try:
-            with smtplib.SMTP_SSL(getParameter(param.EMAIL_HOST), getParameter(param.PORT)) as server:
-                server.login(getParameter(param.EMAIL_USER), getParameter(param.EMAIL_PASSWORD))
+            with smtplib.SMTP_SSL(getParameter(Parameters.EMAIL_SERVER), getParameter(Parameters.EMAIL_PORT)) as server:
+                server.login(getParameter(Parameters.EMAIL_USERNAME), getParameter(Parameters.EMAIL_PASSWORD))
                 server.send_message(email)
         except Exception as error:
             print("An error occurred while sending an email!\n", error)

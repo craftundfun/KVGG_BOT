@@ -4,22 +4,17 @@ COPY requirements.txt .
 COPY main.py .
 COPY data ./data
 COPY src ./src
-COPY parameters.yaml .
+COPY parameters.env .
 COPY Web ./Web
 
 RUN apt-get update && apt-get install -y ffmpeg
 RUN pip install -r requirements.txt
 RUN apt-get install libffi-dev
-
-
-ENV PATH="/usr/bin/ffmpeg:${PATH}"
-
 RUN mkdir "Logs"
 
-ARG PROD=True
-ENV AM_I_IN_A_DOCKER_CONTAINER ${PROD}
+ENV PATH="/usr/bin/ffmpeg:${PATH}"
 ENV TZ=Europe/Berlin
 
 EXPOSE 8000
 
-CMD ["python3", "./main.py"]
+CMD ["python3", "./main.py", "-clean"]

@@ -3,14 +3,24 @@ from datetime import datetime, timedelta
 
 import discord
 from discord import Client, Member
+from sqlalchemy import select, insert
+from sqlalchemy.orm import Session
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.DiscordParameters.QuestParameter import QuestDates
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Repository.NotificationSettingRepository import getNotificationSettings
+from src.Entities.Experience.Entity.Experience import Experience
+from src.Entities.Experience.Repository.ExperienceRepository import getExperience
+from src.Entities.Newsletter.Entity.Newsletter import Newsletter
+from src.Entities.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDiscordMapping
+from src.Entities.Quest.Entity.Quest import Quest
+from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.Helper.SendDM import sendDM, separator
 from src.Id.Categories import UniversityCategory
-from src.Repository.NotificationSettingRepository import getNotificationSettings
-from src.Services.Database import Database
+from src.Manager.DatabaseManager import getSession
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -26,10 +36,12 @@ class NotificationService:
 
         self.xpService = ExperienceService(self.client)
 
-    async def _sendMessage(self, member: Member,
+    # noinspection PyMethodMayBeStatic
+    async def _sendMessage(self,
+                           member: Member,
                            content: str,
                            typeOfMessage: NotificationType,
-                           useSeparator: bool = True):
+                           useSeparator: bool = True, ):
         """
         Sends a DM to the user and handles errors.
         This method also checks if the given user wants that kind of message.
@@ -38,13 +50,16 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        settings = getNotificationSettings(member, Database())
+        if not (session := getSession()):
+            return
+
+        settings = getNotificationSettings(member, session)
 
         if not settings:
-            logger.critical(f"no notification settings for {member.display_name}, aborting sending message")
+            logger.error(f"no notification settings for {member.display_name}, aborting sending message")
 
             return
-        elif not settings[typeOfMessage.value] or not settings['notifications']:
+        elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
             logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
             return
@@ -62,6 +77,8 @@ class NotificationService:
             logger.warning(f"couldn't send DM to {member.name}: Forbidden")
         except Exception as error:
             logger.error(f"couldn't send DM to {member.name}", exc_info=error)
+        finally:
+            session.close()
 
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
         """
@@ -83,7 +100,7 @@ class NotificationService:
 
         await self._sendMessage(member, message, NotificationType.XP_INVENTORY)
 
-    async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[dict]):
+    async def informAboutNewQuests(self, member: Member, time: QuestDates, quests: list[QuestDiscordMapping]):
         """
         Informs the member about new quests.
 
@@ -95,43 +112,36 @@ class NotificationService:
         message = f"__**Du hast folgende neue {time.value.capitalize()}-Quests**__:\n\n"
 
         for quest in quests:
-            message += f"- {quest['description']}\n"
+            message += f"- {quest.quest.description}\n"
 
         message = message.rstrip()
 
         await self._sendMessage(member, message, NotificationType.QUEST)
 
-    async def sendQuestFinishNotification(self, member: Member, questId: int):
+    async def sendQuestFinishNotification(self, member: Member, quest: Quest):
         """
         Informs the member about a completed quest.
 
         :param member: Member, who will be notified
-        :param questId: Primary-Key of the completed quest
+        :param quest: Quest to notify about
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
-        query = "SELECT description, time_type FROM quest WHERE id = %s"
+        time: str = quest.time_type
 
-        if not (quest := database.fetchOneResult(query, (questId,))):
-            logger.error("couldn't fetch data from database")
+        await self._sendMessage(member,
+                                f"__**Hey {member.nick if member.nick else member.name}, "
+                                f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
+                                f"{quest.description}\n\n"
+                                f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
+                                NotificationType.QUEST, )
 
-            return
-
-        time: str = quest['time_type']
-
-        await self._sendMessage(member, f"__**Hey {member.nick if member.nick else member.name}, "
-                                        f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
-                                        f"{quest['description']}\n\n"
-                                        f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
-                                NotificationType.QUEST)
-
-    async def runNotificationsForMember(self, member: Member, dcUserDb: dict):
+    async def runNotificationsForMemberUponJoining(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Sends all opted in notifications and advertisements.
 
         :param member: Member, who will receive the messages.
         :param dcUserDb: Database user of the member.
-        :raise ConnectionError: If the database connection cant be established
+        :param session: Database session
         """
         answer = ""
 
@@ -140,10 +150,10 @@ class NotificationService:
             return
 
         canSendWelcomeBackMessage = await self._xDaysOfflineMessage(member, dcUserDb)
-        answer += await self._sendNewsletter(dcUserDb)
+        answer += await self._sendNewsletter(dcUserDb, session)
 
         if not canSendWelcomeBackMessage:
-            answer += await self._welcomeBackMessage(member, dcUserDb)
+            answer += await self._welcomeBackMessage(member, dcUserDb, session)
 
         if (xpAnswer := await self._informAboutDoubleXpWeekend()) != "":
             # if no welcome message is there to avoid leading seperator
@@ -157,7 +167,7 @@ class NotificationService:
 
         await self._sendMessage(member, answer, NotificationType.WELCOME_BACK)
 
-    async def _sendNewsletter(self, dcUserDb: dict) -> str:
+    async def _sendNewsletter(self, dcUserDb: DiscordUser, session: Session) -> str:
         """
         Sends the current newsletter(s) to the newly joined member.
 
@@ -165,17 +175,21 @@ class NotificationService:
         :return:
         """
         answer = ""
-        database = Database()
+        getQuery = (select(Newsletter)
+                    .where(Newsletter.id.not_in((select(NewsletterDiscordMapping.newsletter_id)
+                                                 .where(NewsletterDiscordMapping.discord_id == DiscordUser.id, )
+                                                 )),
+                           Newsletter.created_at > dcUserDb.created_at,
+                           )
+                    )
 
-        query = ("SELECT n.* "
-                 "FROM newsletter n "
-                 "WHERE n.id NOT IN "
-                 "(SELECT newsletter_id "
-                 "FROM newsletter_discord_mapping "
-                 "WHERE discord_id = %s) "
-                 "AND n.created_at > %s")
+        try:
+            newsletters = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch newsletters for {dcUserDb}", exc_info=error)
+            session.rollback()
 
-        newsletters = database.fetchAllResults(query, (dcUserDb['id'], dcUserDb['created_at'],))
+            return ""
 
         if not newsletters:
             return ""
@@ -183,24 +197,31 @@ class NotificationService:
         answer += "__**NEWSLETTER**__\n\n"
 
         for newsletter in newsletters:
-            query = ("INSERT INTO newsletter_discord_mapping (newsletter_id, discord_id, sent_at) "
-                     "VALUES (%s, %s, %s)")
+            insertQuery = insert(NewsletterDiscordMapping).values(newsletter_id=newsletter.id,
+                                                                  discord_id=dcUserDb.id,
+                                                                  sent_at=datetime.now(), )
 
-            # if the query couldn't be run don't send newsletter to member to avoid future spam
-            if not database.runQueryOnDatabase(query, (newsletter['id'], dcUserDb['id'], datetime.now(),)):
+            try:
+                session.execute(insertQuery)
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't insert new NewsletterDiscordMapping for {dcUserDb} and {newsletter}",
+                             exc_info=error, )
+
+                # if the query couldn't be run don't send newsletter to member to avoid future spam
                 return ""
 
-            answer += (newsletter['message']
+            answer += (newsletter.message
                        + "\n- vom "
-                       + newsletter['created_at'].strftime("%d.%m.%Y um %H:%M Uhr")
+                       + newsletter.created_at.strftime("%d.%m.%Y um %H:%M Uhr")
                        + "\n\n")
 
         # remove last (two) newlines to return a clean string (end)
-        answer.rstrip("\n")
+        answer.rstrip("\n\n")
 
         return answer + separator
 
-    async def _welcomeBackMessage(self, member: Member, dcUserDb: dict) -> str:
+    async def _welcomeBackMessage(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str:
         """
         Sends a welcome back notification for users who opted in
 
@@ -208,8 +229,8 @@ class NotificationService:
         :param dcUserDb: Discord User from our database
         :return:
         """
-        if not dcUserDb['last_online']:
-            logger.debug("%s has no last_online" % member.name)
+        if not dcUserDb.last_online:
+            logger.debug(f"{member.display_name} has no last_online")
 
             return ""
 
@@ -224,19 +245,19 @@ class NotificationService:
         else:
             daytime = "Abend"
 
-        lastOnlineDiff: timedelta = now - dcUserDb['last_online']
+        lastOnlineDiff: timedelta = now - dcUserDb.last_online
         days: int = lastOnlineDiff.days
         hours: int = lastOnlineDiff.seconds // 3600
         minutes: int = (lastOnlineDiff.seconds // 60) % 60
 
         if days < 1 and hours < 1 and minutes < 30:
-            logger.debug("%s was online less than 30 minutes ago" % member.name)
+            logger.debug(f"{member.display_name} was online less than 30 minutes ago")
 
             return ""
 
-        onlineTime: str | None = dcUserDb['formated_time']
-        streamTime: str | None = dcUserDb['formatted_stream_time']
-        xp: dict | None = self.xpService.getXpValue(dcUserDb)
+        onlineTime: str = getFormattedTime(dcUserDb.time_online)
+        streamTime: str = getFormattedTime(dcUserDb.time_streamed)
+        xp: Experience | None = getExperience(member, session)
 
         try:
             # circular import
@@ -244,37 +265,37 @@ class NotificationService:
 
             questService = QuestService(self.client)
             quests = questService.listQuests(member)
-        except ConnectionError as error:
+        except Exception as error:
             logger.error("failure to start QuestService", exc_info=error)
+
             quests = None
 
-        message = "Hey, guten %s. Du warst vor %d Tagen, %d Stunden und %d Minuten zuletzt online. " % (
-            daytime, days, hours, minutes
-        )
+        message = (f"Hey, guten {daytime}. Du warst vor {days} Tagen, {hours} Stunden und {minutes} Minuten zuletzt "
+                   f"online. ")
 
         if onlineTime:
-            message += "Deine Online-Zeit beträgt %s Stunden" % onlineTime
+            message += f"Deine Online-Zeit beträgt {onlineTime} Stunden"
 
         if streamTime:
-            message += ", deine Stream-Zeit %s Stunden. " % streamTime
+            message += f", deine Stream-Zeit {streamTime} Stunden. "
 
         if onlineTime and not streamTime:
             message += ". "
 
         if xp:
-            message += "Außerdem hast du bereits %s XP gefarmt." % '{:,}'.format(xp['xp_amount']).replace(',', '.')
+            message += f"Außerdem hast du bereits {'{:,}'.format(xp.xp_amount).replace(',', '.')} XP gefarmt."
 
         if quests:
             message += " " + quests
 
-        message += "\n\nViel Spaß!"
+        message += "\n**Viel Spaß!**"
 
         return message
 
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
 
-    async def _xDaysOfflineMessage(self, member: Member, dcUserDb: dict) -> bool:
+    async def _xDaysOfflineMessage(self, member: Member, dcUserDb: DiscordUser) -> bool:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
@@ -282,24 +303,23 @@ class NotificationService:
         :param dcUserDb: DiscordUser from the database
         :return: Boolean if a message was sent
         """
-        if not dcUserDb['last_online']:
-            logger.debug("%s has no last_online status" % member.name)
+        if not dcUserDb.last_online:
+            logger.debug(f"{member.display_name} has no last_online status")
 
             return False
 
-        if (diff := (datetime.now() - dcUserDb['last_online'])).days >= 14:
+        if (diff := (datetime.now() - dcUserDb.last_online)).days >= 14:
             await self._sendMessage(member,
-                                    "Schön, dass du mal wieder da bist :)\n\nDu warst seit %d Tagen, %d Stunden "
-                                    "und %d Minuten nicht mehr da." %
-                                    (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60),
-                                    NotificationType.WELCOME_BACK)
+                                    f"Schön, dass du mal wieder da bist :)\n\nDu warst seit {diff.days} Tagen, "
+                                    f"{diff.seconds // 3600} Stunden und {(diff.seconds // 60) % 60} Minuten nicht "
+                                    f"mehr da.", NotificationType.WELCOME_BACK)
             await self._sendMessage(member, self.finallyAwake, NotificationType.WELCOME_BACK, False)
             # use seperator here so the meme will be an embed => maybe solve that better in the future
             await self._sendMessage(member, separator, NotificationType.WELCOME_BACK, False)
 
             return True
 
-        logger.debug("%s was less than %d days online ago" % (member.name, 30))
+        logger.debug(f"{member.display_name} was less than 14 days online ago")
 
         return False
 
@@ -313,23 +333,6 @@ class NotificationService:
             return ""
 
         return "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen."
-
-    @DeprecationWarning  # moved to repository
-    def _getNotificationSettings(self, member: Member, database: Database) -> dict | None:
-        """
-        Fetches the notification settings of the given Member from our database.
-
-        :param member: Member, whose settings will be fetched
-        :return: None if no settings were found, dict otherwise
-        """
-        query = "SELECT * FROM notification_setting WHERE discord_id = (SELECT id FROM discord WHERE user_id = %s)"
-
-        if not (settings := database.fetchOneResult(query, (member.id,))):
-            logger.error("couldn't fetch results from database")
-
-            return None
-
-        return settings
 
     async def notifyAboutUnfinishedQuests(self, questDate: QuestDates, quests: list, member: Member):
         """

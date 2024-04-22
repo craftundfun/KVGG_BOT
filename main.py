@@ -1,5 +1,6 @@
 from __future__ import unicode_literals
 
+import argparse
 import logging.handlers
 import os
 import os.path
@@ -14,11 +15,14 @@ from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Me
     RawReactionActionEvent, Intents
 from discord import VoiceChannel
 from discord.app_commands import Choice
+from sqlalchemy import select
 
 from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
+from src.Entities.Counter.Entity.Counter import Counter
 from src.Helper import ReadParameters
+from src.Helper.ReadParameters import getParameter, Parameters
 from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.Logger.CustomFormatter import CustomFormatter
@@ -26,10 +30,10 @@ from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Logger.FileAndConsoleHandler import FileAndConsoleHandler
 from src.Manager.BackgroundServiceManager import BackgroundServices
 from src.Manager.CommandManager import CommandService, Commands
+from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
-from src.Services.Database import Database
 from src.Services.MemeService import MemeService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.SoundboardService import SoundboardService
@@ -56,15 +60,15 @@ clientHandler.setFormatter(CustomFormatterFile())
 consoleHandler = logging.StreamHandler(sys.stdout)
 consoleHandler.setFormatter(CustomFormatter())
 
-# docker container
-if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
+# production
+if getParameter(Parameters.PRODUCTION):
     logger.setLevel(logging.DEBUG)
     fileHandler.setLevel(logging.DEBUG)
     consoleHandler.setLevel(logging.INFO)
 # IDE
 else:
     logger.setLevel(logging.DEBUG)
-    fileHandler.setLevel(logging.INFO)
+    fileHandler.setLevel(logging.DEBUG)  # TODO info after real deploy
     consoleHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
@@ -102,9 +106,7 @@ class MyClient(discord.Client):
 
         await member.add_roles(roleMitglied, roleUni, reason="Automatic role by bot")
 
-        logger.debug("%s received the following roles: %s, %s" % (
-            member.nick if member.nick else member.name, roleMitglied.name, roleUni.name)
-                     )
+        logger.debug(f"{member.display_name} received the following roles: {roleMitglied.name}, {roleUni.name}")
 
     async def on_member_remove(self, member):
         pass
@@ -120,7 +122,7 @@ class MyClient(discord.Client):
         if not message:
             return
 
-        await self.memeService.changeLikeCounterOfMessage(message)
+        await self.memeService.changeLikeCounterOfMeme(message)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
         await self._prepareForMemeService(payload)
@@ -139,19 +141,22 @@ class MyClient(discord.Client):
         """
         logger.info("Logged in as: " + str(self.user))
 
+        await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
+                                                                     name="Checkt Datenbank auf Konsistenz", ))
+
         try:
             await self.databaseRefreshService.startUp()
-        except ConnectionError as error:
+        except Exception as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
-            logger.info("users fetched and updated")
+            logger.info("users fetched and updated by DatabaseRefreshService")
 
         if not (guild := client.get_guild(GuildId.GUILD_KVGG.value)):
             logger.error("couldn't fetch guild")
 
             return
 
-        if len(sys.argv) > 1 and sys.argv[1] == "-clean":
+        if commandLineArguments.clean:
             logger.debug("REMOVING COMMANDS FROM GUILD")
 
             tree.clear_commands(guild=guild)
@@ -175,16 +180,16 @@ class MyClient(discord.Client):
         try:
             logger.debug("trying to set activity")
 
-            if os.environ.get('AM_I_IN_A_DOCKER_CONTAINER', False):
-                await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name="auf deine Aktivität")
-                )
+            if getParameter(Parameters.PRODUCTION):
+                await client.change_presence(activity=discord.Activity(type=discord.ActivityType.watching,
+                                                                       name="auf deine Aktivität", ))
             else:
-                await client.change_presence(
-                    activity=discord.Activity(type=discord.ActivityType.watching, name="ob alles läuft")
-                )
-        except Exception as e:
-            logger.warning("activity couldn't be set", exc_info=e)
+                await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
+                                                                             name="Ich schaue nur \U0001F440"
+                                                                             if commandLineArguments.clean
+                                                                             else "Werde getestet \U0001F605", ))
+        except Exception as error:
+            logger.warning("activity couldn't be set", exc_info=error)
         else:
             logger.info("activity set")
 
@@ -203,31 +208,24 @@ class MyClient(discord.Client):
         :param message:
         :return:
         """
-        logger.debug("received new message")
+        logger.debug(f"received new message from {message.author.display_name}")
 
-        if not message.author.bot and not message.content == "":
-            if not message.channel:
-                logger.debug("no channel")
+        if message.author.bot:
+            return
 
-                return
+        if isinstance(message.channel, DMChannel):
+            logger.debug("received direct message")
 
-            try:
-                await self.processUserInput.raiseMessageCounter(message.author, message.channel)
-                await self.quotesManager.checkForNewQuote(message)
-                await self.memeService.checkIfMemeAndPrepareReactions(message)
-            except Exception as error:
-                logger.error("failure to run message functions", exc_info=error)
-
-        # empty message but on server
-        elif message.attachments and message.content == "" and not isinstance(message.channel, DMChannel):
-            await self.memeService.checkIfMemeAndPrepareReactions(message)
-
-        # empty message but as DM
-        elif message.attachments and message.content == "" and isinstance(message.channel, DMChannel):
             await self.soundboardService.manageDirectMessage(message)
 
-        else:
-            logger.debug("message empty or from a bot")
+            return
+
+        try:
+            await self.processUserInput.raiseMessageCounter(message.author, message.channel)
+            await self.quotesManager.checkForNewQuote(message)
+            await self.memeService.checkIfMemeAndPrepareReactions(message)
+        except Exception as error:
+            logger.error("failure to run message functions", exc_info=error)
 
     async def on_raw_message_delete(self, message: RawMessageDeleteEvent):
         """
@@ -268,7 +266,7 @@ class MyClient(discord.Client):
 
 
 # reads the token
-token = ReadParameters.getParameter(ReadParameters.Parameters.TOKEN)
+token = ReadParameters.getParameter(ReadParameters.Parameters.DISCORD_TOKEN)
 
 # sets the intents of the client to the default ones
 intents = discord.Intents.all()
@@ -283,6 +281,13 @@ commandService = CommandService(client)
 tree = app_commands.CommandTree(client)
 
 backgroundServices = None
+
+parser = argparse.ArgumentParser()
+parser.add_argument("-clean",
+                    help="removes all commands from the guild",
+                    action="store_true",
+                    required=False, )
+commandLineArguments = parser.parse_args()
 
 """ANSWER JOKE"""
 
@@ -381,28 +386,31 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 """NAME COUNTER"""
 
 
-async def listCounters(interaction: discord.Interaction, current: str) -> list[Choice[str]]:
+async def listCounters(_, current: str) -> list[Choice[str]]:
     choices = []
 
-    try:
-        database = Database()
-    except Exception as error:
-        logger.error("couldn't create database connection", exc_info=error)
-    else:
-        query = "SELECT name, description FROM counter LIMIT 25"
-
-        if not (counters := database.fetchAllResults(query)):
-            logger.error("couldn't fetch any counters from database")
-
-            return choices
-
-        for counter in counters:
-            name = counter['name']
-
-            if current.lower() == "" or current.lower() in name.lower():
-                choices.append(Choice(name=(name.capitalize() + " - " + counter['description'])[:100], value=name))
-    finally:
+    if not (session := getSession()):
         return choices
+
+    getQuery = select(Counter).limit(25)
+
+    try:
+        counters = session.scalars(getQuery).all()
+    except Exception as error:
+        logger.error("error while fetching Counters", exc_info=error)
+        session.close()
+
+        return choices
+
+    for counter in counters:
+        name: str = counter.name
+
+        if current.lower() == "" or current.lower() in name.lower():
+            choices.append(Choice(name=(name.capitalize() + " - " + counter.description)[:100], value=name))
+
+    session.close()
+
+    return choices
 
 
 @tree.command(name='counter',
@@ -426,8 +434,8 @@ async def counter(interaction: discord.Interaction, counter: str, user: Member,
     await commandService.runCommand(Commands.COUNTER,
                                     interaction,
                                     counterName=counter,
-                                    user=user,
-                                    member=interaction.user,
+                                    requestedUser=user,
+                                    requestingMember=interaction.user,
                                     param=counter_hinzufuegen, )
 
 
@@ -588,7 +596,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     :param user: Entered user to read XP from
     :return:
     """
-    await commandService.runCommand(Commands.XP, interaction, member=interaction.user, user=user)
+    await commandService.runCommand(Commands.XP, interaction, requestingMember=interaction.user, requestedMember=user)
 
 
 """NOTIFICATIONS"""
@@ -626,7 +634,7 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
                                     interaction,
                                     member=interaction.user,
                                     kind=kategorie.value,
-                                    setting=1 if action.value == "on" else 0)
+                                    switch=True if action.value == "on" else False)
 
 
 """FELIX TIMER"""
@@ -647,8 +655,8 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
 async def handleFelixTimer(interaction: discord.Interaction, user: Member, action: Choice[str], zeit: str = None):
     await commandService.runCommand(Commands.FELIX_TIMER,
                                     interaction,
-                                    member=interaction.user,
-                                    user=user,
+                                    requestingMember=interaction.user,
+                                    requestedMember=user,
                                     action=action.value,
                                     time=zeit)
 

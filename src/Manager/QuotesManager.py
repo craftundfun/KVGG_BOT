@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import logging
-import random
 
 from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Client, Member
+from sqlalchemy import select, func, insert, delete
+from sqlalchemy.orm.exc import NoResultFound
 
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Services.Database import Database
+from src.Entities.Quote.Entity.Quote import Quote
 
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getQuotesChannel(client: Client):
+def getQuoteChannel(client: Client):
     """
     Returns the Quotes-Channel
 
@@ -37,51 +38,66 @@ class QuotesManager:
         self.client = client
         self.notificationService = NotificationService(self.client)
 
-    def answerQuote(self, member: Member) -> str | None:
+    def answerQuote(self, member: Member) -> str:
         """
         Returns a random quote from our database
 
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        logger.debug("%s requested a quote" % member.name)
+        logger.debug(f"{member.display_name} requested a quote")
 
-        database = Database()
+        if not (session := getSession()):  # TODO outside
+            return "Es gab ein Problem!"
 
-        query = "SELECT quote FROM quotes"
+        # let SQL fetch a random quote
+        getQuery = select(Quote).order_by(func.rand()).limit(1)
 
-        quotes = database.fetchAllResults(query)
+        try:
+            quote = session.scalars(getQuery).one()
+        except Exception as error:
+            logger.error("no quotes found in database", exc_info=error)
 
-        if not quotes:
-            logger.critical("no qoutes were found in the database")
+            return "Es gab ein Problem!"
+        finally:
+            session.close()
 
-            return "Ich habe kein Zitat für dich :/"
+        logger.debug("returning random quote")
 
-        logger.debug("random quote returned")
-
-        return quotes[random.randint(0, len(quotes) - 1)]['quote']
+        return quote.quote
 
     async def checkForNewQuote(self, message: Message):
         """
         Checks if a new quote was entered in the Quotes-Channel
 
         :param message:
-        :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        database = Database()
-        channel = getQuotesChannel(self.client)
+        if message.channel.id != ChannelId.CHANNEL_QUOTES.value:
+            logger.debug(f"message by {message.author.display_name} was not a quote")
 
-        if channel is not None and (channel.id == message.channel.id):
-            logger.info("quote detected")
+            return
 
-            query = "INSERT INTO quotes (quote, message_external_id) VALUES (%s, %s)"
+        logger.info("quote detected")
 
-            if database.runQueryOnDatabase(query, (message.content, message.id,)):
-                await self.notificationService.sendStatusReport(message.author,
-                                                                "Dein Zitat wurde in unserer Datenbank gespeichert!")
+        if not (session := getSession()):
+            return
 
-                logger.debug("sent dm to %s" % message.author.name)
+        insertQuery = insert(Quote).values(quote=message.content,
+                                           message_external_id=message.id, )
+
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't insert new Quote", exc_info=error)
+            session.rollback()
+        else:
+            logger.debug("new Quote saved to database")
+            await self.notificationService.sendStatusReport(message.author,
+                                                            "Dein Zitat wurde gespeichert!", )
+        finally:
+            session.close()
 
     async def updateQuote(self, message: RawMessageUpdateEvent):
         """
@@ -91,45 +107,46 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        channel = getQuotesChannel(self.client)
-        database = Database()
+        if message.channel_id != ChannelId.CHANNEL_QUOTES.value:
+            return
 
-        if channel is not None and channel.id == message.channel_id:
-            logger.debug("new quote detected")
+        logger.debug("quote update detected")
 
-            query = "SELECT * FROM quotes WHERE message_external_id = %s"
+        if not (session := getSession()):
+            return
 
-            quote = database.fetchOneResult(query, (message.message_id,))
+        # noinspection PyTypeChecker
+        getQuery = select(Quote).where(Quote.message_external_id == message.message_id)
 
-            if not quote:
-                logger.critical("quote update couldn't be fetched -> no database results")
+        try:
+            quote: Quote = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.error("quote update couldn't be done -> no database results")
+            session.close()
+
+            return
+        else:
+            quote.quote = message.data['content']
+
+            logger.debug("updated quote")
+
+        try:
+            session.commit()
+            logger.debug("saved update Quote to database")
+        except Exception as error:
+            logger.error("couldn't update Quote", exc_info=error)
+            session.rollback()
+        finally:
+            session.close()
+
+        if authorId := message.data['author']['id']:
+            if not (author := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(authorId))):
+                logger.error(f"couldn't fetch author with ID: {authorId} from guild")
 
                 return
 
-            quote['quote'] = message.data['content']
-            query, nones = writeSaveQuery(
-                'quotes',
-                quote['id'],
-                quote,
-            )
-
-            database.runQueryOnDatabase(query, nones)
-
-            logger.debug("saved new quote to database")
-
-            authorId = message.data['author']['id']
-
-            if authorId:
-                author = await self.client.get_guild(GuildId.GUILD_KVGG.value).fetch_member(authorId)
-
-                if author:
-                    try:
-                        await self.notificationService.sendStatusReport(author,
-                                                                        "Dein überarbeitetes Zitat wurde gespeichert!")
-
-                        logger.debug("sent dm to %s" % author.name)
-                    except Exception as error:
-                        logger.error("couldn't send DM to %s" % author.name, exc_info=error)
+            await self.notificationService.sendStatusReport(author, "Dein überarbeitetes Zitat wurde gespeichert!")
+            logger.debug(f"notified {author.display_name} about the updated quote")
 
     async def deleteQuote(self, message: RawMessageDeleteEvent):
         """
@@ -139,12 +156,24 @@ class QuotesManager:
         :raise ConnectionError: If the database connection can't be established
         :return:
         """
-        channel = getQuotesChannel(self.client)
-        database = Database()
+        if message.channel_id != ChannelId.CHANNEL_QUOTES.value:
+            return
 
-        if channel is not None and channel.id == message.channel_id:
-            logger.debug("delete quote from database")
+        logger.debug("deleted quote detected")
 
-            query = "DELETE FROM quotes WHERE message_external_id = %s"
+        if not (session := getSession()):
+            return
 
-            database.runQueryOnDatabase(query, (message.message_id,))
+        # noinspection PyTypeChecker
+        deleteQuery = delete(Quote).where(Quote.message_external_id == message.message_id)
+
+        try:
+            session.execute(deleteQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't delete Quote", exc_info=error)
+            session.rollback()
+        else:
+            logger.debug("successfully deleted quote from database")
+        finally:
+            session.close()

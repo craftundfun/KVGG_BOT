@@ -3,13 +3,16 @@ from datetime import datetime
 
 import dateutil.relativedelta
 from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
+from sqlalchemy import insert, select, update
+from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
-from src.Helper.WriteSaveQuery import writeSaveQuery
 from src.Id.ChannelId import ChannelId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Repository.DiscordUserRepository import getDiscordUser
-from src.Services.Database import Database
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Meme.Entity.Meme import Meme
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType
@@ -57,44 +60,60 @@ class MemeService:
         else:
             logger.debug("added reactions to meme")
 
-        database = Database()
-        dcUserDb = getDiscordUser(message.author, database)
+        if not (session := getSession()):
+            return
 
-        if not dcUserDb:
-            logger.warning("no dcUserDb, cant save meme to database")
+        if not (dcUserDb := getDiscordUser(message.author, session)):
+            logger.error(f"couldn't fetch DiscordUser for {message.author.display_name} from database")
 
-        query = "INSERT INTO meme (message_id, discord_id, created_at, media_link) VALUES (%s, %s, %s, %s)"
+        insertQuery = insert(Meme).values(message_id=message.id,
+                                          discord_id=dcUserDb.id,
+                                          created_at=datetime.now(),
+                                          media_link=message.attachments[0].url, )
 
-        if not database.runQueryOnDatabase(query, (message.id,
-                                                   dcUserDb['id'],
-                                                   datetime.now(),
-                                                   message.attachments[0].url,)):
-            logger.error("couldn't save meme to database")
+        try:
+            session.execute(insertQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't insert Meme into database", exc_info=error)
+            session.rollback()
 
             await self.notificationService.sendStatusReport(message.author,
                                                             "Es gab einen Fehler dein Meme zu speichern! "
                                                             "Bitte lade es später noch einmal hoch.")
-
             return
         else:
             logger.debug("saved new meme to database")
+        finally:
+            session.close()
 
         await self.notificationService.sendStatusReport(message.author,
-                                                        "Dein Meme wurde für den monatlichen Contest eingetragen!")
+                                                        "Dein Meme wurde für den monatlichen Contest eingetragen!", )
         await self.questService.addProgressToQuest(message.author, QuestType.MEME_COUNT)
 
-    async def changeLikeCounterOfMessage(self, message: Message):
+    async def changeLikeCounterOfMeme(self, message: Message):
         """
         Updates the counter of likes in the corresponding database field.
 
         :param message: Message that was reacted to
         :raise ConnectionError: If the database connection cant be established
         """
-        database = Database()
-        query = "SELECT * FROM meme WHERE message_id = %s"
+        if not (session := getSession()):
+            return
 
-        if not (meme := database.fetchOneResult(query, (message.id,))):
-            logger.warning("couldn't fetch meme from database")
+        # noinspection PyTypeChecker
+        getQuery = select(Meme).where(Meme.message_id == message.id)
+
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.debug("no meme with id {message.id} found in database")
+            session.close()
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
+            session.close()
 
             return
 
@@ -107,23 +126,33 @@ class MemeService:
             elif reaction.emoji == self.DOWNVOTE:
                 downvotes = reaction.count
             else:
-                logger.warning("unknown reaction found - ignoring")
+                logger.warning(f"unknown reaction found: {reaction.emoji} - ignoring")
 
                 continue
 
-        meme['likes'] = upvotes - downvotes
-        query, nones = writeSaveQuery('meme', meme['id'], meme)
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.id).values(likes=upvotes - downvotes)
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error("couldn't update meme to database")
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't update {meme} in database", exc_info=error)
+            session.rollback()
         else:
-            logger.debug("updated meme to database")
+            logger.debug(f"updated {meme} to database")
+        finally:
+            session.close()
 
     async def chooseWinnerAndLoser(self):
         """
         Chooses both winner and loser for meme.
         """
-        database = Database()
+        if not (session := getSession()):
+            logger.error("couldn't choose winner of memes, no database connection")
+
+            return
+
         lastMonth = datetime.now() - dateutil.relativedelta.relativedelta(months=1)
         sinceTime = lastMonth.replace(hour=0, minute=0, second=0, microsecond=0)
 
@@ -132,34 +161,40 @@ class MemeService:
 
             return
 
-        await self._chooseLoser(database, sinceTime, channel)
-        await self._chooseWinner(database, sinceTime, channel)
+        await self._chooseLoser(session, sinceTime, channel)
+        await self._chooseWinner(session, sinceTime, channel)
 
-    async def _chooseWinner(self, database: Database, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseWinner(self, session: Session, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a winner for the last month, notifies, pins and grants an XP-Boost.
 
-        :param database: Database instance
+        :param session: Database instance
         :param sinceTime: Timestamp of the earliest meme to take in consideration, usually one month ago
         :param channel: Meme-Channel
         :param offset: Offset in the database results, increase if we couldn't get a message previously
         """
-        query = ("SELECT * "
-                 "FROM meme "
-                 "WHERE created_at > %s AND deleted_at IS NULL "
-                 "ORDER BY likes DESC "
-                 "LIMIT 1 "
-                 "OFFSET %s")
+        getQuery = (select(Meme)
+                    .where(Meme.created_at > sinceTime,
+                           Meme.deleted_at.is_(None))
+                    .order_by(Meme.likes.desc())
+                    .limit(1)
+                    .offset(offset))
 
-        if not (meme := database.fetchOneResult(query, (sinceTime, offset,))):
-            logger.error("couldn't fetch any memes from database")
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.error("no meme found in database")
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
 
             return
 
-        if not (message := await channel.fetch_message(meme['message_id'])):
+        if not (message := await channel.fetch_message(meme.message_id)):
             logger.error("couldn't fetch message from channel, trying next one")
 
-            await self._chooseWinner(database, sinceTime, channel, offset + 1)
+            await self._chooseWinner(session, sinceTime, channel, offset + 1)
 
             return
 
@@ -177,36 +212,47 @@ class MemeService:
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.BEST_MEME_OF_THE_MONTH)
         logger.debug("choose meme winner and granted boost")
 
-        meme['winner'] = 1
-        query, nones = writeSaveQuery('meme', meme['id'], meme)
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.id == meme.id).values(winner=True)
 
-        if not database.runQueryOnDatabase(query, nones):
-            logger.error("couldn't update meme to database")
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
+            session.rollback()
+        finally:
+            session.close()
 
-    async def _chooseLoser(self, database: Database, sinceTime: datetime, channel, offset: int = 0):
+    async def _chooseLoser(self, session: Session, sinceTime: datetime, channel, offset: int = 0):
         """
         Chooses a loser for the last month, notifies and grants an XP-Boost.
-        :param database: Database instance
+        :param session: Database instance
         :param sinceTime: Timestamp of the earliest meme to take in consideration, usually one month ago
         :param channel: Meme-Channel
         :param offset: Offset in the database results, increase if we couldn't get a message previously
         """
-        query = ("SELECT * "
-                 "FROM meme "
-                 "WHERE created_at > %s "
-                 "ORDER BY likes "
-                 "LIMIT 1 "
-                 "OFFSET %s")
+        getQuery = (select(Meme)
+                    .where(Meme.created_at > sinceTime)
+                    .order_by(Meme.likes)
+                    .limit(1)
+                    .offset(offset))
 
-        if not (meme := database.fetchOneResult(query, (sinceTime, offset,))):
-            logger.error("couldn't fetch any memes from database")
+        try:
+            meme = session.scalars(getQuery).one()
+        except NoResultFound:
+            logger.error("no meme found in database")
+
+            return
+        except Exception as error:
+            logger.error("couldn't fetch meme from database", exc_info=error)
 
             return
 
-        if not (message := await channel.fetch_message(meme['message_id'])):
-            logger.error("couldn't fetch message from channel, trying next one")
+        if not (message := await channel.fetch_message(meme.message_id)):
+            logger.warning("couldn't fetch message from channel, trying next one")
 
-            await self._chooseLoser(database, sinceTime, channel, offset + 1)
+            await self._chooseLoser(session, sinceTime, channel, offset + 1)
 
             return
 
@@ -217,7 +263,7 @@ class MemeService:
         )
 
         await self.experienceService.grantXpBoost(message.author, AchievementParameter.WORST_MEME_OF_THE_MONTH)
-        logger.debug("choose meme loser and granted boost")
+        logger.debug(f"choose meme loser and granted boost for {meme}")
 
     async def updateMeme(self, message: RawMessageUpdateEvent):
         """
@@ -235,33 +281,54 @@ class MemeService:
 
             return
 
-        database = Database()
+        if len(message.attachments) != 0:
+            return
 
-        if len(message.attachments) == 0:
-            logger.debug(f"removing meme from {message.author.display_name}")
+        if not (session := getSession()):
+            return
 
-            query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
+        logger.debug(f"removing meme from {message.author.display_name}")
 
-            if not database.runQueryOnDatabase(query, (datetime.now(), message.id,)):
-                logger.error("couldn't update meme")
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.id).values(deleted_at=datetime.now())
 
-            try:
-                await message.delete()
-            except Exception as error:
-                logger.error("couldn't pdate meme", exc_info=error)
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
+        else:
+            logger.debug("set deleted_at for meme in database")
 
-            await self.notificationService.sendStatusReport(message.author,
-                                                            "Dein Meme wurde wieder entfernt, da du deinen Anhang "
-                                                            "gelöscht hast!")
+        try:
+            await message.delete()
+        except Exception as error:
+            logger.error("couldn't delete meme from database", exc_info=error)
+        else:
+            logger.debug("deleted meme from channel")
 
+        await self.notificationService.sendStatusReport(message.author,
+                                                        "Dein Meme wurde wieder entfernt, da du deinen Anhang "
+                                                        "gelöscht hast!")
+
+    # noinspection PyMethodMayBeStatic
     async def deleteMeme(self, message: RawMessageDeleteEvent):
         if message.channel_id != ChannelId.CHANNEL_MEMES.value:
             return
 
-        database = Database()
-        query = "UPDATE meme SET deleted_at = %s WHERE message_id = %s"
+        if not (session := getSession()):
+            return
 
-        if not database.runQueryOnDatabase(query, (datetime.now(), message.message_id,)):
-            logger.error("couldn't update meme to database")
+        # noinspection PyTypeChecker
+        updateQuery = update(Meme).where(Meme.message_id == message.message_id).values(deleted_at=datetime.now())
+
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't update meme to database", exc_info=error)
+            session.rollback()
         else:
             logger.debug("updated meme in database")
+        finally:
+            session.close()

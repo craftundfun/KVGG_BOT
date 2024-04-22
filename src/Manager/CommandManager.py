@@ -118,10 +118,7 @@ class CommandService:
         :return:
         """
         # increase command counter
-        try:
-            await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
-        except ConnectionError as error:
-            logger.error("failure to start ProcessUserInput", exc_info=error)
+        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
 
         try:
             # special case for images
