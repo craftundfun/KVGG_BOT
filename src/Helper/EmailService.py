@@ -18,7 +18,7 @@ funnySubject = [
 
 
 def send_exception_mail(message: str):
-    # if not getParameter(Parameters.PRODUCTION):
+    # if not getParameter(Parameters.PRODUCTION):  # TODO insert before deploy
     #    return
 
     exception_recipients = ExceptionEmailAddresses.getValues()

@@ -102,6 +102,8 @@ class WhatsAppHelper:
             discordUser: DiscordUser = user.discord_user
             whatsappSetting: WhatsappSetting = discordUser.whatsapp_setting
 
+            print(whatsappSetting, type(whatsappSetting))
+
             # dont send message to trigger user
             if discordUser.id == triggerDcUserDb.id:
                 logger.debug("dont send message to user who triggered message")

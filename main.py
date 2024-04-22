@@ -68,7 +68,7 @@ if getParameter(Parameters.PRODUCTION):
 # IDE
 else:
     logger.setLevel(logging.DEBUG)
-    fileHandler.setLevel(logging.DEBUG)  # TODO info aafter real deploy
+    fileHandler.setLevel(logging.DEBUG)  # TODO info after real deploy
     consoleHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
@@ -146,7 +146,7 @@ class MyClient(discord.Client):
 
         try:
             await self.databaseRefreshService.startUp()
-        except ConnectionError as error:
+        except Exception as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
             logger.info("users fetched and updated by DatabaseRefreshService")
@@ -213,16 +213,12 @@ class MyClient(discord.Client):
         if message.author.bot:
             return
 
-        try:
-            # DM
-            if isinstance(message.channel, DMChannel):
-                logger.debug("received direct message")
+        if isinstance(message.channel, DMChannel):
+            logger.debug("received direct message")
 
-                await self.soundboardService.manageDirectMessage(message)
+            await self.soundboardService.manageDirectMessage(message)
 
-                return
-        except Exception as error:
-            print(error)
+            return
 
         try:
             await self.processUserInput.raiseMessageCounter(message.author, message.channel)

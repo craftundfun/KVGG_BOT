@@ -12,9 +12,9 @@ from sqlalchemy.orm.exc import NoResultFound
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Entities.Quest.Entity.Quest import Quest
 from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
+from src.Entities.Quest.Repository.QuestDiscordMappingRepository import getQuestDiscordMapping
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
@@ -57,6 +57,12 @@ class QuestService:
         if not (session := getSession()):
             return
 
+        # create new quests if necessary - dirty, but easy
+        if not getQuestDiscordMapping(member, session):
+            logger.error(f"couldn't fetch quests for {member.display_name}")
+
+            return
+
         # noinspection PyTypeChecker
         getQuery = (select(QuestDiscordMapping)
                     .where(QuestDiscordMapping.quest_id.in_(select(Quest.id)
@@ -77,7 +83,6 @@ class QuestService:
                 return
 
             for quest in quests:
-                # print(quest)
                 lastUpdated: datetime | None = quest.time_updated
 
                 # special checks for special quests
@@ -186,13 +191,12 @@ class QuestService:
 
     async def _informMemberAboutNewQuests(self,
                                           member: Member,
-                                          dcUserDb: DiscordUser,
                                           time: QuestDates,
                                           session: Session):
         """
         Fetches all current quests from the given time and informs user about them.
 
-        :param dcUserDb: Member to message
+        :param member: Member, who will be informed
         :param time: Type of quests
         :param session:
         """
@@ -200,16 +204,8 @@ class QuestService:
         if not member.voice:
             return
 
-        # noinspection PyTypeChecker
-        getQuery = (select(QuestDiscordMapping)
-                    .join(Quest)
-                    .where(QuestDiscordMapping.discord_id == dcUserDb.id,
-                           Quest.time_type == time.value, ))
-
-        try:
-            quests = session.scalars(getQuery).all()
-        except Exception as error:
-            logger.error(f"couldn't fetch quests for {dcUserDb}", exc_info=error)
+        if not (quests := getQuestDiscordMapping(member, session)):
+            logger.error(f"couldn't fetch quests for {member.display_name}")
 
             return
 
@@ -253,56 +249,8 @@ class QuestService:
             await self.addProgressToQuest(member, QuestType.DAYS_ONLINE)
             logger.debug(f"added progress for {member.name} for days online if applicable")
 
-    async def checkQuestsForJoinedMember(self, member: Member, session: Session):
-        """
-        If a member joins the VoiceChat, this function will check if the member receives new quests and gives
-        them to them.
-
-        :param member: Member, who joined the VoiceChat
-        :param session: Session
-        """
-        if not (dcUserDb := getDiscordUser(member, session)):
-            if member.bot:
-                logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")
-            else:
-                logger.error(f"couldn't fetch DiscordUser for {member.display_name}")
-
-            return
-
-        last_online = dcUserDb.last_online
-        # noinspection PyTypeChecker
-        getQuery = select(QuestDiscordMapping.id).where(QuestDiscordMapping.discord_id == dcUserDb.id)
-
-        try:
-            currentQuests = session.scalars(getQuery).all()
-        except Exception as error:
-            logger.error(f"couldn't fetch QuestDiscordMapping for {dcUserDb}", exc_info=error)
-
-            return
-
-        if not currentQuests:
-            length = 0
-        else:
-            length = len(currentQuests)
-
-        # member has not been online yet -> create all quests
-        if not last_online or length == 0:
-            logger.debug(f"no quests yet for {dcUserDb}, generate new ones for every time")
-
-            await self._createQuestForMember(member, dcUserDb, QuestDates.DAILY, session)
-            await self._createQuestForMember(member, dcUserDb, QuestDates.WEEKLY, session)
-            await self._createQuestForMember(member, dcUserDb, QuestDates.MONTHLY, session)
-
-            return
-
-    async def _createQuestForMember(self, member: Member, dcUserDb: DiscordUser, time: QuestDates, session: Session):
-        """
-        Creates new quests for the given member and time.
-
-        :param member: Member, who will get new quests.
-        :param time: Type of quests
-        :param session:
-        """
+    @classmethod
+    def insertNewQuestsForMember(cls, member: Member, time: QuestDates, session: Session) -> bool:
         # noinspection PyTypeChecker
         getQuery = select(Quest).where(Quest.time_type == time.value)
 
@@ -311,7 +259,7 @@ class QuestService:
         except Exception as error:
             logger.error("couldn't fetch quests from database", exc_info=error)
 
-            return
+            return False
 
         usedIndices = []
         stop = False
@@ -328,7 +276,9 @@ class QuestService:
             # noinspection PyTypeChecker
             insertQuery = insert(QuestDiscordMapping).values(quest_id=quests[randomNumber].id,
                                                              time_created=datetime.now(),
-                                                             discord_id=dcUserDb.id, )
+                                                             discord_id=(select(DiscordUser.id)
+                                                                         .where(DiscordUser.user_id == str(member.id))
+                                                                         .scalar_subquery()), )
 
             try:
                 session.execute(insertQuery)
@@ -337,7 +287,7 @@ class QuestService:
 
                 continue
 
-            logger.debug(f"added {quests[randomNumber]} to {dcUserDb} quests")
+            logger.debug(f"added {quests[randomNumber]} to {member.display_name} quests")
             usedIndices.append(randomNumber)
 
             currentAmount += 1
@@ -348,14 +298,29 @@ class QuestService:
         try:
             session.commit()
         except Exception as error:
-            logger.error(f"couldn't save new quests for {dcUserDb}", exc_info=error)
+            logger.error(f"couldn't save new quests for {member.display_name}", exc_info=error)
             session.rollback()
 
-            return
+            return False
         else:
-            logger.debug(f"added all quests for {dcUserDb}")
+            logger.debug(f"added {time.value} quests for {member.display_name}")
 
-        await self._informMemberAboutNewQuests(member, dcUserDb, time, session)
+            return True
+
+    async def _createQuestForMember(self, member: Member, dcUserDb: DiscordUser, time: QuestDates, session: Session):
+        """
+        Creates new quests for the given member and time.
+
+        :param member: Member, who will get new quests.
+        :param time: Type of quests
+        :param session:
+        """
+        if not self.insertNewQuestsForMember(member, time, session):
+            logger.error(f"couldn't insert new quests for {dcUserDb} and time: {time}")
+
+            return
+
+        await self._informMemberAboutNewQuests(member, time, session)
 
     def listQuests(self, member: Member) -> str:
         """
@@ -366,25 +331,11 @@ class QuestService:
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
-        # noinspection PyTypeChecker
-        getQuery = (select(QuestDiscordMapping)
-                    .where(QuestDiscordMapping.discord_id == (select(DiscordUser.id)
-                                                              .where(DiscordUser.user_id == str(member.id))
-                                                              .scalar_subquery())))
-
-        try:
-            quests = session.scalars(getQuery).all()
-        except Exception as error:
-            logger.error(f"couldn't fetch quests for {member.display_name}", exc_info=error)
+        if not (quests := getQuestDiscordMapping(member, session)):
+            logger.error(f"couldn't fetch quests for {member.display_name}")
             session.close()
 
             return "Es gab einen Fehler!"
-
-        if not quests:
-            logger.warning(f"{member.display_name} has no active quests")
-            session.close()
-
-            return "Du hast aktuell keine Quests!"
 
         daily = []
         weekly = []

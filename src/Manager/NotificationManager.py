@@ -41,7 +41,7 @@ class NotificationService:
                            member: Member,
                            content: str,
                            typeOfMessage: NotificationType,
-                           useSeparator: bool = True):
+                           useSeparator: bool = True, ):
         """
         Sends a DM to the user and handles errors.
         This method also checks if the given user wants that kind of message.
@@ -135,12 +135,13 @@ class NotificationService:
                                 f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
                                 NotificationType.QUEST, )
 
-    async def runNotificationsForMember(self, member: Member, dcUserDb: DiscordUser, session: Session):
+    async def runNotificationsForMemberUponJoining(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Sends all opted in notifications and advertisements.
 
         :param member: Member, who will receive the messages.
         :param dcUserDb: Database user of the member.
+        :param session: Database session
         """
         answer = ""
 
@@ -287,7 +288,7 @@ class NotificationService:
         if quests:
             message += " " + quests
 
-        message += "\n\n**Viel Spaß!**"
+        message += "\n**Viel Spaß!**"
 
         return message
 

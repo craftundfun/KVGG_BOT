@@ -11,15 +11,15 @@ from sqlalchemy.orm.exc import MultipleResultsFound
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Entities.Game.Entity.Game import Game
+from src.Entities.Game.Entity.DiscordGame import DiscordGame
 from src.Entities.Game.Entity.GameDiscordMapping import GameDiscordMapping
 
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getDiscordGame(activityName: str, session: Session) -> Game | None:
-    insertQuery = insert(Game).values(name=activityName)
-    getQuery = select(Game).where(Game.name == activityName)
+def getDiscordGame(activityName: str, session: Session) -> DiscordGame | None:
+    insertQuery = insert(DiscordGame).values(name=activityName)
+    getQuery = select(DiscordGame).where(DiscordGame.name == activityName)
 
     try:
         game = session.scalars(getQuery).one()
@@ -30,7 +30,7 @@ def getDiscordGame(activityName: str, session: Session) -> Game | None:
     except NoResultFound:
         logger.debug(f"did not found exact name match for {activityName}")
 
-        getGamesQuery = select(Game)
+        getGamesQuery = select(DiscordGame)
 
         try:
             games = session.scalars(getGamesQuery).all()
@@ -142,7 +142,7 @@ def getMostPlayedGames(session: Session, limit: int = 3) -> list[dict[str, str |
 
     :return: [{"name": <str>, "time_played": <int>}]
     """
-    getQuery = (select(Game.name, func.sum(GameDiscordMapping.time_played_online)
+    getQuery = (select(DiscordGame.name, func.sum(GameDiscordMapping.time_played_online)
                        + func.sum(GameDiscordMapping.time_played_offline))
                 .join(GameDiscordMapping)
                 .group_by(GameDiscordMapping.discord_game_id)

@@ -95,8 +95,17 @@ class VoiceStateUpdateService:
             dcUserDb.started_stream_at = null()
             dcUserDb.started_webcam_at = null()
 
+            # commit here to avoid having a lock on the user
             try:
-                await self.notificationService.runNotificationsForMember(member, dcUserDb, session)
+                session.commit()
+            except Exception as error:
+                logger.error("couldn't commit changes", exc_info=error)
+                session.close()
+
+                return
+
+            try:
+                await self.notificationService.runNotificationsForMemberUponJoining(member, dcUserDb, session)
             except Exception as error:
                 logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
@@ -125,9 +134,8 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error(f"failure while running checkChannelForMoving for {member}", exc_info=error)
 
-            # create new quests and check the progress of existing ones
+            # check the progress of existing quests
             try:
-                await self.questService.checkQuestsForJoinedMember(member, session)
                 await self.questService.addProgressToQuest(member, QuestType.DAYS_ONLINE)
                 await self.questService.addProgressToQuest(member, QuestType.ONLINE_STREAK)
             except Exception as error:

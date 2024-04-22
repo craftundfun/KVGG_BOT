@@ -321,8 +321,9 @@ class ExperienceService:
 
         # noinspection PyTypeChecker
         # noinspection PyUnresolvedReferences
-        getQuery = select(Experience.discord_user).where(Experience.time_to_send_spin_reminder.is_not(None),
-                                                         Experience.time_to_send_spin_reminder <= datetime.now(), )
+        getQuery = (select(Experience)
+                    .where(Experience.time_to_send_spin_reminder.is_not(None),
+                           Experience.time_to_send_spin_reminder <= datetime.now(), ))
 
         try:
             xps = session.scalars(getQuery).all()

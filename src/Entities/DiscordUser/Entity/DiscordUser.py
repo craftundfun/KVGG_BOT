@@ -20,8 +20,6 @@ class DiscordUser(Base):
     muted_at = Column(DateTime)
     full_muted_at = Column(DateTime)
     time_streamed = Column(BigInteger, nullable=False, default=0)
-    started_stream_at = Column(DateTime)  # TODO maybe remove -> the bot does not use them
-    started_webcam_at = Column(DateTime)  # TODO maybe remove -> the bot does not use them
     profile_picture_discord = Column(String(300))
     university_time_online = Column(BigInteger)
     felix_counter_start = Column(DateTime)
@@ -29,11 +27,14 @@ class DiscordUser(Base):
     discord_name = Column(String(255))
 
     user = relationship("User", back_populates="discord_user")
+    # use useList, otherwise that would be a list
     whatsapp_setting = relationship("WhatsappSetting", back_populates="discord_user", uselist=False)
     experience = relationship("Experience", back_populates="discord_user")
     counter_mappings = relationship("CounterDiscordMapping", back_populates="discord_user")
     current_discord_statistics = relationship("CurrentDiscordStatistic", back_populates="discord_user")
     memes = relationship("Meme", back_populates="discord_user")
+    game_mappings = relationship("GameDiscordMapping", back_populates="discord_user")
+    quest_mappings = relationship("QuestDiscordMapping", back_populates="discord_user")
 
     def __repr__(self):
         return f"DiscordUser(id={self.id}, username={self.username})"

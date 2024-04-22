@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer
+from sqlalchemy import Column, BigInteger, Boolean
 from sqlalchemy import ForeignKey, JSON
 from sqlalchemy.orm import relationship
 
@@ -12,13 +12,13 @@ class WhatsappSetting(Base):
 
     id = Column(BigInteger, autoincrement=True, primary_key=True)
     discord_user_id = Column(BigInteger, ForeignKey('discord.id'), nullable=False)
-    receive_join_notification = Column(Integer, default=1)
-    receive_leave_notification = Column(Integer, default=1)
-    receive_uni_join_notification = Column(Integer, default=1)
-    receive_uni_leave_notification = Column(Integer, default=1)
+    receive_join_notification = Column(Boolean, default=True, nullable=False)
+    receive_leave_notification = Column(Boolean, default=True, nullable=False)
+    receive_uni_join_notification = Column(Boolean, default=True, nullable=False)
+    receive_uni_leave_notification = Column(Boolean, default=True, nullable=False)
     suspend_times = Column(JSON)
     # noinspection PyTypeChecker
-    discord_user = relationship("DiscordUser", foreign_keys=discord_user_id)
+    discord_user = relationship("DiscordUser", back_populates="whatsapp_setting")
 
     def __repr__(self):
         return f"WhatsappSetting(id={self.id}, DiscordUser={self.discord_user})"

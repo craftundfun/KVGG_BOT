@@ -1,16 +1,16 @@
 from sqlalchemy.sql import select
 
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Manager.DatabaseManager import getSession
-from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
 
 session = getSession()
 
-getQuery = select(WhatsappSetting)
+getQuery = select(DiscordUser)
 
 try:
-    dcUsersDb = session.scalars(getQuery).all()
+    reminders = session.scalars(getQuery).all()
 except Exception as error:
     print(error)
 else:
-    print(dcUsersDb[0].suspend_times)
-
+    for reminder in reminders:
+        print(reminder.whatsapp_setting)

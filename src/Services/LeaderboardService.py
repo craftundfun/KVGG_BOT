@@ -12,11 +12,12 @@ from discord import Client
 from sqlalchemy import select
 
 from src.DiscordParameters.Colors import Colors
-from src.Helper.GetFormattedTime import getFormattedTime
-from src.Manager.DatabaseManager import getSession
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.Game.Repository.DiscordGameRepository import getMostPlayedGames
 from src.Entities.UserRelation.Entity.DiscordUserRelation import DiscordUserRelation
+from src.Helper.GetFormattedTime import getFormattedTime
+from src.Helper.ReadParameters import getParameter, Parameters
+from src.Manager.DatabaseManager import getSession
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationTypeEnum
 from src.View.PaginationView import PaginationViewDataItem, PaginationViewDataTypes
@@ -49,7 +50,7 @@ class LeaderboardImageNames(Enum):
 
 class LeaderboardService:
     basepath = Path(__file__).parent.parent.parent
-    url = "https://axellotl.de:8000/backend/discord/plots/"
+    url = f"https://axellotl.de:{getParameter(Parameters.API_PORT)}/backend/discord/plots/"
 
     def __init__(self, client: Client):
         self.client = client

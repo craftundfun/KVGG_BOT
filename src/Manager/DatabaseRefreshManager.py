@@ -6,9 +6,9 @@ from datetime import datetime
 from discord import Client, ChannelType
 from sqlalchemy import select, null
 
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
-from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 
 logger = logging.getLogger("KVGG_BOT")
 
