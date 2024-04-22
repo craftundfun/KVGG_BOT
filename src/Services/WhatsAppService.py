@@ -175,10 +175,21 @@ class WhatsAppHelper:
 
                 continue
 
-            if not (whatsappSetting := dcUserDbReceiver.whatsapp_setting):
-                logger.error(f"{dcUserDbReceiver} has no WhatsappSetting")
+            # TODO solve dupe
+            if not dcUserDbReceiver.whatsapp_setting:
+                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user.discord_user_id))
 
-                continue
+                if not member:
+                    logger.error(f"couldn't fetch member for {user.discord_user}")
+
+                    continue
+
+                if not (whatsappSetting := getWhatsappSetting(member, session)):
+                    logger.error(f"couldn't fetch WhatsappSetting for {member.display_name}")
+
+                    continue
+            else:
+                whatsappSetting: WhatsappSetting = dcUserDbReceiver.whatsapp_setting
 
             # use a channel id here, dcUserDb no longer holds a channel id in this method
             if (update.channel in getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
