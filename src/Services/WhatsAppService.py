@@ -17,11 +17,13 @@ from sqlalchemy.orm.exc import NoResultFound
 from src.DiscordParameters.WhatsAppParameter import WhatsAppParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.DiscordUser.Repository.WhatsappSettingRepository import getWhatsappSetting
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Entities.MessageQueue.Repository.MessageQueueRepository import getUnsentMessagesFromTriggerUser
 from src.Entities.User.Entity.User import User
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories, UniversityCategory
+from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 
 logger = logging.getLogger("KVGG_BOT")
@@ -100,9 +102,21 @@ class WhatsAppHelper:
 
         for user in users:
             discordUser: DiscordUser = user.discord_user
-            whatsappSetting: WhatsappSetting = discordUser.whatsapp_setting
 
-            print(whatsappSetting, type(whatsappSetting))
+            if not discordUser.whatsapp_setting:
+                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user.discord_user_id))
+
+                if not member:
+                    logger.error(f"couldn't fetch member for {user.discord_user}")
+
+                    continue
+
+                if not (whatsappSetting := getWhatsappSetting(member, session)):
+                    logger.error(f"couldn't fetch WhatsappSetting for {member.display_name}")
+
+                    continue
+            else:
+                whatsappSetting: WhatsappSetting = discordUser.whatsapp_setting
 
             # dont send message to trigger user
             if discordUser.id == triggerDcUserDb.id:
