@@ -178,7 +178,7 @@ class WhatsAppHelper:
 
             # TODO solve dupe
             if not dcUserDbReceiver.whatsapp_setting:
-                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(user.discord_user_id))
+                member = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDbReceiver.user_id))
 
                 if not member:
                     logger.error(f"couldn't fetch member for {user.discord_user}")
