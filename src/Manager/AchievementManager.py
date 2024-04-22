@@ -1,13 +1,12 @@
 import logging
-from os import environ
 
 from discord import Client, Member
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Helper.ReadParameters import getParameter, Parameters
 from src.Id.ChannelId import ChannelId
 
 logger = logging.getLogger("KVGG_BOT")
-IN_DOCKER = environ.get('AM_I_IN_A_DOCKER_CONTAINER', False)
 
 
 class AchievementService:
@@ -150,7 +149,7 @@ class AchievementService:
         :param message:
         :return:
         """
-        if IN_DOCKER:
+        if getParameter(Parameters.PRODUCTION):
             try:
                 await self.channel.send(message)
             except Exception as error:
