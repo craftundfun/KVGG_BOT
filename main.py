@@ -68,7 +68,7 @@ if getParameter(Parameters.PRODUCTION):
 # IDE
 else:
     logger.setLevel(logging.DEBUG)
-    fileHandler.setLevel(logging.DEBUG)  # TODO info after real deploy
+    fileHandler.setLevel(logging.INFO)
     consoleHandler.setLevel(logging.DEBUG)
 
 logger.addHandler(fileHandler)
