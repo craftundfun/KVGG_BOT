@@ -1,4 +1,5 @@
 import logging
+import random
 import smtplib
 from email.message import EmailMessage
 
@@ -18,11 +19,11 @@ funnySubject = [
 
 
 def send_exception_mail(message: str):
-    # if not getParameter(Parameters.PRODUCTION):  # TODO insert before deploy
-    #    return
+    if not getParameter(Parameters.PRODUCTION):
+        return
 
     exception_recipients = ExceptionEmailAddresses.getValues()
-    subject = "Beta"  # funnySubject[random.randint(0, len(funnySubject) - 1)]  # TODO
+    subject = funnySubject[random.randint(0, len(funnySubject) - 1)]
 
     for exception_recipient in exception_recipients:
         email = EmailMessage()
