@@ -100,7 +100,7 @@ class ChannelService:
 
                 return "Es ist ein Fehler aufgetreten."
             else:
-                return f"<@{member_1.id}> und<@ {member_2.id}> wurden erfolgreich verschoben."
+                return f"<@{member_1.id}> und<@{member_2.id}> wurden erfolgreich verschoben."
         else:
             return "Es ist ein Fehler aufgetreten."
 
