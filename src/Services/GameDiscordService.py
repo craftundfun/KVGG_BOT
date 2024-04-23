@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -52,7 +52,6 @@ class GameDiscordService:
                     relation.time_played_online += 1
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
-                    self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
 
                     if (relation.time_played_online % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
                         await self.achievementService.sendAchievementAndGrantBoost(member,
@@ -62,6 +61,7 @@ class GameDiscordService:
                 else:
                     relation.time_played_offline += 1
 
+                self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
                 relation.last_played = now
 
                 try:
