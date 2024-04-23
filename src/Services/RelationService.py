@@ -86,8 +86,12 @@ class RelationService:
                              f"{member_2.display_name}",
                              exc_info=error, )
         else:
-            logger.error(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
-                         f"{member_2.display_name}")
+            if member_1.bot or member_2.bot:
+                logger.warning(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+                               f"{member_2.display_name}")
+            else:
+                logger.error(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+                             f"{member_2.display_name}")
 
     async def increaseAllRelations(self):
         """

@@ -22,6 +22,7 @@ def getRelationBetweenUsers(member_1: Member,
     :param member_2:
     :param member_1:
     :param type:
+    :param session: The session for the database
     :return:
     """
     if member_1.id == member_2.id:
