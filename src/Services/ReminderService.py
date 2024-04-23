@@ -7,10 +7,9 @@ import discord
 from discord import Member
 from sqlalchemy import select, insert, null, delete
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import NoResultFound
 
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Entities.DiscordUser.Entity.WhatsappSetting import WhatsappSetting
+from src.Entities.DiscordUser.Repository.WhatsappSettingRepository import getWhatsappSetting
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Entities.Reminder.Entity.Reminder import Reminder
 from src.Entities.User.Entity.User import User
@@ -165,29 +164,17 @@ class ReminderService:
             return "Bitte gib einen kürzeren Text ein!"
 
         minutesLeft = __getMinutesLeft()
+        answerAppendix = ""
 
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         if whatsapp:
-            # noinspection PyTypeChecker
-            getQuery = (select(WhatsappSetting)
-                        .where(WhatsappSetting.discord_user_id == (select(DiscordUser.id)
-                                                                   .where(DiscordUser.user_id == str(member.id))
-                                                                   .scalar_subquery())))
-            try:
-                whatsappSetting = session.scalars(getQuery).one()
-            except NoResultFound:
-                logger.debug(f"{member.display_name} cannot receive whatsapp notifications")
+            if not (getWhatsappSetting(member, session)):
+                logger.debug(f"{member.display_name} can't receive whatsapp notifications")
 
                 answerAppendix = "Allerdings kannst du keine Whatsapp-Benachrichtigungen bekommen."
                 whatsapp: bool = False
-            except Exception as error:
-                logger.error(f"couldn't fetch WhatsappSettings for {member.display_name}", exc_info=error)
-                session.rollback()
-                session.close()
-
-                return "Es ist ein Fehler aufgetreten!"
             else:
                 whatsapp: bool = True
         else:
@@ -215,8 +202,7 @@ class ReminderService:
 
         session.close()
 
-        return "Deine Erinnerung wurde erfolgreich gespeichert! " + \
-            (answerAppendix if 'answerAppendix' in locals() else "")
+        return "Deine Erinnerung wurde erfolgreich gespeichert! " + answerAppendix
 
     def listReminders(self, member: Member) -> [PaginationViewDataItem]:
         """
@@ -399,15 +385,14 @@ class ReminderService:
 
         if reminder.whatsapp:
             message = f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n{reminder.content}"
+            # noinspection PyTypeChecker
             insertQuery = insert(MessageQueue).values(message=message,
-                                                      # noinspection PyTypeChecker
                                                       trigger_user_id=(select(DiscordUser.id)
                                                                        .where(DiscordUser.user_id == str(member.id))
                                                                        .scalar_subquery()),
                                                       created_at=datetime.now(),
-                                                      # noinspection PyTypeChecker
                                                       user_id=(select(User.id)
-                                                               .where(DiscordUser.user_id == str(member.id))
+                                                               .where(User.discord_user_id == reminder.discord_user_id)
                                                                .scalar_subquery()),
                                                       is_join_message=False, )
 
