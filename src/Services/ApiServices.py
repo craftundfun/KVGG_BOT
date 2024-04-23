@@ -170,7 +170,7 @@ class ApiServices:
         path: Path = self.basepath.joinpath(f"data/qrcode/qrcode.png")
 
         try:
-            with open(path, 'wb') as file:
+            with open(path, 'wb+') as file:
                 file.write(answer.content)
         except Exception as error:
             logger.error("couldn't write qrcode content to file", exc_info=error)
