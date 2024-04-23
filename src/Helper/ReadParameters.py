@@ -55,7 +55,7 @@ def getParameter(param: Parameters) -> Any:
         case Parameters.EMAIL_PASSWORD:
             return os.getenv("EMAIL_PASSWORD")
         case Parameters.API_NINJA_KEY:
-            return os.getenv("API_KEY")
+            return os.getenv("API_NINJA_KEY")
         case Parameters.PRODUCTION:
             return bool(int(os.getenv("PRODUCTION")))
         case Parameters.API_PORT:
