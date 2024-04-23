@@ -219,7 +219,7 @@ class ReminderService:
                     .where(Reminder.discord_user_id == (select(DiscordUser.id)
                                                         .where(DiscordUser.user_id == str(member.id))
                                                         .scalar_subquery()),
-                           Reminder.time_to_sent is not None, ))
+                           Reminder.time_to_sent.is_not(None), ))
 
         try:
             reminders = session.scalars(getQuery).all()
