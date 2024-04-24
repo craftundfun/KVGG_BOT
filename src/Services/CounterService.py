@@ -7,12 +7,13 @@ from sqlalchemy import select, insert
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Entities.Counter.Entity.Counter import Counter
+from src.Entities.Counter.Entity.CounterDiscordMapping import CounterDiscordMapping
+from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Id.RoleId import RoleId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.TTSManager import TTSService
-from src.Entities.Counter.Entity.Counter import Counter
-from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
 from src.Services.VoiceClientService import VoiceClientService
@@ -166,7 +167,7 @@ class CounterService:
         counterName = counterName.split(" ")[0]
         answerAppendix = ""
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab einen Fehler!"
 
         logger.debug(f"{requestingMember.display_name} requested {counterName}-Counter")
@@ -277,7 +278,31 @@ class CounterService:
                                                    None,
                                                    True, )
 
+        # noinspection PyTypeChecker
+        getQuery = (select(CounterDiscordMapping)
+                    .where(CounterDiscordMapping.counter_id == (select(Counter.id)
+                                                                .where(Counter.name == counterName.lower())
+                                                                .scalar_subquery()))
+                    .order_by(CounterDiscordMapping.value.desc()))
+        place = -1
+
+        try:
+            # fetch all CounterDiscordMappings for the Counter and find the requestedUser and thus his place in the
+            # ranking
+            counterMapping = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch all CounterDiscordMappings for Counter: {counterName}", exc_info=error)
+        else:
+            place = 1
+
+            for mapping in counterMapping:
+                if mapping.discord_user.user_id == str(requestedUser.id):
+                    break
+
+                place += 1
+
         return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht! "
                 f"<@{requestedUser.id}> hat nun insgesamt {counterDiscordMapping.value} "
-                f"{counterName.capitalize()}-Counter."
+                f"{counterName.capitalize()}-Counter"
+                f"{'' if place == -1 else ' und landet damit auf Platz ' + str(place)}."
                 + answerAppendix)
