@@ -7,13 +7,13 @@ from sqlalchemy import select, insert, delete
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
-from src.Helper.GetFormattedTime import getFormattedTime
-from src.Id.GuildId import GuildId
-from src.Manager.NotificationManager import NotificationService
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
 from src.Entities.Statistic.Entity.StatisticLog import StatisticLog
-from src.Entities.Statistic.Repository.StatisticRepository import getStatisticsForUser
+from src.Entities.Statistic.Repository.StatisticRepository import getCurrentStatisticsForUser
+from src.Helper.GetFormattedTime import getFormattedTime
+from src.Id.GuildId import GuildId
+from src.Manager.NotificationManager import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -109,14 +109,14 @@ class StatisticManager:
         """
         logger.debug(f"increasing statistics for {member.display_name} and type {type.value}")
 
-        statistics: list[CurrentDiscordStatistic] = getStatisticsForUser(type, member, session)
+        statistics: list[CurrentDiscordStatistic] = getCurrentStatisticsForUser(type, member, session)
 
         if not statistics:
             logger.error(f"got no statistics for {member.display_name}, aborting to increase")
 
             return
 
-        # increase weekly, monthly and yearly
+        # increase daily, weekly, monthly and yearly
         for statistic in statistics:
             statistic.value += value
 
@@ -181,13 +181,17 @@ class StatisticManager:
                 StatisticsParameter.ONLINE.value: 1,
                 StatisticsParameter.STREAM.value: 2,
                 StatisticsParameter.ACTIVITY.value: 3,
-                StatisticsParameter.MESSAGE.value: 4,
-                StatisticsParameter.COMMAND.value: 5
+                StatisticsParameter.UNIVERSITY.value: 4,
+                StatisticsParameter.MESSAGE.value: 5,
+                StatisticsParameter.COMMAND.value: 6,
             }
             # Sort the statistics based on the defined order
             sorted_statistics = sorted(statistics, key=lambda s: order.get(s.statistic_type, float('inf')))
 
             for statistic in sorted_statistics:
+                if statistic.statistic_time != time.value:
+                    continue
+
                 match statistic.statistic_type:
                     case StatisticsParameter.ONLINE.value:
                         if statistic.value > 0:
@@ -209,6 +213,10 @@ class StatisticManager:
                         if statistic.value > 0:
                             message += (f"-\tDu hast {getFormattedTime(statistic.value)} Stunden gespielt oder "
                                         f"Programme genutzt.\n")
+                            modified = True
+                    case StatisticsParameter.UNIVERSITY.value:
+                        if statistic.value > 0:
+                            message += f"-\tDu hast {getFormattedTime(statistic.value)} Stunden studiert.\n"
                             modified = True
                     case _:
                         logger.error(f"undefined enum entry was reached: {statistic.statistic_type} for {dcUserDb}")

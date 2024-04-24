@@ -21,8 +21,9 @@ loggerTime = logging.getLogger("TIME")
 fileHandlerTime = logging.handlers.TimedRotatingFileHandler(filename='Logs/times.txt', when='midnight', backupCount=5)
 
 loggerMinutelyJob = logging.getLogger("MINUTELY_JOB")
-fileHandlerMinutelyJob = logging.handlers.TimedRotatingFileHandler(filename='Logs/minutelyJob.txt', when='midnight',
-                                                                   backupCount=5)
+fileHandlerMinutelyJob = logging.handlers.TimedRotatingFileHandler(filename='Logs/minutelyJob.txt',
+                                                                   when='midnight',
+                                                                   backupCount=5, )
 
 fileHandlerTime.setFormatter(CustomFormatterFile())
 fileHandlerMinutelyJob.setFormatter(CustomFormatterFile())
@@ -169,6 +170,13 @@ class BackgroundServices(commands.Cog):
 
         if not (session := getSession()):
             return
+
+        logger.debug("running daily statistics")
+
+        try:
+            self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.DAILY, session)
+        except Exception as error:
+            logger.error("couldn't save daily statistics", exc_info=error)
 
         if now.weekday() == 0:
             logger.debug("running weekly statistics")

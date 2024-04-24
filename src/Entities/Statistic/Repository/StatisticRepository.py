@@ -11,9 +11,9 @@ from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscord
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getStatisticsForUser(type: StatisticsParameter,
-                         member: Member,
-                         session: Session) -> list[CurrentDiscordStatistic] | None:
+def getCurrentStatisticsForUser(type: StatisticsParameter,
+                                member: Member,
+                                session: Session) -> list[CurrentDiscordStatistic] | None:
     # noinspection PyTypeChecker
     getQuery = (select(CurrentDiscordStatistic)
                 .where(CurrentDiscordStatistic.statistic_type == type.value,
@@ -30,15 +30,15 @@ def getStatisticsForUser(type: StatisticsParameter,
     if not statistics:
         logger.debug(f"no current statistics found for {member.display_name}, creating new ones")
 
-        # weekly
+        if not _insertStatistic(type, StatisticsParameter.DAILY, member, session):
+            return None
+
         if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
             return None
 
-        # weekly
         if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
             return None
 
-        # weekly
         if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
             return None
 
@@ -49,10 +49,11 @@ def getStatisticsForUser(type: StatisticsParameter,
                          exc_info=error, )
             return None
 
-    if len(statistics) != 3:
+    if len(statistics) != 4:
         logger.debug("less then 3 statistics, searching missing one and creating it")
 
-        times = [StatisticsParameter.WEEKLY.value,
+        times = [StatisticsParameter.DAILY.value,
+                 StatisticsParameter.WEEKLY.value,
                  StatisticsParameter.MONTHLY.value,
                  StatisticsParameter.YEARLY.value, ]
 
@@ -60,17 +61,19 @@ def getStatisticsForUser(type: StatisticsParameter,
             if stat.statistic_time in times:
                 times.remove(stat.statistic_time)
 
+        if StatisticsParameter.DAILY.value in times:
+            if not _insertStatistic(type, StatisticsParameter.DAILY, member, session):
+                return None
+
         if StatisticsParameter.WEEKLY.value in times:
             if not _insertStatistic(type, StatisticsParameter.WEEKLY, member, session):
                 return None
 
         if StatisticsParameter.MONTHLY.value in times:
-            # monthly
             if not _insertStatistic(type, StatisticsParameter.MONTHLY, member, session):
                 return None
 
         if StatisticsParameter.YEARLY.value in times:
-            # yearly
             if not _insertStatistic(type, StatisticsParameter.YEARLY, member, session):
                 return None
 
@@ -97,7 +100,6 @@ def _insertStatistic(type: StatisticsParameter,
                                        .where(DiscordUser.user_id == str(member.id))
                                        .scalar_subquery()),
                            ))
-    checkpoint = session.begin_nested()
 
     try:
         session.execute(insertQuery)
@@ -110,6 +112,5 @@ def _insertStatistic(type: StatisticsParameter,
     except Exception as error:
         logger.error(f"couldn't insert or commit current discord statistics for {member.display_name}",
                      exc_info=error, )
-        checkpoint.rollback()
 
         return False
