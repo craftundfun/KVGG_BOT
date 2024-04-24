@@ -3,6 +3,7 @@ from enum import Enum
 
 class StatisticsParameter(Enum):
     # time types
+    DAILY = "DAILY"
     WEEKLY = "WEEK"
     MONTHLY = "MONTH"
     YEARLY = "YEAR"
