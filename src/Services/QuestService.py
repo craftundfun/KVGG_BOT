@@ -209,7 +209,11 @@ class QuestService:
 
             return
 
-        await self.notificationService.informAboutNewQuests(member, time, list(quests))
+        await self.notificationService.informAboutNewQuests(member,
+                                                            time,
+                                                            # collect only quests from the given time
+                                                            [quest for quest in quests if
+                                                             quest.quest.time_type == time.value], )
 
     async def _createQuestsForAllUsers(self, time: QuestDates, session: Session):
         """
