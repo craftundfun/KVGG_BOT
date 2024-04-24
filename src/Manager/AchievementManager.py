@@ -134,6 +134,14 @@ class AchievementService:
                                                                                               "bekommen!")
                 await xpService.grantXpBoost(member_1, AchievementParameter.RELATION_STREAM)
                 await xpService.grantXpBoost(member_2, AchievementParameter.RELATION_STREAM)
+            case AchievementParameter.RELATION_ACTIVITY:
+                message = (tag_1 + " und " + tag_2 + ", ihr habt schon " + str(hours) + " Stunden gemeinsam "
+                                                                                        "Spiele gespielt! :cookie:\n\n"
+                                                                                        "Dafür habt ihr beide "
+                                                                                        "einen XP-Boost "
+                                                                                        "bekommen!")
+                await xpService.grantXpBoost(member_1, AchievementParameter.RELATION_ACTIVITY)
+                await xpService.grantXpBoost(member_2, AchievementParameter.RELATION_ACTIVITY)
             case _:
                 logger.error(f"undefined enum entry was reached: {kind}")
 
