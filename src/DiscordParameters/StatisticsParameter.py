@@ -17,6 +17,13 @@ class StatisticsParameter(Enum):
     UNIVERSITY = "university"
 
     @classmethod
+    def getTimeValues(cls) -> list[str]:
+        return [cls.DAILY.value,
+                cls.WEEKLY.value,
+                cls.MONTHLY.value,
+                cls.YEARLY.value, ]
+
+    @classmethod
     def getTypeValues(cls) -> list[str]:
         return [cls.ONLINE.value,
                 cls.STREAM.value,

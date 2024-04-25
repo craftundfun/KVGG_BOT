@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Sequence
 
 from discord import Member, Client
-from sqlalchemy import select, insert, delete
+from sqlalchemy import select, insert
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
@@ -25,6 +25,7 @@ class StatisticManager:
 
         self.notificationService = NotificationService(self.client)
 
+    # noinspection PyMethodMayBeStatic
     def saveStatisticsToStatisticLog(self, time: StatisticsParameter, session: Session):
         """
         Saves the statistics (currently only online statistic) to the statistic-log database.
@@ -40,62 +41,40 @@ class StatisticManager:
             try:
                 statistics: Sequence[CurrentDiscordStatistic] = session.scalars(getQuery).all()
             except Exception as error:
-                logger.error(f"couldn't fetch statistics of type {type} for {time}", exc_info=error)
+                logger.error(f"couldn't fetch statistics for type:{type} and time: {time}", exc_info=error)
 
                 continue
 
-            usersWithStatistics = []
+            if not statistics:
+                logger.error(f"couldn't fetch statistics for type:{type} and time: {time}")
+
+                return
 
             for statistic in statistics:
                 insertQuery = insert(StatisticLog).values(type=time.value,
                                                           statistic_type=type,
                                                           created_at=datetime.now(),
                                                           discord_user_id=(discordUserId := statistic.discord_id),
-                                                          value=(value := statistic.value), )
-                # noinspection PyTypeChecker
-                deleteQuery = delete(CurrentDiscordStatistic).where(CurrentDiscordStatistic.id == statistic.id)
-                usersWithStatistics += [statistic.discord_id]
-
-                try:
-                    session.execute(insertQuery)
-                    session.execute(deleteQuery)
-                except Exception as error:
-                    logger.error("couldn't insert or delete statistics", exc_info=error)
-                else:
-                    logger.debug(f"inserted statistics of type {type} and value {value} for ID: {discordUserId}")
-
-            try:
-                session.commit()
-            except Exception as error:
-                logger.error("couldn't commit statistics", exc_info=error)
-
-            getQuery = select(DiscordUser).where(DiscordUser.id.notin_(usersWithStatistics))
-
-            try:
-                usersWithoutStatistics: Sequence[DiscordUser] = session.scalars(getQuery).all()
-            except Exception as error:
-                logger.error("couldn't fetch users without statistics", exc_info=error)
-
-                return
-
-            for user in usersWithoutStatistics:
-                insertQuery = insert(StatisticLog).values(type=time.value,
-                                                          statistic_type=type,
-                                                          created_at=datetime.now(),
-                                                          discord_user_id=user.id,
-                                                          value=0, )
+                                                          value=statistic.value, )
 
                 try:
                     session.execute(insertQuery)
                 except Exception as error:
-                    logger.error("couldn't insert statistics for user without statistics", exc_info=error)
-                else:
-                    logger.debug(f"inserted statistics of type {type} and value 0 for {user}")
+                    logger.error(f"couldn't insert statistics for {statistic.discord_id}, type: {type} and time: "
+                                 f"{time}", exc_info=error)
 
-            try:
-                session.commit()
-            except Exception as error:
-                logger.error("couldn't commit statistics", exc_info=error)
+                    continue
+
+                # reset value so we don't have to insert it again
+                statistic.value = 0
+
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"couldn't commit statistics for {statistic.discord_id}, type: {type} and time: "
+                                 f"{time}", exc_info=error)
+
+                    continue
 
     # noinspection PyMethodMayBeStatic
     def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
