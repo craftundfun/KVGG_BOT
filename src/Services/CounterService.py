@@ -5,6 +5,7 @@ from discord import Client
 from discord import Member
 from sqlalchemy import select, insert
 from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.orm.session import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.Entities.Counter.Entity.Counter import Counter
@@ -149,6 +150,38 @@ class CounterService:
 
         return answer
 
+    def _getRankingPlace(self, member: Member, counterName: str, session: Session) -> int:
+        """
+        Returns the current place of the given member for the given counter
+
+        :param member: Member to get the ranking place for
+        :param counterName: Counter to get the ranking place for
+        """
+        # noinspection PyTypeChecker
+        getQuery = (select(CounterDiscordMapping)
+                    .where(CounterDiscordMapping.counter_id == (select(Counter.id)
+                                                                .where(Counter.name == counterName.lower())
+                                                                .scalar_subquery()))
+                    .order_by(CounterDiscordMapping.value.desc()))
+        place = -1
+
+        try:
+            # fetch all CounterDiscordMappings for the Counter and find the requestedUser and thus his place in the
+            # ranking
+            counterMapping = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch all CounterDiscordMappings for Counter: {counterName}", exc_info=error)
+        else:
+            place = 1
+
+            for mapping in counterMapping:
+                if mapping.discord_user.user_id == str(member.id):
+                    break
+
+                place += 1
+
+        return place
+
     async def accessNameCounterAndEdit(self, counterName: str,
                                        requestedUser: Member,
                                        requestingMember: Member,
@@ -200,7 +233,7 @@ class CounterService:
 
         if not param:
             return (f"<@{requestedUser.id}> hat einen {counterName.capitalize()}-Counter von "
-                    f"{counterDiscordMapping.value}.")
+                    f"{counterDiscordMapping.value}{'' if (place := self._getRankingPlace(requestedUser, counterName, session)) == -1 else ' und landet damit auf Platz ' + str(place)}.")
 
         try:
             value = int(param)
@@ -278,31 +311,8 @@ class CounterService:
                                                    None,
                                                    True, )
 
-        # noinspection PyTypeChecker
-        getQuery = (select(CounterDiscordMapping)
-                    .where(CounterDiscordMapping.counter_id == (select(Counter.id)
-                                                                .where(Counter.name == counterName.lower())
-                                                                .scalar_subquery()))
-                    .order_by(CounterDiscordMapping.value.desc()))
-        place = -1
-
-        try:
-            # fetch all CounterDiscordMappings for the Counter and find the requestedUser and thus his place in the
-            # ranking
-            counterMapping = session.scalars(getQuery).all()
-        except Exception as error:
-            logger.error(f"couldn't fetch all CounterDiscordMappings for Counter: {counterName}", exc_info=error)
-        else:
-            place = 1
-
-            for mapping in counterMapping:
-                if mapping.discord_user.user_id == str(requestedUser.id):
-                    break
-
-                place += 1
-
         return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht! "
                 f"<@{requestedUser.id}> hat nun insgesamt {counterDiscordMapping.value} "
                 f"{counterName.capitalize()}-Counter"
-                f"{'' if place == -1 else ' und landet damit auf Platz ' + str(place)}."
+                f"{'' if (place := self._getRankingPlace(requestedUser, counterName, session)) == -1 else ' und landet damit auf Platz ' + str(place)}."
                 + answerAppendix)
