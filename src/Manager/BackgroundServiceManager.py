@@ -74,7 +74,8 @@ class BackgroundServices(commands.Cog):
 
             return
         # too fast
-        elif (difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000:
+        elif ((difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000
+              or difference >= 62000000):
             self.minutelyErrorCount += 1
 
             if self.minutelyErrorCount == 5:
@@ -83,8 +84,8 @@ class BackgroundServices(commands.Cog):
 
                 return
             else:
-                logger.error(f"minutely job started too early: waited only {difference} microseconds, "
-                             f"current errors: {self.minutelyErrorCount}")
+                logger.error(f"minutely job started too early or too late: difference between runs was {difference} "
+                             f"microseconds, current errors: {self.minutelyErrorCount}")
                 loggerMinutelyJob.error(f"minutely job started too early: waited only {difference} microseconds, "
                                         f"current errors: {self.minutelyErrorCount}")
 
