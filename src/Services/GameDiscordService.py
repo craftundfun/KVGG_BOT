@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Services.QuestService import QuestService, QuestType
 
 logger = logging.getLogger("KVGG_BOT")
@@ -35,6 +35,7 @@ class GameDiscordService:
         :param session:
         """
         now = datetime.now()
+        canIncreaseStatistic = False
 
         for activity in member.activities:
             if isinstance(activity, discord.CustomActivity):
@@ -52,7 +53,6 @@ class GameDiscordService:
                     relation.time_played_online += 1
 
                     await self.questService.addProgressToQuest(member, QuestType.ACTIVITY_TIME)
-                    self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
 
                     if (relation.time_played_online % (AchievementParameter.TIME_PLAYED_HOURS.value * 60)) == 0:
                         await self.achievementService.sendAchievementAndGrantBoost(member,
@@ -63,6 +63,7 @@ class GameDiscordService:
                     relation.time_played_offline += 1
 
                 relation.last_played = now
+                canIncreaseStatistic = True
 
                 try:
                     session.commit()
@@ -78,3 +79,7 @@ class GameDiscordService:
                 logger.error("couldn't fetch game_discord_relation, continuing")
 
                 continue
+
+        if canIncreaseStatistic:
+            self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
+            logger.debug(f"increased activity statistics for {member.display_name}")
