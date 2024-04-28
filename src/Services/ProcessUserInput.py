@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import string
 from datetime import datetime, timedelta
 
 import discord
@@ -29,21 +28,6 @@ from src.Services.RelationService import RelationService
 from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
-
-
-def getUserIdByTag(tag: string) -> int | None:
-    """
-    Filters out the user id from a tag <@123> => 123
-
-    :param tag: Tag from Discord
-    :return: int - user id
-    """
-    try:
-        return int(tag[2:len(tag) - 1])
-    except ValueError:
-        logger.debug("couldn't convert %s into id" % tag)
-
-        return None
 
 
 def getTagStringFromId(tag: str) -> str:

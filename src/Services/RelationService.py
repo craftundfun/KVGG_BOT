@@ -2,6 +2,7 @@ import asyncio
 import logging
 from enum import Enum
 
+import discord
 from discord import ChannelType, Member, Client, VoiceChannel
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,7 @@ class RelationTypeEnum(Enum):
     ONLINE = "online"
     STREAM = "stream"
     UNIVERSITY = "university"
+    ACTIVITY = "activity"
 
 
 # static lock
@@ -76,6 +78,14 @@ class RelationService:
                         )
                 case RelationTypeEnum.UNIVERSITY:
                     pass
+                case RelationTypeEnum.ACTIVITY:
+                    if (relation.value % (AchievementParameter.RELATION_ACTIVITY_TIME_HOURS.value * 60)) == 0:
+                        await self.achievementService.sendAchievementAndGrantBoostForRelation(
+                            member_1,
+                            member_2,
+                            AchievementParameter.RELATION_ACTIVITY,
+                            relation.value,
+                        )
                 case _:
                     logger.error(f"undefined enum-entry was reached: {type}")
 
@@ -86,8 +96,12 @@ class RelationService:
                              f"{member_2.display_name}",
                              exc_info=error, )
         else:
-            logger.error(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
-                         f"{member_2.display_name}")
+            if member_1.bot or member_2.bot:
+                logger.warning(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+                               f"{member_2.display_name}")
+            else:
+                logger.error(f"couldn't fetch DiscordUserRelation for {member_1.display_name} and "
+                             f"{member_2.display_name}")
 
     async def increaseAllRelations(self):
         """
@@ -132,4 +146,37 @@ class RelationService:
                     # increase streaming relation if both are streaming at the same time
                     if (members[i].voice.self_stream or members[i].voice.self_video) and \
                             (members[j].voice.self_stream or members[j].voice.self_video):
+                        logger.debug(f"{members[i].display_name} and {members[j].display_name} are also "
+                                     f"streaming together")
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM, session)
+
+                    if members[i].activities and members[i].activities:
+                        # collect all allowed activities
+                        member_1_allowedActivities = [activity for activity in members[i].activities if
+                                                      not isinstance(
+                                                          activity,
+                                                          discord.CustomActivity,
+                                                      )
+                                                      and not isinstance(
+                                                          activity,
+                                                          discord.Streaming
+                                                      )]
+                        member_2_allowedActivities = [activity for activity in members[j].activities if
+                                                      not isinstance(
+                                                          activity,
+                                                          discord.CustomActivity,
+                                                      )
+                                                      and not isinstance(
+                                                          activity,
+                                                          discord.Streaming,
+                                                      )]
+
+                        # if no allowed activities were found, don't increase the relation
+                        if len(member_1_allowedActivities) == 0 or len(member_2_allowedActivities) == 0:
+                            logger.debug(f"{members[i].display_name} or {members[j].display_name} "
+                                         f"had no (allowed) activity")
+                            continue
+
+                        logger.debug(f"{members[i].display_name} and {members[j].display_name} are also "
+                                     f"playing together")
+                        await self.increaseRelation(members[i], members[j], RelationTypeEnum.ACTIVITY, session)

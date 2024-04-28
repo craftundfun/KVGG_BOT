@@ -178,6 +178,12 @@ class ExperienceService:
                     'remaining': ExperienceParameter.XP_BOOST_TIME_PLAYED_DURATION.value,
                     'description': ExperienceParameter.DESCRIPTION_TIME_PLAYED.value,
                 }
+            case AchievementParameter.RELATION_ACTIVITY:
+                boost = {
+                    'multiplier': ExperienceParameter.XP_BOOST_MULTIPLIER_RELATION_ACTIVITY.value,
+                    'remaining': ExperienceParameter.XP_BOOST_RELATION_ACTIVITY_DURATION.value,
+                    'description': ExperienceParameter.DESCRIPTION_RELATION_ACTIVITY.value,
+                }
             case _:
                 logger.critical("undefined enum entry was reached")
 

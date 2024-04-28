@@ -7,11 +7,11 @@ from enum import Enum
 from discord import Client, Member
 from sqlalchemy import select, null, insert, delete
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.QuestParameter import QuestDates
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Entities.Quest.Entity.Quest import Quest
 from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Entities.Quest.Repository.QuestDiscordMappingRepository import getQuestDiscordMapping
@@ -209,7 +209,11 @@ class QuestService:
 
             return
 
-        await self.notificationService.informAboutNewQuests(member, time, list(quests))
+        await self.notificationService.informAboutNewQuests(member,
+                                                            time,
+                                                            # collect only quests from the given time
+                                                            [quest for quest in quests if
+                                                             quest.quest.time_type == time.value], )
 
     async def _createQuestsForAllUsers(self, time: QuestDates, session: Session):
         """
@@ -223,19 +227,10 @@ class QuestService:
             if member.bot:
                 continue
 
-            # noinspection PyTypeChecker
-            getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id))
+            if not (dcUserDb := getDiscordUser(member, session)):
+                logger.error(f"couldn't fetch DiscordUser for {member.display_name}")
 
-            try:
-                dcUserDb = session.scalars(getQuery).one()
-            except NoResultFound:
-                logger.warning(f"couldn't fetch DiscordUser for {member.display_name}")
-
-                continue
-            except Exception as error:
-                logger.error(f"couldn't fetch DiscordUser for {member.display_name}", exc_info=error)
-
-                continue
+                return
 
             await self._createQuestForMember(member, dcUserDb, time, session)
 

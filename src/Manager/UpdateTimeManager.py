@@ -8,12 +8,12 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.MuteParameter import MuteParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories, UniversityCategory
 from src.Id.GuildId import GuildId
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
-from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.QuestService import QuestService, QuestType
 
@@ -135,35 +135,38 @@ class UpdateTimeService:
             dcUserDb.time_online += 1
 
             await self.questService.addProgressToQuest(member, QuestType.ONLINE_TIME)
-            logger.debug(f"checked online-quest for {member.display_name}")
+            logger.debug(f"checked online-quest for {dcUserDb}")
 
             await self.experienceService.addExperience(ExperienceParameter.XP_FOR_ONLINE.value, member=member)
-            logger.debug(f"increased online-xp for {member.display_name}")
+            logger.debug(f"increased online-xp for {dcUserDb}")
 
             self.statisticManager.increaseStatistic(StatisticsParameter.ONLINE, member, session)
-            logger.debug(f"increased online statistics for {member.display_name}")
+            logger.debug(f"increased online statistics for {dcUserDb}")
 
             # increase time for streaming
             if member.voice.self_video or member.voice.self_stream:
                 dcUserDb.time_streamed += 1
 
                 await self.questService.addProgressToQuest(member, QuestType.STREAM_TIME)
-                logger.debug(f"checked stream-quest for {member.display_name}")
+                logger.debug(f"checked stream-quest for {dcUserDb}")
 
                 await self.experienceService.addExperience(ExperienceParameter.XP_FOR_STREAMING.value,
                                                            member=member)
-                logger.debug(f"increased stream-xp for {member.display_name}")
+                logger.debug(f"increased stream-xp for {dcUserDb}")
 
                 self.statisticManager.increaseStatistic(StatisticsParameter.STREAM, member, session)
-                logger.debug(f"increased stream statistics for {member.display_name}")
+                logger.debug(f"increased stream statistics for {dcUserDb}")
 
             self.experienceService.reduceXpBoostsTime(member)
-            logger.debug(f"reduced xp boosts for {member.display_name}")
+            logger.debug(f"reduced xp boosts for {dcUserDb}")
 
             await self._checkForAchievements(member, dcUserDb)
-            logger.debug(f"checked for achievements for {member.display_name}")
+            logger.debug(f"checked for achievements for {dcUserDb}")
         else:
             dcUserDb.university_time_online += 1
+
+            self.statisticManager.increaseStatistic(StatisticsParameter.UNIVERSITY, member, session)
+            logger.debug(f"increased university statistics for {dcUserDb}")
 
     async def _checkForAchievements(self, member: Member, dcUserDb: DiscordUser):
         """

@@ -4,7 +4,7 @@ from enum import Enum
 from pathlib import Path
 
 import discord.interactions
-from discord import HTTPException, InteractionResponded, Client
+from discord import Client
 
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Manager.ChannelManager import ChannelService
@@ -83,7 +83,7 @@ class CommandService:
         self.questService = QuestService(self.client)
         self.counterService = CounterService(self.client)
 
-    async def _setLoading(self, ctx: discord.interactions.Interaction) -> bool:
+    async def _prepareCommandRun(self, ctx: discord.interactions.Interaction) -> bool:
         """
         Sets the interaction to thinking
 
@@ -96,19 +96,20 @@ class CommandService:
             logger.warning("too late :(")
 
             return False
-        except HTTPException as e:
-            logger.error("received HTTPException", exc_info=e)
-
-            return False
-        except InteractionResponded as e:
-            logger.error("interaction was answered before", exc_info=e)
+        except Exception as error:
+            logger.error("couldn't set interaction to loading", exc_info=error)
 
             return False
 
         logger.debug("set interaction to thinking")
 
+        # run increases here to avoid having database changes after a (completed) command
+        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
+        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
+
         return True
 
+    # noinspection PyMethodMayBeStatic
     async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
         """
         Sends the specified answer to the interaction
@@ -117,9 +118,6 @@ class CommandService:
         :param answer: Answer that will be sent
         :return:
         """
-        # increase command counter
-        await self.userInputService.raiseMessageCounter(ctx.user, ctx.channel, True)
-
         try:
             # special case for images
             if isinstance(answer, Path):
@@ -127,13 +125,10 @@ class CommandService:
             else:
                 for part in splitStringAtMaxLength(answer):
                     await ctx.followup.send(part)
-
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
         logger.debug("sent webhook-answer")
-
-        await self.questService.addProgressToQuest(ctx.user, QuestType.COMMAND_COUNT)
 
     async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
         """
@@ -144,7 +139,7 @@ class CommandService:
         :param kwargs: Parameters of the called function
         :return:
         """
-        if not await self._setLoading(interaction):
+        if not await self._prepareCommandRun(interaction):
             return
 
         function = None

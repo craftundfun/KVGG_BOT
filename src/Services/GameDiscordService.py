@@ -62,6 +62,7 @@ class GameDiscordService:
                 else:
                     relation.time_played_offline += 1
 
+                self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
                 relation.last_played = now
                 canIncreaseStatistic = True
 

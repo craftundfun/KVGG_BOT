@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, DateTime, Enum, ForeignKey
+from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, String
 from sqlalchemy.orm import relationship
 
 from src.Entities.BaseClass import Base
@@ -14,7 +14,7 @@ class DiscordUserRelation(Base):
     created_at = Column(DateTime, nullable=False)
     last_time = Column(DateTime, nullable=True)
     frequency = Column(BigInteger, nullable=False, default=1)
-    type = Column(Enum('online', 'stream', 'university'), nullable=True)
+    type = Column(String(80), nullable=True)
     # noinspection PyTypeChecker
     discord_user_1 = relationship("DiscordUser", foreign_keys=discord_user_id_1)
     # noinspection PyTypeChecker

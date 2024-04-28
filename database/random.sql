@@ -127,3 +127,7 @@ SELECT * FROM experience WHERE discord_user_id = 12 and xp_boosts_inventory is n
 
 show open tables where in_use>0;
 show processlist;
+
+USE beta;
+
+DELETE FROM statistic_log WHERE discord_user_id IN (SELECT id FROM discord);
