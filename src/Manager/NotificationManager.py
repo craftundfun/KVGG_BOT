@@ -259,6 +259,10 @@ class NotificationService:
         streamTime: str = getFormattedTime(dcUserDb.time_streamed)
         xp: Experience | None = getExperience(member, session)
 
+        # circular import
+        from src.Services.GameDiscordService import GameDiscordService
+        playTime: str | None = GameDiscordService(self.client).getOverallPlayedTime(member, dcUserDb, session)
+
         try:
             # circular import
             from src.Services.QuestService import QuestService
@@ -272,15 +276,13 @@ class NotificationService:
 
         message = (f"Hey, guten {daytime}. Du warst vor {days} Tagen, {hours} Stunden und {minutes} Minuten zuletzt "
                    f"online. ")
+        message += f"Deine Online-Zeit beträgt {onlineTime} Stunden"
+        message += f", deine Stream-Zeit {streamTime} Stunden"
 
-        if onlineTime:
-            message += f"Deine Online-Zeit beträgt {onlineTime} Stunden"
+        if playTime:
+            message += f" und deine Spielzeit {playTime} Stunden"
 
-        if streamTime:
-            message += f", deine Stream-Zeit {streamTime} Stunden. "
-
-        if onlineTime and not streamTime:
-            message += ". "
+        message += ". "
 
         if xp:
             message += f"Außerdem hast du bereits {'{:,}'.format(xp.xp_amount).replace(',', '.')} XP gefarmt."

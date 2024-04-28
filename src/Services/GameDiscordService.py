@@ -5,11 +5,14 @@ from pathlib import Path
 import discord
 from discord import Client
 from discord import Member
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
+from src.Helper.GetFormattedTime import getFormattedTime
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.QuestService import QuestService, QuestType
@@ -78,3 +81,23 @@ class GameDiscordService:
                 logger.error("couldn't fetch game_discord_relation, continuing")
 
                 continue
+
+    # noinspection PyMethodMayBeStatic
+    def getOverallPlayedTime(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str | None:
+        """
+        Returns the overall played time of the given member
+
+        :param member: The member to get the overall played time
+        :param dcUserDb: DiscordUser of the given member
+        :param session: The session for the database
+        """
+        try:
+            result = session.query(text("SELECT SUM(time_played_online) + SUM(time_played_offline) "
+                                        "FROM game_discord_mapping "
+                                        "WHERE discord_id = :id")).params(id=dcUserDb.id)
+        except Exception as error:
+            logger.error(f"couldn't get overall played time for {member.display_name}", exc_info=error)
+
+            return None
+
+        return getFormattedTime(result)
