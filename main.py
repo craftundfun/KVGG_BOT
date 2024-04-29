@@ -12,7 +12,7 @@ from typing import Any
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
-    RawReactionActionEvent, Intents
+    RawReactionActionEvent, Intents, RawMemberRemoveEvent
 from discord import VoiceChannel
 from discord.app_commands import Choice
 from sqlalchemy import select
@@ -21,6 +21,7 @@ from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Entities.Counter.Entity.Counter import Counter
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Helper import ReadParameters
 from src.Helper.ReadParameters import getParameter, Parameters
 from src.Id.GuildId import GuildId
@@ -105,11 +106,78 @@ class MyClient(discord.Client):
         roleUni = member.guild.get_role(RoleId.MITGLIEDER.value)
 
         await member.add_roles(roleMitglied, roleUni, reason="Automatic role by bot")
-
         logger.debug(f"{member.display_name} received the following roles: {roleMitglied.name}, {roleUni.name}")
 
-    async def on_member_remove(self, member):
-        pass
+        if not (session := getSession()):
+            logger.error("couldn't fetch session for on_member_join")
+
+            return
+
+        # noinspection PyTypeChecker
+        getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id))
+
+        try:
+            dcUserDb: DiscordUser | None = session.scalars(getQuery).one_or_none()
+        except Exception as error:
+            logger.error(f"couldn't fetch DiscordUser for {member.display_name}", exc_info=error)
+            session.close()
+
+            return
+
+        if not dcUserDb:
+            logger.debug(f"{member.display_name} was not a returning member")
+            session.close()
+
+            return
+
+        dcUserDb.guild_id = str(member.guild.id)
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't set guild ID for {member.display_name}", exc_info=error)
+        else:
+            logger.debug(f"set guild ID for {member.display_name}")
+        finally:
+            session.close()
+
+    async def on_raw_member_remove(self, payload: RawMemberRemoveEvent):
+        """
+        Sets the guild from the corresponding DiscordUser to Null to indicate they left the server.
+
+        :param payload: RawMemberRemoveEvent
+        """
+        from sqlalchemy import null
+        from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+
+        if not (session := getSession()):
+            logger.error("couldn't set member as inactive because no session was fetched")
+
+            return
+
+        # noinspection PyTypeChecker
+        getQuery = select(DiscordUser).where(DiscordUser.user_id == str(payload.user.id))
+
+        try:
+            dcUserDb: DiscordUser = session.scalars(getQuery).one()
+        except Exception as error:
+            logger.error(f"couldn't fetch DiscordUser for ID: {payload.user.id}", exc_info=error)
+            session.close()
+
+            return
+
+        dcUserDb.guild_id = null()
+
+        logger.debug(f"ID: {payload.user.id} left the guild")
+
+        try:
+            session.commit()
+        except Exception as error:
+            logger.error(f"couldn't set member as inactive for ID: {payload.user.id}", exc_info=error)
+
+            return
+        finally:
+            session.close()
 
     async def _prepareForMemeService(self, payload: RawReactionActionEvent):
         channel = client.get_channel(payload.channel_id)
