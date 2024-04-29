@@ -134,7 +134,7 @@ class StatisticManager:
             logger.debug(f"creating retrospect for {dcUserDb}")
 
             if not (member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb.user_id))):
-                logger.error(f"couldn't fetch member from guild for {dcUserDb}")
+                logger.warning(f"couldn't fetch member from guild for {dcUserDb}")
 
                 continue
 

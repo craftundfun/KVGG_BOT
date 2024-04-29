@@ -38,6 +38,7 @@ class GameDiscordService:
         :param session:
         """
         now = datetime.now()
+        canIncreaseStatistic = False
 
         for activity in member.activities:
             if isinstance(activity, discord.CustomActivity):
@@ -64,8 +65,8 @@ class GameDiscordService:
                 else:
                     relation.time_played_offline += 1
 
-                self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
                 relation.last_played = now
+                canIncreaseStatistic = True
 
                 try:
                     session.commit()
@@ -81,6 +82,10 @@ class GameDiscordService:
                 logger.error("couldn't fetch game_discord_relation, continuing")
 
                 continue
+
+        if canIncreaseStatistic:
+            self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
+            logger.debug(f"increased activity statistics for {member.display_name}")
 
     # noinspection PyMethodMayBeStatic
     def getOverallPlayedTime(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str | None:

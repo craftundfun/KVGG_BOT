@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, DateTime
+from sqlalchemy import Column, BigInteger, String, DateTime, null
 from sqlalchemy.orm import relationship
 
 from src.Entities.BaseClass import Base
@@ -8,7 +8,7 @@ class DiscordUser(Base):
     __tablename__ = 'discord'
 
     id = Column(BigInteger, autoincrement=True, primary_key=True)
-    guild_id = Column(String(30), nullable=False)
+    guild_id = Column(String(30), default=null())
     channel_id = Column(String(30))
     user_id = Column(String(30), nullable=False)
     username = Column(String(255), nullable=False)
