@@ -236,7 +236,7 @@ class ExperienceService:
 
             return "Es gab einen Fehler!"
 
-        inventory = xp.xp_boosts_inventory
+        inventory = copy.deepcopy(xp.xp_boosts_inventory)
 
         if not inventory:
             inventory = []
