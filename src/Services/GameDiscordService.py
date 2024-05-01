@@ -111,6 +111,9 @@ class GameDiscordService:
         return getFormattedTime(result[0][0])
 
     def chooseRandomGame(self, member_1: Member, member_2: Member) -> str:
+        """
+        Chooses a random game that both members have played together
+        """
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
