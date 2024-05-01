@@ -59,6 +59,7 @@ class NotificationService:
             logger.error(f"no notification settings for {member.display_name}, aborting sending message")
 
             return
+        # convert the setting object to a dict and get the value with the type as a key
         elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
             logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
