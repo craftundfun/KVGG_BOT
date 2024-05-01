@@ -132,7 +132,7 @@ class RelationService:
                 continue
 
             members = channel.members
-            activityOfMember: dict = {}
+            activityOfMembers: dict = {}
 
             # for every member with every member
             for i in range(len(members)):
@@ -157,11 +157,11 @@ class RelationService:
                             # don't compare against None;
                             # an empty list will evaluate to True,
                             # thus the caching would be performed every time
-                            if not isinstance(activityOfMember.get(member.id, None), list):
-                                activityOfMember[member.id] = [activity for activity in member.activities
-                                                               if not isinstance(activity,
-                                                                                 (discord.CustomActivity,
-                                                                                  discord.Streaming,))]
+                            if not isinstance(activityOfMembers.get(member.id, None), list):
+                                activityOfMembers[member.id] = [activity for activity in member.activities
+                                                                if not isinstance(activity,
+                                                                                  (discord.CustomActivity,
+                                                                                   discord.Streaming,))]
                                 logger.debug(f"cached activities for {member.display_name}")
 
                         # if the values are not cached yet, cache them
@@ -169,7 +169,7 @@ class RelationService:
                         cache_activities(members[j])
 
                         # if no allowed activities were found, don't increase the relation
-                        if len(activityOfMember[members[i].id]) == 0 or len(activityOfMember[members[j].id]) == 0:
+                        if len(activityOfMembers[members[i].id]) == 0 or len(activityOfMembers[members[j].id]) == 0:
                             logger.debug(f"{members[i].display_name} or {members[j].display_name} "
                                          f"had no (allowed) activity")
                             continue
