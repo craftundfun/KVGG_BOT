@@ -169,6 +169,7 @@ class NotificationService:
 
         await self._sendMessage(member, answer, NotificationType.WELCOME_BACK)
 
+    # noinspection PyMethodMayBeStatic
     async def _sendNewsletter(self, dcUserDb: DiscordUser, session: Session) -> str:
         """
         Sends the current newsletter(s) to the newly joined member.
@@ -177,13 +178,12 @@ class NotificationService:
         :return:
         """
         answer = ""
+        # noinspection PyTypeChecker
         getQuery = (select(Newsletter)
                     .where(Newsletter.id.not_in((select(NewsletterDiscordMapping.newsletter_id)
-                                                 .where(NewsletterDiscordMapping.discord_id == DiscordUser.id, )
-                                                 )),
-                           Newsletter.created_at > dcUserDb.created_at,
-                           )
-                    )
+                                                 .where(NewsletterDiscordMapping.discord_id == dcUserDb.id, )
+                                                 .scalar_subquery())),
+                           Newsletter.created_at > dcUserDb.created_at, ))
 
         try:
             newsletters = session.scalars(getQuery).all()
@@ -194,6 +194,8 @@ class NotificationService:
             return ""
 
         if not newsletters:
+            logger.debug(f"no newsletters to send for {dcUserDb}")
+
             return ""
 
         answer += "__**NEWSLETTER**__\n\n"
