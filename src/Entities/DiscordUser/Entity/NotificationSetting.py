@@ -14,7 +14,7 @@ class NotificationSetting(Base):
     welcome_back = Column(Boolean, default=True, nullable=False)
     quest = Column(Boolean, default=True, nullable=False)
     xp_inventory = Column(Boolean, default=True, nullable=False)
-    status_report = Column(Boolean, default=False, nullable=False)
+    status_report = Column(Boolean, default=True, nullable=False)
     retrospect = Column(Boolean, default=True, nullable=False)
     xp_spin = Column(Boolean, default=True, nullable=False)
     # noinspection PyTypeChecker
