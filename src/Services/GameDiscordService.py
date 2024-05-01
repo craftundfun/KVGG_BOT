@@ -90,7 +90,6 @@ class GameDiscordService:
             self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
             logger.debug(f"increased activity statistics for {member.display_name}")
 
-    # TODO
     # noinspection PyMethodMayBeStatic
     def getOverallPlayedTime(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str | None:
         """
@@ -101,7 +100,7 @@ class GameDiscordService:
         :param session: The session for the database
         """
         try:
-            result = session.query(text("SELECT SUM(time_played_online) + SUM(time_played_offline) "
+            result = session.query(text("SUM(time_played_online) + SUM(time_played_offline) "
                                         "FROM game_discord_mapping "
                                         "WHERE discord_id = :id")).params(id=dcUserDb.id)
         except Exception as error:
@@ -109,7 +108,7 @@ class GameDiscordService:
 
             return None
 
-        return getFormattedTime(result)
+        return getFormattedTime(result[0][0])
 
     def chooseRandomGame(self, member_1: Member, member_2: Member) -> str:
         if not (session := getSession()):
