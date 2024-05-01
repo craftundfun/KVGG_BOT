@@ -5,15 +5,18 @@ from pathlib import Path
 import discord
 from discord import Client
 from discord import Member
+from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Game.Entity.DiscordGame import DiscordGame
 from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Manager.AchievementManager import AchievementService
+from src.Manager.DatabaseManager import getSession
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.QuestService import QuestService, QuestType
 
@@ -87,6 +90,7 @@ class GameDiscordService:
             self.statisticManager.increaseStatistic(StatisticsParameter.ACTIVITY, member, session)
             logger.debug(f"increased activity statistics for {member.display_name}")
 
+    # TODO
     # noinspection PyMethodMayBeStatic
     def getOverallPlayedTime(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str | None:
         """
@@ -106,3 +110,61 @@ class GameDiscordService:
             return None
 
         return getFormattedTime(result)
+
+    def chooseRandomGame(self, member_1: Member, member_2: Member) -> str:
+        if not (session := getSession()):
+            return "Es gab einen Fehler!"
+
+        # the SELECT is *not* missing here: writing it results in a syntax error
+        getQuery = text("gdm1.discord_game_id "
+                        "FROM game_discord_mapping AS gdm1 "
+                        "JOIN game_discord_mapping AS gdm2 "
+                        "ON gdm1.discord_game_id = gdm2.discord_game_id "
+                        "WHERE gdm1.discord_id <> gdm2.discord_id "
+                        "AND gdm1.discord_id = "
+                        "(SELECT id FROM discord WHERE user_id = :user_id_1) "
+                        "AND gdm2.discord_id = "
+                        "(SELECT id FROM discord WHERE user_id = :user_id_2) "
+                        "ORDER BY RAND() "
+                        "LIMIT 1")
+
+        try:
+            # noinspection PyTypeChecker
+            result: list[tuple[int]] = (session
+                                        .query(getQuery)
+                                        .params(user_id_1=str(member_1.id), user_id_2=str(member_2.id))
+                                        .all())
+        except Exception as error:
+            logger.error(f"couldn't fetch random game for {member_1.display_name} and {member_2.display_name}",
+                         exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        if not result:
+            logger.debug(f"no game found for {member_1.display_name} and {member_2.display_name}")
+            session.close()
+
+            return "Ihr beide habt keine gemeinsamen Spiele gespielt."
+        else:
+            logger.debug(f"fetched random game for {member_1.display_name} and {member_2.display_name} with ID: "
+                         f"{result[0][0]}")
+
+        # noinspection PyTypeChecker
+        getQuery = select(DiscordGame).where(DiscordGame.id == result[0][0])
+
+        try:
+            game = session.scalars(getQuery).one()
+        except Exception as error:
+            logger.error(f"couldn't fetch game with ID: {result[0][0]}", exc_info=error)
+            session.close()
+
+            return "Es gab einen Fehler!"
+
+        answer = (f"Das zufällig ausgewählte Spiel (oder Programm) aus eurer Sammlung ist:\n\n**__{game.name}__**\n\n"
+                  f"`Es kann sein, dass das Spiel kein wirkliches Spiel ist. Das liegt aber nicht an uns, sondern "
+                  f"an Discord.`")
+
+        session.close()
+
+        return answer

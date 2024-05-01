@@ -1029,9 +1029,25 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
 
 @tree.command(name="list_quests",
               description="Liste deine aktuellen Quests auf.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def listQuests(ctx: discord.interactions.Interaction):
-    await commandService.runCommand(Commands.LIST_QUESTS, ctx, member=ctx.user)
+    await commandService.runCommand(Commands.LIST_QUESTS,
+                                    ctx,
+                                    member=ctx.user, )
+
+
+"""GAMES"""
+
+
+@tree.command(name="choose_random_game",
+              description="Wählt ein zufälliges Spiel von dir und deinem Freund aus das ihr beide schon gespielt habt.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+@app_commands.describe(freund="Tagge deinen Freund")
+async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member, ):
+    await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
+                                    ctx,
+                                    member_1=ctx.user,
+                                    member_2=freund, )
 
 
 restartTrys = 5

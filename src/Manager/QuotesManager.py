@@ -6,11 +6,11 @@ from discord import Message, RawMessageUpdateEvent, RawMessageDeleteEvent, Clien
 from sqlalchemy import select, func, insert, delete
 from sqlalchemy.orm.exc import NoResultFound
 
+from src.Entities.Quote.Entity.Quote import Quote
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Entities.Quote.Entity.Quote import Quote
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -47,7 +47,7 @@ class QuotesManager:
         """
         logger.debug(f"{member.display_name} requested a quote")
 
-        if not (session := getSession()):  # TODO outside
+        if not (session := getSession()):
             return "Es gab ein Problem!"
 
         # let SQL fetch a random quote
