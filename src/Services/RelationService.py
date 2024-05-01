@@ -132,6 +132,7 @@ class RelationService:
                 continue
 
             members = channel.members
+            activityOfMembers: dict = {}
 
             # for every member with every member
             for i in range(len(members)):
@@ -139,40 +140,36 @@ class RelationService:
                     logger.debug(f"looking at {members[i].display_name} and {members[j].display_name}")
 
                     # depending on the channel increase correct relation
-                    relation_type = RelationTypeEnum.ONLINE if channel in whatsappChannels \
-                        else RelationTypeEnum.UNIVERSITY
+                    relation_type = (RelationTypeEnum.ONLINE
+                                     if channel in whatsappChannels
+                                     else RelationTypeEnum.UNIVERSITY)
                     await self.increaseRelation(members[i], members[j], relation_type, session)
 
                     # increase streaming relation if both are streaming at the same time
-                    if (members[i].voice.self_stream or members[i].voice.self_video) and \
-                            (members[j].voice.self_stream or members[j].voice.self_video):
+                    if ((members[i].voice.self_stream or members[i].voice.self_video)
+                            and (members[j].voice.self_stream or members[j].voice.self_video)):
                         logger.debug(f"{members[i].display_name} and {members[j].display_name} are also "
                                      f"streaming together")
                         await self.increaseRelation(members[i], members[j], RelationTypeEnum.STREAM, session)
 
                     if members[i].activities and members[i].activities:
-                        # collect all allowed activities
-                        member_1_allowedActivities = [activity for activity in members[i].activities if
-                                                      not isinstance(
-                                                          activity,
-                                                          discord.CustomActivity,
-                                                      )
-                                                      and not isinstance(
-                                                          activity,
-                                                          discord.Streaming
-                                                      )]
-                        member_2_allowedActivities = [activity for activity in members[j].activities if
-                                                      not isinstance(
-                                                          activity,
-                                                          discord.CustomActivity,
-                                                      )
-                                                      and not isinstance(
-                                                          activity,
-                                                          discord.Streaming,
-                                                      )]
+                        def cache_activities(member: Member):
+                            # don't compare against None;
+                            # an empty list will evaluate to True,
+                            # thus the caching would be performed every time
+                            if not isinstance(activityOfMembers.get(member.id, None), list):
+                                activityOfMembers[member.id] = [activity for activity in member.activities
+                                                                if not isinstance(activity,
+                                                                                  (discord.CustomActivity,
+                                                                                   discord.Streaming,))]
+                                logger.debug(f"cached activities for {member.display_name}")
+
+                        # if the values are not cached yet, cache them
+                        cache_activities(members[i])
+                        cache_activities(members[j])
 
                         # if no allowed activities were found, don't increase the relation
-                        if len(member_1_allowedActivities) == 0 or len(member_2_allowedActivities) == 0:
+                        if len(activityOfMembers[members[i].id]) == 0 or len(activityOfMembers[members[j].id]) == 0:
                             logger.debug(f"{members[i].display_name} or {members[j].display_name} "
                                          f"had no (allowed) activity")
                             continue

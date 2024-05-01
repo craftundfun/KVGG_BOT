@@ -36,13 +36,14 @@ loggerMinutelyJob.setLevel(logging.DEBUG)
 
 tz = datetime.datetime.now().astimezone().tzinfo
 midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
+minutelyErrorCount = 0
 
 
 class BackgroundServices(commands.Cog):
+
     def __init__(self, client: discord.Client):
         self.client = client
         self.lastTimeMinutely = None
-        self.minutelyErrorCount = 0
 
         self.achievementService = AchievementService(self.client)
         self.questService = QuestService(self.client)
@@ -64,29 +65,32 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def minutely(self):
+        global minutelyErrorCount
+
         # first execution
         if not self.lastTimeMinutely:
             loggerMinutelyJob.info("no last execution time for minutely job")
         # too many errors, abort minutely
-        elif self.minutelyErrorCount >= 5:
+        elif minutelyErrorCount >= 5:
             logger.warning(f"skipping minutely job")
             loggerMinutelyJob.error(f"skipping minutely job")
 
             return
         # too fast
-        elif (difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000:
-            self.minutelyErrorCount += 1
+        elif ((difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000
+              or difference >= 62000000):
+            minutelyErrorCount += 1
 
-            if self.minutelyErrorCount == 5:
+            if minutelyErrorCount == 5:
                 logger.error("⚠️ CANCELLING MINUTELY JOB FROM NOW ON ⚠️")
                 loggerMinutelyJob.error("STOPPING MINUTELY JOB")
 
                 return
             else:
-                logger.error(f"minutely job started too early: waited only {difference} microseconds, "
-                             f"current errors: {self.minutelyErrorCount}")
+                logger.error(f"minutely job started too early or too late: difference between runs was {difference} "
+                             f"microseconds, current errors: {minutelyErrorCount}")
                 loggerMinutelyJob.error(f"minutely job started too early: waited only {difference} microseconds, "
-                                        f"current errors: {self.minutelyErrorCount}")
+                                        f"current errors: {minutelyErrorCount}")
 
         self.lastTimeMinutely = datetime.datetime.now()
 

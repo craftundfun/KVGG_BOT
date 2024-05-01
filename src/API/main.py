@@ -7,7 +7,10 @@ from fastapi.responses import JSONResponse, FileResponse
 
 from src.Helper.ReadParameters import getParameter, Parameters
 
-logger = logging.getLogger("API")
+# from src.Manager.BackgroundServiceManager import minutelyErrorCount
+
+logger = logging.getLogger("KVGG")
+sendLog = False
 
 app = FastAPI()
 basepath = Path(__file__).parent.parent.parent
@@ -15,6 +18,8 @@ basepath = Path(__file__).parent.parent.parent
 
 def run_server():
     import uvicorn
+
+    logger.info("Starting API")
 
     # https://www.digitalocean.com/community/tutorials/how-to-create-a-self-signed-ssl-certificate-for-apache-in-ubuntu-22-04
     uvicorn.run(app,
@@ -36,6 +41,25 @@ def get_plot(name: str, random):
     path: Path = basepath.joinpath(f"data/plots/{name}")
 
     if not path.exists():
+        logger.warning(f"plot at path: {path} does not exist")
+
         return JSONResponse(status_code=404, content={"message": f"{name} plot not found"})
 
+    logger.debug("successfully returned plot")
     return FileResponse(path, media_type="image/png")
+
+# @app.get("/health")
+# def root():
+#     """
+#     Returns the status of the MinutelyUpdateService
+#     """
+#     global sendLog
+#
+#     if minutelyErrorCount > 2:
+#         if not sendLog:
+#             logger.error("errors of minutely job are too high, returning 503 to initiate restart")
+#             sendLog = True
+#
+#         return JSONResponse(status_code=503, content={"message": "Service unavailable"})
+#
+#     return JSONResponse(status_code=200, content={"message": "Service available"})

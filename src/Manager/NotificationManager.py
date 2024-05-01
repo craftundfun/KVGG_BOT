@@ -149,21 +149,22 @@ class NotificationService:
         if member.voice.channel.category.id in UniversityCategory.getValues():
             return
 
-        canSendWelcomeBackMessage = await self._xDaysOfflineMessage(member, dcUserDb)
+        answer += await self._welcomeBackMessage(member, dcUserDb, session)
         answer += await self._sendNewsletter(dcUserDb, session)
 
-        if not canSendWelcomeBackMessage:
-            answer += await self._welcomeBackMessage(member, dcUserDb, session)
-
         if (xpAnswer := await self._informAboutDoubleXpWeekend()) != "":
-            # if no welcome message is there to avoid leading seperator
-            if answer != "":
-                answer += separator
-            answer += xpAnswer
+            answer += xpAnswer + separator
+
+        answer += await self._xDaysOfflineMessage(member, dcUserDb)
 
         # nothing to send
         if answer == "":
+            logger.debug(f"no notifications for {member.display_name}")
+
             return
+        else:
+            # remove the last separator because it's not needed but every function adds one
+            answer = answer.rstrip(separator)
 
         await self._sendMessage(member, answer, NotificationType.WELCOME_BACK)
 
@@ -217,9 +218,7 @@ class NotificationService:
                        + "\n\n")
 
         # remove last (two) newlines to return a clean string (end)
-        answer.rstrip("\n\n")
-
-        return answer + separator
+        return answer.rstrip("\n") + separator
 
     async def _welcomeBackMessage(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str:
         """
@@ -257,7 +256,12 @@ class NotificationService:
 
         onlineTime: str = getFormattedTime(dcUserDb.time_online)
         streamTime: str = getFormattedTime(dcUserDb.time_streamed)
+        universityTime: str = getFormattedTime(dcUserDb.university_time_online)
         xp: Experience | None = getExperience(member, session)
+
+        # circular import
+        from src.Services.GameDiscordService import GameDiscordService
+        playTime: str | None = GameDiscordService(self.client).getOverallPlayedTime(member, dcUserDb, session)
 
         try:
             # circular import
@@ -272,30 +276,32 @@ class NotificationService:
 
         message = (f"Hey, guten {daytime}. Du warst vor {days} Tagen, {hours} Stunden und {minutes} Minuten zuletzt "
                    f"online. ")
+        message += f"Deine Online-Zeit beträgt __**{onlineTime} Stunden**__ :telephone:"
+        message += f", deine Stream-Zeit __**{streamTime} Stunden**__ :tv:"
 
-        if onlineTime:
-            message += f"Deine Online-Zeit beträgt {onlineTime} Stunden"
-
-        if streamTime:
-            message += f", deine Stream-Zeit {streamTime} Stunden. "
-
-        if onlineTime and not streamTime:
+        if playTime:
+            message += f" und deine Spielzeit __**{playTime} Stunden**__ :video_game:. "
+        else:
             message += ". "
 
+        if universityTime:
+            message += f"Du hast außerdem __**{universityTime} Stunden**__ :school_satchel: in der Uni verbracht. "
+
         if xp:
-            message += f"Außerdem hast du bereits {'{:,}'.format(xp.xp_amount).replace(',', '.')} XP gefarmt."
+            message += (f"Du hast bereits __**{'{:,}'.format(xp.xp_amount).replace(',', '.')} "
+                        f"XP**__ :star2: gefarmt.")
 
         if quests:
             message += " " + quests
 
-        message += "\n**Viel Spaß!**"
+        message += "\n__**Viel Spaß!**__"
 
-        return message
+        return message + separator
 
     """You are finally awake GIF"""
     finallyAwake = "https://tenor.com/bwJvI.gif"
 
-    async def _xDaysOfflineMessage(self, member: Member, dcUserDb: DiscordUser) -> bool:
+    async def _xDaysOfflineMessage(self, member: Member, dcUserDb: DiscordUser) -> str:
         """
         If the member was offline for longer than 30 days, he / she will receive a welcome back message
 
@@ -306,23 +312,17 @@ class NotificationService:
         if not dcUserDb.last_online:
             logger.debug(f"{member.display_name} has no last_online status")
 
-            return False
+            return ""
 
-        if (diff := (datetime.now() - dcUserDb.last_online)).days >= 14:
-            await self._sendMessage(member,
-                                    f"Schön, dass du mal wieder da bist :)\n\nDu warst seit {diff.days} Tagen, "
-                                    f"{diff.seconds // 3600} Stunden und {(diff.seconds // 60) % 60} Minuten nicht "
-                                    f"mehr da.", NotificationType.WELCOME_BACK)
-            await self._sendMessage(member, self.finallyAwake, NotificationType.WELCOME_BACK, False)
-            # use seperator here so the meme will be an embed => maybe solve that better in the future
-            await self._sendMessage(member, separator, NotificationType.WELCOME_BACK, False)
-
-            return True
+        if (datetime.now() - dcUserDb.last_online).days >= 14:
+            return (f"Schön, dass du mal wieder da bist :) Schau gerne öfters mal wieder vorbei. "
+                    f"__**Wir freuen uns auf dich!**__\n\n{self.finallyAwake}{separator}")
 
         logger.debug(f"{member.display_name} was less than 14 days online ago")
 
-        return False
+        return ""
 
+    # noinspection PyMethodMayBeStatic
     async def _informAboutDoubleXpWeekend(self) -> str:
         """
         Sends a DM to the given user to inform him about the currently active double-xp-weekend

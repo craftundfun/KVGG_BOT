@@ -12,6 +12,7 @@ from src.Manager.QuotesManager import QuotesManager
 from src.Services.ApiServices import ApiServices
 from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
+from src.Services.GameDiscordService import GameDiscordService
 from src.Services.LeaderboardService import LeaderboardService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuestService import QuestService, QuestType
@@ -63,6 +64,7 @@ class Commands(Enum):
     CREATE_COUNTER = 35
     LIST_COUNTERS = 36
     CREATE_TIMER = 37
+    CHOOSE_RANDOM_GAME = 38
 
 
 class CommandService:
@@ -82,6 +84,7 @@ class CommandService:
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
         self.counterService = CounterService(self.client)
+        self.gameDiscordService = GameDiscordService(self.client)
 
     async def _prepareCommandRun(self, ctx: discord.interactions.Interaction) -> bool:
         """
@@ -91,6 +94,7 @@ class CommandService:
         :return: bool, True if success, false if failure
         """
         try:
+            # noinspection PyUnresolvedReferences
             await ctx.response.defer(thinking=True)
         except discord.errors.NotFound:
             logger.warning("too late :(")
@@ -267,6 +271,9 @@ class CommandService:
 
             case Commands.CREATE_TIMER:
                 function = self.reminderService.createTimer
+
+            case Commands.CHOOSE_RANDOM_GAME:
+                function = self.gameDiscordService.chooseRandomGame
 
             case _:
                 logger.error("undefined enum entry was reached!")
