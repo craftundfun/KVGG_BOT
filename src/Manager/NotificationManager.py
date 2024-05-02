@@ -40,7 +40,7 @@ class NotificationService:
     async def _sendMessage(self,
                            member: Member,
                            content: str,
-                           typeOfMessage: NotificationType,
+                           typeOfMessage: NotificationType | None,
                            useSeparator: bool = True, ):
         """
         Sends a DM to the user and handles errors.
@@ -50,24 +50,29 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
-        if not (session := getSession()):
-            return
+        if typeOfMessage:
+            if not (session := getSession()):
+                return
 
-        settings = getNotificationSettings(member, session)
+            settings = getNotificationSettings(member, session)
 
-        if not settings:
-            logger.error(f"no notification settings for {member.display_name}, aborting sending message")
+            if not settings:
+                logger.error(f"no notification settings for {member.display_name}, aborting sending message")
 
-            return
-        # convert the setting object to a dict and get the value with the type as a key
-        elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
-            logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
+                return
+            # convert the setting object to a dict and get the value with the type as a key
+            elif not settings.__dict__[typeOfMessage.value] or not settings.notifications:
+                logger.debug(f"{member.display_name} does not want to receive {typeOfMessage.value}-messages")
 
-            return
+                return
 
-        nameOfSettingType = NotificationType.getSettingNameForType(typeOfMessage)
-        content += (f"\n\n`Du kannst diese Art von Benachrichtigungen auf dem Server mit '/notifications "
-                    f"{nameOfSettingType.value if nameOfSettingType else '(FEHLER)'}' ein- oder ausschalten.`")
+            nameOfSettingType = NotificationType.getSettingNameForType(typeOfMessage)
+            content += (f"\n\n`Du kannst diese Art von Benachrichtigungen auf dem Server mit '/notifications "
+                        f"{nameOfSettingType.value if nameOfSettingType else '(FEHLER)'}' ein- oder ausschalten.`")
+
+            session.close()
+        else:
+            content += f"\n\n`Du kannst diese Art von Benachrichtigungen nicht ausschalten.`"
 
         if useSeparator:
             content += separator
@@ -78,8 +83,6 @@ class NotificationService:
             logger.warning(f"couldn't send DM to {member.name}: Forbidden")
         except Exception as error:
             logger.error(f"couldn't send DM to {member.name}", exc_info=error)
-        finally:
-            session.close()
 
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
         """
@@ -151,7 +154,6 @@ class NotificationService:
             return
 
         answer += await self._welcomeBackMessage(member, dcUserDb, session)
-        answer += await self._sendNewsletter(dcUserDb, session)
 
         if (xpAnswer := await self._informAboutDoubleXpWeekend()) != "":
             answer += xpAnswer + separator
@@ -164,18 +166,21 @@ class NotificationService:
 
             return
         else:
-            # remove the last separator because it's not needed but every function adds one
+            # remove the last separator because it's not needed, but every function adds one
             answer = answer.rstrip(separator)
 
         await self._sendMessage(member, answer, NotificationType.WELCOME_BACK)
 
+        await self._sendNewsletter(member, dcUserDb, session)
+
     # noinspection PyMethodMayBeStatic
-    async def _sendNewsletter(self, dcUserDb: DiscordUser, session: Session) -> str:
+    async def _sendNewsletter(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Sends the current newsletter(s) to the newly joined member.
 
-        :param dcUserDb:
-        :return:
+        :param member: Member, who will receive the newsletter
+        :param dcUserDb: DiscordUser of the member
+        :param session: Database session
         """
         answer = ""
         # noinspection PyTypeChecker
@@ -220,8 +225,8 @@ class NotificationService:
                        + newsletter.created_at.strftime("%d.%m.%Y um %H:%M Uhr")
                        + "\n\n")
 
-        # remove last (two) newlines to return a clean string (end)
-        return answer.rstrip("\n") + separator
+        logger.debug(f"sent {len(newsletters)} newsletters to {dcUserDb.username}")
+        await self._sendMessage(member, answer.rstrip("\n"), None, )
 
     async def _welcomeBackMessage(self, member: Member, dcUserDb: DiscordUser, session: Session) -> str:
         """
