@@ -65,6 +65,7 @@ class Commands(Enum):
     LIST_COUNTERS = 36
     CREATE_TIMER = 37
     CHOOSE_RANDOM_GAME = 38
+    DATA_FROM_MEMBER = 39
 
 
 class CommandService:
@@ -114,7 +115,7 @@ class CommandService:
         return True
 
     # noinspection PyMethodMayBeStatic
-    async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str):
+    async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str | list[str]):
         """
         Sends the specified answer to the interaction
 
@@ -126,6 +127,10 @@ class CommandService:
             # special case for images
             if isinstance(answer, Path):
                 await ctx.followup.send(file=discord.File(answer))
+            elif isinstance(answer, list):
+                for part in answer:
+                    for splitPart in splitStringAtMaxLength(part):
+                        await ctx.followup.send(splitPart)
             else:
                 for part in splitStringAtMaxLength(answer):
                     await ctx.followup.send(part)
@@ -274,6 +279,9 @@ class CommandService:
 
             case Commands.CHOOSE_RANDOM_GAME:
                 function = self.gameDiscordService.chooseRandomGame
+
+            case Commands.DATA_FROM_MEMBER:
+                function = LeaderboardService(self.client).getDataForMember
 
             case _:
                 logger.error("undefined enum entry was reached!")

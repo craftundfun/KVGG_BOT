@@ -23,6 +23,13 @@ class RelationTypeEnum(Enum):
     UNIVERSITY = "university"
     ACTIVITY = "activity"
 
+    @classmethod
+    def getObjectByValue(cls, value: str):
+        for enum in RelationTypeEnum:
+            if enum.value == value:
+                return enum
+        return None
+
 
 # static lock
 lock = asyncio.Lock()

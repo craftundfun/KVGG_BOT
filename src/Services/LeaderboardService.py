@@ -8,11 +8,14 @@ from pathlib import Path
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
-from discord import Client
-from sqlalchemy import select
+from discord import Client, Member
+from sqlalchemy import select, or_
 
 from src.DiscordParameters.Colors import Colors
+from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Experience.Repository.ExperienceRepository import getExperience
 from src.Entities.Game.Repository.DiscordGameRepository import getMostPlayedGames
 from src.Entities.UserRelation.Entity.DiscordUserRelation import DiscordUserRelation
 from src.Helper.GetFormattedTime import getFormattedTime
@@ -56,6 +59,99 @@ class LeaderboardService:
         self.client = client
 
         self.gameDiscordService = GameDiscordService(self.client)
+
+    # noinspection PyMethodMayBeStatic
+    def getDataForMember(self, member: Member) -> list[str]:
+        wholeAnswer: list[str] = []
+
+        if member.bot:
+            return ["Bots haben keine Leaderboards!"]
+
+        if not (session := getSession()):
+            return ["Es gab einen Fehler!"]
+
+        if not (dcUserDb := getDiscordUser(member, session)):
+            session.close()
+
+            return ["Es gab einen Fehler!"]
+
+        answer = f"## __**Daten von {member.display_name}**__:\n"
+        answer += f"### __Zeit__:\n"
+        answer += f"- **Online-Zeit:** {getFormattedTime(dcUserDb.time_online)} Stunden\n"
+        answer += f"- **Stream-Zeit:** {getFormattedTime(dcUserDb.time_streamed)} Stunden\n"
+        answer += f"- **Uni-Zeit:** {getFormattedTime(dcUserDb.university_time_online)} Stunden\n"
+        answer += f"- **Gesendete Nachrichten:** {dcUserDb.message_count_all_time} Nachrichten\n"
+        answer += f"- **Gesendete Commands:** {dcUserDb.command_count_all_time} Commands\n"
+
+        if xp := getExperience(member, session):
+            answer += f"- **Erfahrung**: {xp.xp_amount} XP\n"
+
+        wholeAnswer.append(answer)
+        del answer
+
+        if games := dcUserDb.game_mappings:
+            answer = f"\n### __Spiele: (Name | Zeit online | Zeit offline)__\n"
+
+            for game in games:
+                answer += (f"- **{game.discord_game.name}:** {getFormattedTime(game.time_played_online)} Stunden "
+                           f", {getFormattedTime(game.time_played_offline)} Stunden\n")
+
+            wholeAnswer.append(answer)
+            del answer
+
+        try:
+            getQuery = (select(DiscordUserRelation)
+                        .where(or_(DiscordUserRelation.discord_user_1 == dcUserDb,
+                                   DiscordUserRelation.discord_user_2 == dcUserDb, ))
+                        .order_by(DiscordUserRelation.type))
+            relations = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch relations for {member.display_name}", exc_info=error)
+            session.close()
+
+            return ["Es gab einen Fehler!"]
+        else:
+            answer = f"\n### __Relationen mit: (Member | Zeit | Typ)__\n"
+
+            for relation in relations:
+                if relation.discord_user_1 == dcUserDb:
+                    answer += (f"- **{relation.discord_user_2.username}:** {getFormattedTime(relation.value)} "
+                               f"Stunden, {relation.type.capitalize()}\n")
+                else:
+                    answer += (f"- **{relation.discord_user_1.username}:** {getFormattedTime(relation.value)} "
+                               f"Stunden, {relation.type.capitalize()}\n")
+
+            wholeAnswer.append(answer)
+            del answer
+
+        if counters := dcUserDb.counter_mappings:
+            answer = "\n### __Counter: (Name | Wert)__\n"
+
+            for counter in counters:
+                answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
+
+            wholeAnswer.append(answer)
+            del answer
+
+        if currentStatistics := dcUserDb.current_discord_statistics:
+            answer = "\n### __akutelle Statistiken: (Name | Wert | Zeitraum)__\n"
+            answerSortedByTimes = {}
+
+            for time in StatisticsParameter.getTimeValues():
+                answerSortedByTimes[time] = ""
+
+            for statistic in currentStatistics:
+                answerSortedByTimes[statistic.statistic_time] += (f"- **{statistic.statistic_type.capitalize()}:** "
+                                                                  f"{getFormattedTime(statistic.value)} Stunden, "
+                                                                  f"{statistic.statistic_time.capitalize()}\n")
+
+            for time in answerSortedByTimes.keys():
+                answer += answerSortedByTimes[time] + "\n"
+
+            wholeAnswer.append(answer)
+            del answer
+
+        return wholeAnswer
 
     async def getLeaderboard(self) -> list[PaginationViewDataItem]:
         async def fetch_leaderboard():
