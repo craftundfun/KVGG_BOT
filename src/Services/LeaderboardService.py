@@ -84,7 +84,7 @@ class LeaderboardService:
         answer += f"- **Gesendete Commands:** {dcUserDb.command_count_all_time} Commands\n"
 
         if xp := getExperience(member, session):
-            answer += f"- **Erfahrung**: {xp.xp_amount} XP\n"
+            answer += f"- **Erfahrung**: {'{:,}'.format(xp.xp_amount).replace(',', '.')} XP\n"
 
         wholeAnswer.append(answer)
         del answer
@@ -93,7 +93,7 @@ class LeaderboardService:
             answer = f"\n### __Spiele: (Name | Zeit online | Zeit offline)__\n"
 
             for game in games:
-                answer += (f"- **{game.discord_game.name}:** {getFormattedTime(game.time_played_online)} Stunden "
+                answer += (f"- **{game.discord_game.name}:** {getFormattedTime(game.time_played_online)} Stunden"
                            f", {getFormattedTime(game.time_played_offline)} Stunden\n")
 
             wholeAnswer.append(answer)
