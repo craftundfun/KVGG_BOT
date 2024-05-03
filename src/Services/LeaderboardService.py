@@ -75,8 +75,8 @@ class LeaderboardService:
 
             return ["Es gab einen Fehler!"]
 
-        answer = f"## __**Daten von {member.display_name}**__:\n"
-        answer += f"### __Zeit__:\n"
+        answer = f"## __Daten von <@{member.id}>:__\n"
+        answer += f"### Zeit:\n"
         answer += f"- **Online-Zeit:** {getFormattedTime(dcUserDb.time_online)} Stunden\n"
         answer += f"- **Stream-Zeit:** {getFormattedTime(dcUserDb.time_streamed)} Stunden\n"
         answer += f"- **Uni-Zeit:** {getFormattedTime(dcUserDb.university_time_online)} Stunden\n"
@@ -89,8 +89,10 @@ class LeaderboardService:
         wholeAnswer.append(answer)
         del answer
 
+        logger.debug(f"added basic data to answer for {member.display_name}")
+
         if games := dcUserDb.game_mappings:
-            answer = f"\n### __Spiele: (Name | Zeit online | Zeit offline)__\n"
+            answer = f"\n### Spiele: (Name | Zeit online | Zeit offline)\n"
 
             for game in games:
                 answer += (f"- **{game.discord_game.name}:** {getFormattedTime(game.time_played_online)} Stunden"
@@ -98,6 +100,10 @@ class LeaderboardService:
 
             wholeAnswer.append(answer)
             del answer
+
+            logger.debug(f"added games data to answer for {member.display_name}")
+        else:
+            logger.debug(f"no games found for {member.display_name}")
 
         try:
             getQuery = (select(DiscordUserRelation)
@@ -111,21 +117,33 @@ class LeaderboardService:
 
             return ["Es gab einen Fehler!"]
         else:
-            answer = f"\n### __Relationen mit: (Member | Zeit | Typ)__\n"
+            if relations:
+                answer = f"\n### Relationen mit: (Member | Zeit | Typ)\n"
+                lastRelation = ""
 
-            for relation in relations:
-                if relation.discord_user_1 == dcUserDb:
-                    answer += (f"- **{relation.discord_user_2.username}:** {getFormattedTime(relation.value)} "
-                               f"Stunden, {relation.type.capitalize()}\n")
-                else:
-                    answer += (f"- **{relation.discord_user_1.username}:** {getFormattedTime(relation.value)} "
-                               f"Stunden, {relation.type.capitalize()}\n")
+                for relation in relations:
+                    # if the type changes, add a new line
+                    if lastRelation != relation.type:
+                        answer += "\n"
 
-            wholeAnswer.append(answer)
-            del answer
+                    lastRelation = relation.type
+
+                    if relation.discord_user_1 == dcUserDb:
+                        answer += (f"- **{relation.discord_user_2.username}:** {getFormattedTime(relation.value)} "
+                                   f"Stunden, {relation.type.capitalize()}\n")
+                    else:
+                        answer += (f"- **{relation.discord_user_1.username}:** {getFormattedTime(relation.value)} "
+                                   f"Stunden, {relation.type.capitalize()}\n")
+
+                wholeAnswer.append(answer)
+                del answer
+
+                logger.debug(f"added relation data to answer for {member.display_name}")
+            else:
+                logger.debug(f"no relations found for {member.display_name}")
 
         if counters := dcUserDb.counter_mappings:
-            answer = "\n### __Counter: (Name | Wert)__\n"
+            answer = "\n### Counter: (Name | Wert)\n"
 
             for counter in counters:
                 answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
@@ -133,8 +151,12 @@ class LeaderboardService:
             wholeAnswer.append(answer)
             del answer
 
+            logger.debug(f"added counter data to answer for {member.display_name}")
+        else:
+            logger.debug(f"no counters found for {member.display_name}")
+
         if currentStatistics := dcUserDb.current_discord_statistics:
-            answer = "\n### __akutelle Statistiken: (Name | Wert | Zeitraum)__\n"
+            answer = "\n### akutelle Statistiken: (Name | Wert | Zeitraum)\n"
             answerSortedByTimes = {}
 
             for time in StatisticsParameter.getTimeValues():
@@ -150,6 +172,10 @@ class LeaderboardService:
 
             wholeAnswer.append(answer)
             del answer
+
+            logger.debug(f"added current statistics to answer for {member.display_name}")
+        else:
+            logger.debug(f"no current statistics found for {member.display_name}")
 
         return wholeAnswer
 
