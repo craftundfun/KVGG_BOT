@@ -155,7 +155,7 @@ class LeaderboardService:
 
             if atleastOneCounter:
                 wholeAnswer.append(answer)
-                
+
             del answer
 
             logger.debug(f"added counter data to answer for {member.display_name}")
@@ -166,8 +166,14 @@ class LeaderboardService:
             answer = "\n### aktuelle Statistiken: (Name | Wert | Zeitraum)\n"
             answerSortedByTimes = {}
 
+            # create a dict with all times and types sorted to retain the same order
             for time in StatisticsParameter.getTimeValues():
-                answerSortedByTimes[time] = ""
+                answerSortedByTypes = {}
+
+                for type in StatisticsParameter.getTypeValues():
+                    answerSortedByTypes[type] = ""
+
+                answerSortedByTimes[time] = answerSortedByTypes
 
             for statistic in currentStatistics:
                 if statistic.statistic_type == "command":
@@ -177,13 +183,16 @@ class LeaderboardService:
                 else:
                     unit = "Stunden"
 
-                answerSortedByTimes[statistic.statistic_time] \
+                answerSortedByTimes[statistic.statistic_time][statistic.statistic_type] \
                     += (f"- **{statistic.statistic_type.capitalize()}:** "
                         f"{getFormattedTime(statistic.value) if unit == 'Stunden' else statistic.value} {unit}, "
                         f"{statistic.statistic_time.capitalize()}\n")
 
             for time in answerSortedByTimes.keys():
-                answer += answerSortedByTimes[time] + "\n"
+                for type in answerSortedByTimes[time].keys():
+                    answer += answerSortedByTimes[time][type]
+
+                answer += "\n"
 
             wholeAnswer.append(answer)
             del answer
