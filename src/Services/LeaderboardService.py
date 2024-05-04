@@ -156,16 +156,24 @@ class LeaderboardService:
             logger.debug(f"no counters found for {member.display_name}")
 
         if currentStatistics := dcUserDb.current_discord_statistics:
-            answer = "\n### akutelle Statistiken: (Name | Wert | Zeitraum)\n"
+            answer = "\n### aktuelle Statistiken: (Name | Wert | Zeitraum)\n"
             answerSortedByTimes = {}
 
             for time in StatisticsParameter.getTimeValues():
                 answerSortedByTimes[time] = ""
 
             for statistic in currentStatistics:
-                answerSortedByTimes[statistic.statistic_time] += (f"- **{statistic.statistic_type.capitalize()}:** "
-                                                                  f"{getFormattedTime(statistic.value)} Stunden, "
-                                                                  f"{statistic.statistic_time.capitalize()}\n")
+                if statistic.statistic_type == "command":
+                    unit = "Commands"
+                elif statistic.statistic_type == "message":
+                    unit = "Nachrichten"
+                else:
+                    unit = "Stunden"
+
+                answerSortedByTimes[statistic.statistic_time] \
+                    += (f"- **{statistic.statistic_type.capitalize()}:** "
+                        f"{getFormattedTime(statistic.value) if unit == 'Stunden' else statistic.value} {unit}, "
+                        f"{statistic.statistic_time.capitalize()}\n")
 
             for time in answerSortedByTimes.keys():
                 answer += answerSortedByTimes[time] + "\n"
