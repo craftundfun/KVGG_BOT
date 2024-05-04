@@ -110,7 +110,8 @@ class GameDiscordService:
 
         return getFormattedTime(result[0][0])
 
-    def chooseRandomGame(self, member_1: Member, member_2: Member) -> str:
+    # noinspection PyMethodMayBeStatic
+    def chooseRandomGame(self, members: [Member]) -> str:
         """
         Chooses a random game that both members have played together
         """
@@ -118,39 +119,44 @@ class GameDiscordService:
             return "Es gab einen Fehler!"
 
         # the SELECT is *not* missing here: writing it results in a syntax error
-        getQuery = text("gdm1.discord_game_id "
-                        "FROM game_discord_mapping AS gdm1 "
-                        "JOIN game_discord_mapping AS gdm2 "
-                        "ON gdm1.discord_game_id = gdm2.discord_game_id "
-                        "WHERE gdm1.discord_id <> gdm2.discord_id "
-                        "AND gdm1.discord_id = "
-                        "(SELECT id FROM discord WHERE user_id = :user_id_1) "
-                        "AND gdm2.discord_id = "
-                        "(SELECT id FROM discord WHERE user_id = :user_id_2) "
-                        "ORDER BY RAND() "
-                        "LIMIT 1")
+        baseQuery = ("DISTINCT gdm1.discord_game_id "
+                     "FROM game_discord_mapping AS gdm1 ")
+
+        # generate the join and where clauses for each member
+        joinClauses = []
+        whereClauses = []
+
+        for i, member in enumerate(members, start=1):
+            joinClauses.append(f"JOIN game_discord_mapping AS gdm{i + 1} "
+                               f"ON gdm1.discord_game_id = gdm{i + 1}.discord_game_id ")
+            whereClauses.append(f"(gdm1.discord_id <> gdm{i + 1}.discord_id "
+                                f"AND gdm{i + 1}.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_{i})) ")
+
+        # combine the base query, join clauses, and where clauses
+        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND() LIMIT 1"
+        getQuery = text(query)
 
         try:
             # noinspection PyTypeChecker
             result: list[tuple[int]] = (session
                                         .query(getQuery)
-                                        .params(user_id_1=str(member_1.id), user_id_2=str(member_2.id))
+                                        .params(**{f'user_id_{i}': str(member.id)
+                                                   for i, member in enumerate(members, start=1)}, )
                                         .all())
         except Exception as error:
-            logger.error(f"couldn't fetch random game for {member_1.display_name} and {member_2.display_name}",
+            logger.error(f"couldn't fetch random game for {members}",
                          exc_info=error)
             session.close()
 
             return "Es gab einen Fehler!"
 
         if not result:
-            logger.debug(f"no game found for {member_1.display_name} and {member_2.display_name}")
+            logger.debug(f"no game found for {members}")
             session.close()
 
             return "Ihr beide habt keine gemeinsamen Spiele gespielt."
         else:
-            logger.debug(f"fetched random game for {member_1.display_name} and {member_2.display_name} with ID: "
-                         f"{result[0][0]}")
+            logger.debug(f"fetched random game for {members} with ID: {result[0][0]}")
 
         # noinspection PyTypeChecker
         getQuery = select(DiscordGame).where(DiscordGame.id == result[0][0])
