@@ -144,11 +144,18 @@ class LeaderboardService:
 
         if counters := dcUserDb.counter_mappings:
             answer = "\n### Counter: (Name | Wert)\n"
+            atleastOneCounter = False
 
             for counter in counters:
-                answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
+                if counter.value < 1:
+                    continue
 
-            wholeAnswer.append(answer)
+                answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
+                atleastOneCounter = True
+
+            if atleastOneCounter:
+                wholeAnswer.append(answer)
+                
             del answer
 
             logger.debug(f"added counter data to answer for {member.display_name}")
