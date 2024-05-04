@@ -13,6 +13,7 @@ from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
 from src.Entities.Game.Entity.DiscordGame import DiscordGame
+from src.Entities.Game.Entity.GameDiscordMapping import GameDiscordMapping
 from src.Entities.Game.Repository.DiscordGameRepository import getGameDiscordRelation
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Manager.AchievementManager import AchievementService
@@ -42,6 +43,46 @@ class GameDiscordService:
         """
         now = datetime.now()
         canIncreaseStatistic = False
+        # noinspection PyTypeChecker
+        getQuery = (select(GameDiscordMapping)
+                    .where(GameDiscordMapping.discord_id == (select(DiscordUser.id)
+                                                             .where(DiscordUser.user_id == str(member.id))),
+                           GameDiscordMapping.currently_playing == True, ))
+
+        try:
+            activeRelations = session.scalars(getQuery).all()
+            print(activeRelations, member.display_name)
+        except Exception as error:
+            logger.error(f"couldn't fetch active relations for {member.display_name}", exc_info=error)
+
+            return
+        else:
+            # empty all active relations
+            if activeRelations:
+                for relation in activeRelations:
+                    relation.currently_playing = False
+
+                try:
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"couldn't update active relations for {member.display_name}", exc_info=error)
+                    session.rollback()
+                    session.close()
+
+                    return
+                else:
+                    logger.debug(f"reset {len(activeRelations)} active relations for {member.display_name}")
+            else:
+                logger.debug(f"no relations found for reset active relations for {member.display_name}")
+
+            try:
+                session.commit()
+            except Exception as error:
+                logger.error(f"couldn't update active relations for {member.display_name}", exc_info=error)
+                session.rollback()
+                session.close()
+
+                return
 
         for activity in member.activities:
             if isinstance(activity, discord.CustomActivity):
@@ -70,6 +111,7 @@ class GameDiscordService:
 
                 relation.last_played = now
                 canIncreaseStatistic = True
+                relation.currently_playing = True
 
                 try:
                     session.commit()

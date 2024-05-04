@@ -19,6 +19,7 @@ logger = logging.getLogger("KVGG_BOT")
 
 def getDiscordGame(activityName: str, session: Session) -> DiscordGame | None:
     insertQuery = insert(DiscordGame).values(name=activityName)
+    # noinspection PyTypeChecker
     getQuery = select(DiscordGame).where(DiscordGame.name == activityName)
 
     try:
@@ -81,19 +82,19 @@ def getGameDiscordRelation(session: Session,
 
         return None
 
+    # noinspection PyTypeChecker
     insertQuery = insert(GameDiscordMapping).values(time_played_online=0,
                                                     time_played_offline=0,
                                                     discord_id=(select(DiscordUser.id)
                                                                 .where(DiscordUser.user_id == str(member.id))
                                                                 .scalar_subquery()),
                                                     discord_game_id=game.id, )
+    # noinspection PyTypeChecker
     getQuery = (select(GameDiscordMapping)
                 .where(GameDiscordMapping.discord_game_id == game.id,
                        GameDiscordMapping.discord_id == (select(DiscordUser.id)
                                                          .where(DiscordUser.user_id == str(member.id))
-                                                         .scalar_subquery())
-                       )
-                )
+                                                         .scalar_subquery()), ))
 
     try:
         relation = session.scalars(getQuery).one()

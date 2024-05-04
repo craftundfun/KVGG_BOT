@@ -221,7 +221,8 @@ class MyClient(discord.Client):
         except Exception as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
-            logger.info("users fetched and updated by DatabaseRefreshService")
+            if not commandLineArguments.noDatabaseRefresh:
+                logger.info("users fetched and updated by DatabaseRefreshService")
 
         if not (guild := client.get_guild(GuildId.GUILD_KVGG.value)):
             logger.error("couldn't fetch guild")
