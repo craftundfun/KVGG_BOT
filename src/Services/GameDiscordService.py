@@ -196,7 +196,8 @@ class GameDiscordService:
             logger.debug(f"no game found for {members}")
             session.close()
 
-            return "Ihr beide habt keine gemeinsamen Spiele gespielt."
+            return (f"Ihr {'beide' if len(members) == 2 else ('drei' if len(members) == 3 else 'vier')} "
+                    f"habt keine gemeinsamen Spiele gespielt.")
         else:
             logger.debug(f"fetched random game for {members} with ID: {result[0][0]}")
 
@@ -211,7 +212,9 @@ class GameDiscordService:
 
             return "Es gab einen Fehler!"
 
-        answer = (f"Das zufällig ausgewählte Spiel (oder Programm) aus eurer Sammlung ist:\n\n**__{game.name}__**\n\n"
+        answer = (f"Das zufällig ausgewählte Spiel (oder Programm) aus eurer "
+                  f"({', '.join(member.display_name for member in members)})"
+                  f" Sammlung ist:\n\n**__{game.name}__**\n\n"
                   f"`Es kann sein, dass das Spiel kein wirkliches Spiel ist. Das liegt aber nicht an uns, sondern "
                   f"an Discord.`")
 
