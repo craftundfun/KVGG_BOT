@@ -11,6 +11,8 @@ from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
+from src.Manager.TTSManager import TTSService
+from src.Services.VoiceClientService import VoiceClientService
 
 logger = logging.getLogger("KVGG_BOT")
 
@@ -37,8 +39,10 @@ class QuotesManager:
         """
         self.client = client
         self.notificationService = NotificationService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
+        self.ttsService = TTSService()
 
-    def answerQuote(self, member: Member) -> str:
+    async def answerQuote(self, member: Member) -> str:
         """
         Returns a random quote from our database
 
@@ -61,6 +65,22 @@ class QuotesManager:
             return "Es gab ein Problem!"
         finally:
             session.close()
+
+        if member.voice:
+            try:
+                await self.ttsService.generateTTS("Hier ist ein Zitat: " +
+                                                  quote.quote
+                                                  .replace("\"", "")
+                                                  .replace("_", "")
+                                                  .replace("*", ""), )
+                await self.voiceClientService.play(member.voice.channel,
+                                                   "./data/sounds/tts.mp3",
+                                                   ctx=None,
+                                                   force=True, )
+            except Exception as error:
+                logger.error("couldn't play TTS", exc_info=error)
+            else:
+                logger.debug(f"played quote in channel for {member.display_name}")
 
         logger.debug("returning random quote")
 

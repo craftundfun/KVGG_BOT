@@ -124,8 +124,12 @@ class UpdateTimeService:
 
         if (channel := member.voice.channel) in self.universityChannels:
             channelType = "uni"
-        else:
+        elif channel in self.whatsappChannels:
             channelType = "gaming"
+        else:
+            logger.debug(f"{member.display_name} is in a channel that is not tracked")
+
+            return
 
         # user cant get time -> continue with next user
         if not self._eligibleForGettingTime((dcUserDb, channelType), channel):

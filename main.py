@@ -221,7 +221,8 @@ class MyClient(discord.Client):
         except Exception as error:
             logger.error("failure to run database start up", exc_info=error)
         else:
-            logger.info("users fetched and updated by DatabaseRefreshService")
+            if not commandLineArguments.noDatabaseRefresh:
+                logger.info("users fetched and updated by DatabaseRefreshService")
 
         if not (guild := client.get_guild(GuildId.GUILD_KVGG.value)):
             logger.error("couldn't fetch guild")
@@ -1071,14 +1072,24 @@ async def listQuests(ctx: discord.interactions.Interaction):
 
 
 @tree.command(name="choose_random_game",
-              description="Wählt ein zufälliges Spiel von dir und deinem Freund aus das ihr beide schon gespielt habt.",
+              description="Wählt ein zufälliges Spiel von dir und deinen Freunden aus, "
+                          "das ihr beide schon gespielt habt.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 @app_commands.describe(freund="Tagge deinen Freund")
-async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member, ):
+@app_commands.describe(freund_2="Tagge einen weiteren Freund")
+@app_commands.describe(freund_3="Tagge noch einen weiteren Freund")
+async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
+                           freund_3: Member = None):
+    members = [ctx.user, freund, ]
+
+    if freund_2 is not None:
+        members.append(freund_2)
+    if freund_3 is not None:
+        members.append(freund_3)
+
     await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
                                     ctx,
-                                    member_1=ctx.user,
-                                    member_2=freund, )
+                                    members=members, )
 
 
 restartTrys = 5

@@ -144,11 +144,18 @@ class LeaderboardService:
 
         if counters := dcUserDb.counter_mappings:
             answer = "\n### Counter: (Name | Wert)\n"
+            atleastOneCounter = False
 
             for counter in counters:
-                answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
+                if counter.value < 1:
+                    continue
 
-            wholeAnswer.append(answer)
+                answer += f"- **{counter.counter.name.capitalize()}:** {counter.value}\n"
+                atleastOneCounter = True
+
+            if atleastOneCounter:
+                wholeAnswer.append(answer)
+
             del answer
 
             logger.debug(f"added counter data to answer for {member.display_name}")
@@ -156,19 +163,36 @@ class LeaderboardService:
             logger.debug(f"no counters found for {member.display_name}")
 
         if currentStatistics := dcUserDb.current_discord_statistics:
-            answer = "\n### akutelle Statistiken: (Name | Wert | Zeitraum)\n"
+            answer = "\n### aktuelle Statistiken: (Name | Wert | Zeitraum)\n"
             answerSortedByTimes = {}
 
+            # create a dict with all times and types sorted to retain the same order
             for time in StatisticsParameter.getTimeValues():
-                answerSortedByTimes[time] = ""
+                answerSortedByTypes = {}
+
+                for type in StatisticsParameter.getTypeValues():
+                    answerSortedByTypes[type] = ""
+
+                answerSortedByTimes[time] = answerSortedByTypes
 
             for statistic in currentStatistics:
-                answerSortedByTimes[statistic.statistic_time] += (f"- **{statistic.statistic_type.capitalize()}:** "
-                                                                  f"{getFormattedTime(statistic.value)} Stunden, "
-                                                                  f"{statistic.statistic_time.capitalize()}\n")
+                if statistic.statistic_type == "command":
+                    unit = "Commands"
+                elif statistic.statistic_type == "message":
+                    unit = "Nachrichten"
+                else:
+                    unit = "Stunden"
+
+                answerSortedByTimes[statistic.statistic_time][statistic.statistic_type] \
+                    += (f"- **{statistic.statistic_type.capitalize()}:** "
+                        f"{getFormattedTime(statistic.value) if unit == 'Stunden' else statistic.value} {unit}, "
+                        f"{statistic.statistic_time.capitalize()}\n")
 
             for time in answerSortedByTimes.keys():
-                answer += answerSortedByTimes[time] + "\n"
+                for type in answerSortedByTimes[time].keys():
+                    answer += answerSortedByTimes[time][type]
+
+                answer += "\n"
 
             wholeAnswer.append(answer)
             del answer

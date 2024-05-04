@@ -16,6 +16,8 @@ class VoiceClientService:
     voiceClient: VoiceClient | None = None
     # CTX to tell the user his /her playing of a sound is getting cancelled due to a forced sound
     voiceClientCorrespondingCTX: Interaction | None = None
+    # if the bot should hang up after playing a sound
+    hangUp = True
 
     def __init__(self, client: Client):
         self.client = client
@@ -80,6 +82,8 @@ class VoiceClientService:
         if force and self.voiceClientCorrespondingCTX:
             await self.voiceClientCorrespondingCTX.followup.send("Das Abspielen deines Sounds wurde für einen "
                                                                  "priorisierten Sound abgebrochen.")
+            # don't let lower priority sounds hang up if a forced sound is played
+            self.hangUp = False
 
         # save ctx to current voice-client
         self.voiceClientCorrespondingCTX = ctx
@@ -103,7 +107,11 @@ class VoiceClientService:
 
             return False
         finally:
-            if self.voiceClient:
+            # if the sound was forced, give permission to hang up for low priority sounds
+            if force and not self.hangUp:
+                self.hangUp = True
+
+            if self.voiceClient and self.hangUp:
                 await self.voiceClient.disconnect()
                 self.voiceClient = None
 

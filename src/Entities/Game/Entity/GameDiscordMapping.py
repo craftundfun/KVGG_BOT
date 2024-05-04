@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 
 from src.Entities.BaseClass import Base
@@ -13,6 +13,7 @@ class GameDiscordMapping(Base):
     time_played_online = Column(BigInteger, nullable=False, default=0)
     time_played_offline = Column(BigInteger, nullable=False, default=0)
     last_played = Column(DateTime, nullable=True)
+    currently_playing = Column(Boolean, nullable=False, default=False)
 
     discord_user = relationship("DiscordUser", back_populates="game_mappings")
     discord_game = relationship("DiscordGame")
