@@ -46,12 +46,12 @@ class GameDiscordService:
         # noinspection PyTypeChecker
         getQuery = (select(GameDiscordMapping)
                     .where(GameDiscordMapping.discord_id == (select(DiscordUser.id)
-                                                             .where(DiscordUser.user_id == str(member.id))),
+                                                             .where(DiscordUser.user_id == str(member.id))
+                                                             .scalar_subquery()),
                            GameDiscordMapping.currently_playing == True, ))
 
         try:
             activeRelations = session.scalars(getQuery).all()
-            print(activeRelations, member.display_name)
         except Exception as error:
             logger.error(f"couldn't fetch active relations for {member.display_name}", exc_info=error)
 
