@@ -13,7 +13,7 @@ import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
     RawReactionActionEvent, Intents, RawMemberRemoveEvent
-from discord import VoiceChannel
+from discord import VoiceChannel, Role
 from discord.app_commands import Choice
 from sqlalchemy import select
 
@@ -33,6 +33,7 @@ from src.Manager.BackgroundServiceManager import BackgroundServices
 from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
+from src.Manager.DiscordRoleManager import DiscordRoleManager
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
 from src.Services.MemeService import MemeService
@@ -90,10 +91,20 @@ class MyClient(discord.Client):
         self.quotesManager = QuotesManager(self)
         self.processUserInput = ProcessUserInput(self)
         self.databaseRefreshService = DatabaseRefreshService(self)
+        self.discordRoleManager = DiscordRoleManager()
 
         thread = threading.Thread(target=FastAPI.run_server)
         thread.daemon = True
         thread.start()
+
+    async def on_guild_role_delete(self, role: Role):
+        self.discordRoleManager.deleteRole(role)
+
+    async def on_guild_role_update(self, before: Role, after: Role):
+        self.discordRoleManager.updateRole(before, after)
+
+    async def on_member_update(self, before: Member, after: Member):
+        self.discordRoleManager.updateRoleOfMember(before, after)
 
     async def on_member_join(self, member: Member):
         """
