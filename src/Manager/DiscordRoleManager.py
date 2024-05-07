@@ -42,6 +42,8 @@ class DiscordRoleManager:
             session.rollback()
 
             return
+        else:
+            logger.debug(f"deleted role mappings for {after.display_name}")
 
         for role in after.roles:
             if not (discordRoleMapping := getDiscordRoleMapping(role, after, session)):
