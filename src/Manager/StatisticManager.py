@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Sequence
 
 from discord import Member, Client
@@ -8,10 +8,12 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Statistic.Entity.AllCurrentServerStats import AllCurrentServerStats
 from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
 from src.Entities.Statistic.Entity.StatisticLog import StatisticLog
 from src.Entities.Statistic.Repository.StatisticRepository import getCurrentStatisticsForUser
 from src.Helper.GetFormattedTime import getFormattedTime
+from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.NotificationManager import NotificationService
 
@@ -24,6 +26,83 @@ class StatisticManager:
         self.client = client
 
         self.notificationService = NotificationService(self.client)
+
+    async def sendCurrentServerStatistics(self, time: StatisticsParameter, session: Session):
+        match time:
+            case StatisticsParameter.DAILY:
+                timeString = f"den {(datetime.now() - timedelta(days=1)).strftime('%d/%m/%Y')}"
+            case StatisticsParameter.WEEKLY:
+                timeString = (f"die Woche vom {(datetime.now() - timedelta(days=8)).strftime('%d/%m/%Y')} "
+                              f"bis {(datetime.now() - timedelta(days=1)).strftime('%d/%m/%Y')}")
+            case StatisticsParameter.MONTHLY:
+                timeString = f"den {(datetime.now() - timedelta(days=1)).strftime('%m/%Y')}"
+            case StatisticsParameter.YEARLY:
+                timeString = f"das Jahr {(datetime.now() - timedelta(days=1)).year}"
+            case _:
+                logger.error(f"undefined enum entry was reached: {time}")
+
+                return
+
+        # noinspection PyTypeChecker
+        getQuery = select(AllCurrentServerStats).where(AllCurrentServerStats.statistic_time == time.value)
+
+        try:
+            statistics: Sequence[AllCurrentServerStats] = session.scalars(getQuery).all()
+        except Exception as error:
+            logger.error(f"couldn't fetch statistics for {time}", exc_info=error)
+            session.close()
+
+            return
+        else:
+            logger.debug(f"fetched {time.value}-server-statistics")
+            print(statistics)
+
+        message = f"# Server-Statistiken für {timeString}\n\n"
+        messageParts = [message, "", "", "", "", "", ""]
+
+        for statistic in statistics:
+            match statistic.statistic_type:
+                case StatisticsParameter.ONLINE.value:
+                    messageParts[1] = (f"-\tEs waren insgesamt {statistic.user_count} Member online und haben hier "
+                                       f"{getFormattedTime(statistic.value)} Stunden verbracht.\n")
+                case StatisticsParameter.STREAM.value:
+                    messageParts[2] = (f"-\tEs wurden insgesamt {getFormattedTime(statistic.value)} Stunden von "
+                                       f"{statistic.user_count} Membern gestreamt.\n")
+                case StatisticsParameter.MESSAGE.value:
+                    messageParts[3] = (f"-\t{statistic.value} Nachrichten von {statistic.user_count} Membern macht im "
+                                       f"Durchschnitt "
+                                       f"{'{:3f}'.format(statistic.value / statistic.user_count).replace('.', ',')} "
+                                       f"Nachrichten pro Member.\n")
+                case StatisticsParameter.COMMAND.value:
+                    messageParts[4] = (f"-\tDer Bot (ich) wurde {statistic.value} Mal von {statistic.user_count} "
+                                       f"Membern genutzt.\n")
+                case StatisticsParameter.ACTIVITY.value:
+                    messageParts[5] = (f"-\tEs wurden online und offline {getFormattedTime(statistic.value)} Stunden "
+                                       f"von {statistic.user_count} Membern Spiele gespielt und Programme genutzt.\n")
+                case StatisticsParameter.UNIVERSITY.value:
+                    messageParts[6] = (f"-\t{statistic.user_count} Student/innen haben "
+                                       f"{getFormattedTime(statistic.value)} Stunden in der Uni gebüffelt.\n")
+                case _:
+                    logger.error(f"undefined enum entry was reached: {statistic.statistic_type}")
+                    session.close()
+
+                    return
+
+        session.close()
+
+        if not (statisticChannel := (self.client
+                .get_guild(GuildId.GUILD_KVGG.value)
+                .get_channel(ChannelId.CHANNEL_SERVER_STATISTICS.value))):
+            logger.error(f"couldn't fetch {ChannelId.CHANNEL_SERVER_STATISTICS.name}-Channel")
+
+            return
+
+        try:
+            await statisticChannel.send("".join(messageParts))
+        except Exception as error:
+            logger.error(f"couldn't send statistics for {time}", exc_info=error)
+        else:
+            logger.debug(f"sent {time.value}-server-statistics")
 
     # noinspection PyMethodMayBeStatic
     def saveStatisticsToStatisticLog(self, time: StatisticsParameter, session: Session):

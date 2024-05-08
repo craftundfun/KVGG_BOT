@@ -177,7 +177,14 @@ class BackgroundServices(commands.Cog):
 
         logger.debug("running daily statistics")
 
+        # own try block to ensure that the daily statistics are always saved incase this fails
         try:
+            await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.DAILY, session)
+        except Exception as error:
+            logger.error("couldn't send current server statistics", exc_info=error)
+
+        try:
+
             self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.DAILY, session)
         except Exception as error:
             logger.error("couldn't save daily statistics", exc_info=error)
@@ -186,6 +193,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running weekly statistics")
 
             try:
+                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.WEEKLY, session)
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
@@ -200,6 +208,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running monthly statistics")
 
             try:
+                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.MONTHLY, session)
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
@@ -214,6 +223,7 @@ class BackgroundServices(commands.Cog):
             logger.debug("running yearly statistics")
 
             try:
+                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.YEARLY, session)
                 await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY, session)
             except Exception as error:
                 logger.error("couldn't run weekly statistics", exc_info=error)
