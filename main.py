@@ -1084,7 +1084,7 @@ async def listQuests(ctx: discord.interactions.Interaction):
 
 @tree.command(name="choose_random_game",
               description="Wählt ein zufälliges Spiel von dir und deinen Freunden aus, "
-                          "das ihr beide schon gespielt habt.",
+                          "das ihr schon gespielt habt.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 @app_commands.describe(freund="Tagge deinen Freund")
 @app_commands.describe(freund_2="Tagge einen weiteren Freund")
@@ -1101,6 +1101,15 @@ async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member
     await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
                                     ctx,
                                     members=members, )
+
+
+@tree.command(name="choose_random_game_in_channel",
+              description="Wählt ein zufälliges Spiel deinem aktuellen Channel aus, das ihr alle schon gespielt habt.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def chooseRandomGame(ctx: discord.interactions.Interaction):
+    await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL,
+                                    ctx,
+                                    member=ctx.user, )
 
 
 restartTrys = 5

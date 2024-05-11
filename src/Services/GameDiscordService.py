@@ -152,6 +152,18 @@ class GameDiscordService:
 
         return getFormattedTime(result[0][0])
 
+    def chooseRandomGameInChannel(self, member: Member):
+        """
+        Chooses a random game that all members from the VoiceChannel have played together
+        """
+        if not member.voice:
+            return "Du musst in einem Sprachkanal sein, um ein Spiel auszuwählen!"
+
+        if len(member.voice.channel.members) == 1:
+            return "Du musst mindestens einen weiteren Benutzer im Sprachkanal haben, um ein Spiel auszuwählen!"
+
+        return self.chooseRandomGame(member.voice.channel.members)
+
     # noinspection PyMethodMayBeStatic
     def chooseRandomGame(self, members: [Member]) -> str:
         """
@@ -168,14 +180,14 @@ class GameDiscordService:
         joinClauses = []
         whereClauses = []
 
-        for i, member in enumerate(members, start=1):
+        for i, member in enumerate(members[1:], start=1):
             joinClauses.append(f"JOIN game_discord_mapping AS gdm{i + 1} "
                                f"ON gdm1.discord_game_id = gdm{i + 1}.discord_game_id ")
             whereClauses.append(f"(gdm1.discord_id <> gdm{i + 1}.discord_id "
                                 f"AND gdm{i + 1}.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_{i})) ")
 
         # combine the base query, join clauses, and where clauses
-        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND() LIMIT 1"
+        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND()"
         getQuery = text(query)
 
         try:

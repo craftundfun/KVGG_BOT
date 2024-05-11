@@ -66,6 +66,7 @@ class Commands(Enum):
     CREATE_TIMER = 37
     CHOOSE_RANDOM_GAME = 38
     DATA_FROM_MEMBER = 39
+    CHOOSE_RANDOM_GAME_IN_CHANNEL = 40
 
 
 class CommandService:
@@ -282,6 +283,9 @@ class CommandService:
 
             case Commands.DATA_FROM_MEMBER:
                 function = LeaderboardService(self.client).getDataForMember
+
+            case Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL:
+                function = self.gameDiscordService.chooseRandomGameInChannel
 
             case _:
                 logger.error("undefined enum entry was reached!")
