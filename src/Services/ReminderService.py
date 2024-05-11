@@ -215,11 +215,13 @@ class ReminderService:
         if not (session := getSession()):
             return [PaginationViewDataItem(field_name="Es gab einen Fehler!")]
 
+        # noinspection PyTypeChecker
         getQuery = (select(Reminder)
                     .where(Reminder.discord_user_id == (select(DiscordUser.id)
                                                         .where(DiscordUser.user_id == str(member.id))
                                                         .scalar_subquery()),
-                           Reminder.time_to_sent.is_not(None), ))
+                           Reminder.time_to_sent.is_not(None), )
+                    .order_by(Reminder.time_to_sent.asc(), ))
 
         try:
             reminders = session.scalars(getQuery).all()
