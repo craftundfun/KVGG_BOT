@@ -7,10 +7,10 @@ from discord import Member
 from sqlalchemy import null
 from sqlalchemy.orm import Session
 
-from src.Helper.SendDM import sendDM, separator
-from src.InheritedCommands.NameCounter.Counter import Counter
 from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Helper.SendDM import sendDM, separator
+from src.InheritedCommands.NameCounter.Counter import Counter
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -75,6 +75,8 @@ class FelixCounter(Counter):
         # timer still active
         if (datetime.now() - dcUserDb.felix_counter_start).seconds // 60 <= 20:
             counterDiscordMapping.value += 1
+
+            logger.debug(f"increased Felix-Counter of {dcUserDb.username}")
         else:
             dcUserDb.felix_counter_start = null()
 
@@ -84,6 +86,8 @@ class FelixCounter(Counter):
                                      "gehalten hast." + separator)
             except Exception as error:
                 logger.error(f"couldn't send DM to {member.display_name}", exc_info=error)
+            else:
+                logger.debug(f"informed {member.display_name} about Felix-Counter ending")
 
     async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: DiscordUser):
         """
