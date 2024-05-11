@@ -186,8 +186,10 @@ class GameDiscordService:
             whereClauses.append(f"(gdm1.discord_id <> gdm{i + 1}.discord_id "
                                 f"AND gdm{i + 1}.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_{i})) ")
 
+        whereClauses.append(f"gdm1.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_0) ")
+
         # combine the base query, join clauses, and where clauses
-        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND()"
+        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND() LIMIT 1"
         getQuery = text(query)
 
         try:
@@ -195,7 +197,7 @@ class GameDiscordService:
             result: list[tuple[int]] = (session
                                         .query(getQuery)
                                         .params(**{f'user_id_{i}': str(member.id)
-                                                   for i, member in enumerate(members, start=1)}, )
+                                                   for i, member in enumerate(members, start=0)}, )
                                         .all())
         except Exception as error:
             logger.error(f"couldn't fetch random game for {members}",
