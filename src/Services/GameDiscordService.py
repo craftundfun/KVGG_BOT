@@ -152,6 +152,18 @@ class GameDiscordService:
 
         return getFormattedTime(result[0][0])
 
+    def chooseRandomGameInChannel(self, member: Member):
+        """
+        Chooses a random game that all members from the VoiceChannel have played together
+        """
+        if not member.voice:
+            return "Du musst in einem Sprachkanal sein, um ein Spiel auszuwählen!"
+
+        if len(member.voice.channel.members) == 1:
+            return "Du musst mindestens einen weiteren Benutzer im Sprachkanal haben, um ein Spiel auszuwählen!"
+
+        return self.chooseRandomGame(member.voice.channel.members)
+
     # noinspection PyMethodMayBeStatic
     def chooseRandomGame(self, members: [Member]) -> str:
         """
@@ -200,8 +212,6 @@ class GameDiscordService:
                     f"habt keine gemeinsamen Spiele gespielt.")
         else:
             logger.debug(f"fetched random game for {members} with ID: {result[0][0]}")
-
-        print(result)
 
         # noinspection PyTypeChecker
         getQuery = select(DiscordGame).where(DiscordGame.id == result[0][0])
