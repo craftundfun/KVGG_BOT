@@ -168,14 +168,14 @@ class GameDiscordService:
         joinClauses = []
         whereClauses = []
 
-        for i, member in enumerate(members, start=1):
+        for i, member in enumerate(members[1:], start=1):
             joinClauses.append(f"JOIN game_discord_mapping AS gdm{i + 1} "
                                f"ON gdm1.discord_game_id = gdm{i + 1}.discord_game_id ")
             whereClauses.append(f"(gdm1.discord_id <> gdm{i + 1}.discord_id "
                                 f"AND gdm{i + 1}.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_{i})) ")
 
         # combine the base query, join clauses, and where clauses
-        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND() LIMIT 1"
+        query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND()"
         getQuery = text(query)
 
         try:
@@ -200,6 +200,8 @@ class GameDiscordService:
                     f"habt keine gemeinsamen Spiele gespielt.")
         else:
             logger.debug(f"fetched random game for {members} with ID: {result[0][0]}")
+
+        print(result)
 
         # noinspection PyTypeChecker
         getQuery = select(DiscordGame).where(DiscordGame.id == result[0][0])
