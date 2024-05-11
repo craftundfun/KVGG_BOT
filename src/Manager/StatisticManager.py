@@ -69,10 +69,12 @@ class StatisticManager:
                     messageParts[2] = (f"-\tEs wurden insgesamt {getFormattedTime(statistic.value)} Stunden von "
                                        f"{statistic.user_count} Membern gestreamt.\n")
                 case StatisticsParameter.MESSAGE.value:
-                    messageParts[3] = (f"-\t{statistic.value} Nachrichten von {statistic.user_count} Membern macht im "
-                                       f"Durchschnitt "
-                                       f"{'{:3f}'.format(statistic.value / statistic.user_count).replace('.', ',')} "
-                                       f"Nachrichten pro Member.\n")
+                    if statistic.user_count == 0:
+                        messageParts[3] = f"-\tEs wurden keine Nachrichten geschrieben.\n"
+                    else:
+                        average = "{:.2f}".format(round(statistic.value / statistic.user_count, 2))
+                        messageParts[3] = (f"-\t{statistic.value} Nachrichten von {statistic.user_count} Membern macht "
+                                           f"im Durchschnitt {average.replace('.', ',')} Nachrichten pro Member.\n")
                 case StatisticsParameter.COMMAND.value:
                     messageParts[4] = (f"-\tDer Bot (ich) wurde {statistic.value} Mal von {statistic.user_count} "
                                        f"Membern genutzt.\n")
