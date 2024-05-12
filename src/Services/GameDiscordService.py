@@ -187,6 +187,8 @@ class GameDiscordService:
                                 f"AND gdm{i + 1}.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_{i})) ")
 
         whereClauses.append(f"gdm1.discord_id = (SELECT id FROM discord WHERE user_id = :user_id_0) ")
+        joinClauses.append("JOIN discord_game AS dg ON gdm1.discord_game_id = dg.id ")
+        whereClauses.append("dg.is_playable = true ")
 
         # combine the base query, join clauses, and where clauses
         query = baseQuery + ''.join(joinClauses) + "WHERE " + ' AND '.join(whereClauses) + " ORDER BY RAND() LIMIT 1"
@@ -210,8 +212,7 @@ class GameDiscordService:
             logger.debug(f"no game found for {members}")
             session.close()
 
-            return (f"Ihr {'beide' if len(members) == 2 else ('drei' if len(members) == 3 else 'vier')} "
-                    f"habt keine gemeinsamen Spiele gespielt.")
+            return f"Ihr {'beide' if len(members) == 2 else 'alle'} habt keine gemeinsamen Spiele gespielt."
         else:
             logger.debug(f"fetched random game for {members} with ID: {result[0][0]}")
 
