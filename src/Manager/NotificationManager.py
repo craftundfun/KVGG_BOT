@@ -133,10 +133,21 @@ class NotificationService:
         time: str = quest.time_type
 
         await self._sendMessage(member,
-                                f"__**Hey {member.nick if member.nick else member.name}, "
+                                f"__**Hey {member.display_name}, "
                                 f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
                                 f"{quest.description}\n\n"
                                 f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
+                                NotificationType.QUEST, )
+
+    async def informAboutPartlyFinishedQuest(self, member: Member, quest: Quest):
+        time: str = quest.time_type
+
+        await self._sendMessage(member,
+                                f"__**Hey {member.display_name}, "
+                                f"du hast theoretisch folgende {time.capitalize()}-Quest geschafft**__:\n\n"
+                                f"- {quest.description}\n\n"
+                                f"Wenn du deine Nachrichten nicht löscht oder am Ende des Zeitraums noch genügend "
+                                f"Nachrichten hast, bekommst du den deinen XP-Boost. Also hab noch ein wenig Geduld!",
                                 NotificationType.QUEST, )
 
     async def runNotificationsForMemberUponJoining(self, member: Member, dcUserDb: DiscordUser, session: Session):

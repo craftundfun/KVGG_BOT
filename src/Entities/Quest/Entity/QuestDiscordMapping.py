@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, DateTime, ForeignKey
+from sqlalchemy import Column, BigInteger, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 
 from src.Entities.BaseClass import Base
@@ -11,6 +11,7 @@ class QuestDiscordMapping(Base):
     current_value = Column(BigInteger, nullable=False, default=0)
     time_created = Column(DateTime, nullable=False)
     time_updated = Column(DateTime)
+    additional_info = Column(JSON, nullable=True, default=True)
 
     quest_id = Column(BigInteger, ForeignKey("quest.id"))
     quest = relationship("Quest")

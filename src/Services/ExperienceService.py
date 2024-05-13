@@ -56,6 +56,7 @@ class ExperienceService:
             return "Das nächste Doppel-XP-Wochenende beginnt in %s Tagen, %s Stunden und %s Minuten." % \
                 (diff.days, diff.seconds // 3600, (diff.seconds // 60) % 60)
 
+    # noinspection PyMethodMayBeStatic
     def _getDiffUntilNextDoubleXpWeekend(self) -> timedelta:
         """
         Gets the time until the next double-xp-weekend

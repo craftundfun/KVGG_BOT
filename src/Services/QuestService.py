@@ -1,10 +1,11 @@
 import asyncio
+import copy
 import logging
 import random
 from datetime import datetime
 from enum import Enum
 
-from discord import Client, Member
+from discord import Client, Member, Message
 from sqlalchemy import select, null, insert, delete
 from sqlalchemy.orm import Session
 
@@ -45,14 +46,14 @@ class QuestService:
         self.notificationService = NotificationService(self.client)
         self.experienceService = ExperienceService(self.client)
 
-    async def addProgressToQuest(self, member: Member, questType: QuestType, value: int = 1):
+    async def addProgressToQuest(self, member: Member, questType: QuestType, value: int = 1, message: Message = None):
         """
         Based on the type of quest, the member will earn progress for this quest.
 
         :param member: Member, whose quests will be checked
         :param questType: Type of quest
         :param value: Optional value to overwrite the standard increase of one
-        :raise ConnectionError: If the database connection cant be established
+        :param message: Optional message for extra checks; needed for message_count
         """
         if not (session := getSession()):
             return
@@ -129,6 +130,21 @@ class QuestService:
 
                         continue
 
+                elif questType == QuestType.MESSAGE_COUNT:
+                    if not message:
+                        logger.error("message is needed for message_count quest")
+
+                        return
+
+                    if not quest.additional_info:
+                        additionalInfo = []
+                    else:
+                        additionalInfo = copy.deepcopy(quest.additional_info)
+
+                    additionalInfo.append(message.id)
+                    logger.debug(f"inserted message id into additional_info for message_count quest for "
+                                 f"{member.display_name}")
+
                 quest.current_value += value
                 quest.time_updated = datetime.now()
 
@@ -143,6 +159,9 @@ class QuestService:
 
             session.close()
 
+    async def runGrantCheckForMessageQuest(self, member: Member):
+        pass
+
     async def _checkForFinishedQuest(self, member: Member, qdm: QuestDiscordMapping):
         """
         If a quest was finished a xp-boost will be given to the user.
@@ -151,6 +170,12 @@ class QuestService:
         :param qdm: QuestDiscordMapping
         """
         if qdm.current_value == qdm.quest.value_to_reach:
+            if qdm.quest.type == QuestType.MESSAGE_COUNT.value:
+                await self.notificationService.informAboutPartlyFinishedQuest(member, qdm.quest)
+                logger.debug(f"informed {member.display_name} about partly quest finish")
+
+                return
+
             await self.notificationService.sendQuestFinishNotification(member, qdm.quest)
 
             if qdm.quest.time_type == "daily":
