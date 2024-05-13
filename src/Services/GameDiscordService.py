@@ -162,7 +162,9 @@ class GameDiscordService:
         if len(member.voice.channel.members) == 1:
             return "Du musst mindestens einen weiteren Benutzer im Sprachkanal haben, um ein Spiel auszuwählen!"
 
-        return self.chooseRandomGame(member.voice.channel.members)
+        return self.chooseRandomGame([nonBotMember
+                                      for nonBotMember in member.voice.channel.members
+                                      if not nonBotMember.bot])
 
     # noinspection PyMethodMayBeStatic
     def chooseRandomGame(self, members: [Member]) -> str:
