@@ -838,23 +838,6 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
     await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
 
 
-"""CURRENCY"""
-
-
-@tree.command(name="currency_converter",
-              description="Konvertiere eine Währung in die andere",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-@app_commands.describe(von="Startwährung: dreistelliger Währungscode, z.B. 'USD'")
-@app_commands.describe(nach="Zielwährung: dreistelliger Währungscode, z.B. 'EUR'")
-@app_commands.describe(betrag="Kommabeträge: 320,59")
-async def convertCurrency(interaction: discord.interactions.Interaction, von: str, nach: str, betrag: float):
-    await commandService.runCommand(Commands.CURRENCY_CONVERTER,
-                                    interaction,
-                                    have=von,
-                                    want=nach,
-                                    amount=betrag)
-
-
 """QR-CODE"""
 
 

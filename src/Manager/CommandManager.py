@@ -48,7 +48,7 @@ class Commands(Enum):
     RESET_WHATSAPP_SUSPEND_SETTINGS = 19
     LIST_WHATSAPP_SUSPEND_SETTINGS = 20
     WEATHER = 21
-    CURRENCY_CONVERTER = 22
+    # CURRENCY_CONVERTER = 22
     QRCODE = 23
     # NOTIFICATIONS_WELCOME_BACK = 24
     CREATE_REMINDER = 25
@@ -213,9 +213,6 @@ class CommandService:
 
             case Commands.WEATHER:
                 function = self.apiService.getWeather
-
-            case Commands.CURRENCY_CONVERTER:
-                function = self.apiService.convertCurrency
 
             case Commands.QRCODE:
                 function = self.apiService.generateQRCode
