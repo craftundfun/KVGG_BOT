@@ -94,48 +94,6 @@ class ApiServices:
                 f"Prozent. Es ist zu {dataWeather['cloud_pct']} Prozent bewölkt. Der Luftqualitätsindex liegt bei "
                 f"{dataAir['overall_aqi']} (von maximal 500).")
 
-    async def convertCurrency(self, have: str, want: str, amount: float) -> str:
-        """
-        Converts the given currency into the other
-
-        :param have: Start currency
-        :param want: End currency
-        :param amount: Amount of money
-        :return:
-        """
-        if len(have) != 3 or len(want) != 3:
-            return "Eine deiner Währungen ist kein dreistelliger Währungscode!"
-
-        payload = {
-            'have': have,
-            'want': want,
-            'amount': amount,
-        }
-
-        async with httpx.AsyncClient() as client:
-            logger.debug("calling API for currency-conversion")
-
-            answer = await client.get(
-                self.url + "convertcurrency",
-                params=payload,
-                headers={
-                    'X-API-Key': self.apiKey,
-                }
-            )
-
-        if answer.status_code != 200:
-            logger.warning("API sent an invalid response!: " + answer.content.decode('utf-8'))
-
-            return "Es gab ein Problem! Existieren deine Währungscodes überhaupt? Wenn ja, dann liegt " \
-                   "es nicht an dir."
-
-        logger.debug("retrieved data successfully")
-
-        data = answer.content.decode('utf-8')
-        data = json.loads(data)
-
-        return f"{data['old_amount']} {data['old_currency']} sind {data['new_amount']} {data['new_currency']}."
-
     async def generateQRCode(self, text: str) -> Path | str:
         """
         Generates a QRCode from the given text
