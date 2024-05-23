@@ -15,6 +15,7 @@ from src.Entities.Statistic.Repository.StatisticRepository import getCurrentStat
 from src.Helper.GetFormattedTime import getFormattedTime
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
+from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -55,7 +56,6 @@ class StatisticManager:
             return
         else:
             logger.debug(f"fetched {time.value}-server-statistics")
-            print(statistics)
 
         message = f"# Server-Statistiken für {timeString}\n\n"
         messageParts = [message, "", "", "", "", "", ""]
@@ -199,6 +199,11 @@ class StatisticManager:
         :param time: Time period to send the retrospect for
         :param session: The session to use for the database
         """
+        if time == StatisticsParameter.DAILY:
+            logger.error("daily retrospects are not supported / wanted")
+
+            return
+
         getQuery = (select(DiscordUser)
                     .distinct()
                     .join(CurrentDiscordStatistic)
@@ -288,3 +293,45 @@ class StatisticManager:
                 logger.debug(f"sent retrospect to {member.display_name}")
             else:
                 logger.debug(f"no statistics for {dcUserDb}")
+
+    async def midnightJob(self):
+        async def handleStatisticsForTime(time: StatisticsParameter):
+            try:
+                await self.sendCurrentServerStatistics(time, session)
+            except Exception as error:
+                logger.error(f"couldn't send current server statistics for {time.value}", exc_info=error)
+
+            if time != StatisticsParameter.DAILY:
+                try:
+                    await self.runRetrospectForUsers(time, session)
+                except Exception as error:
+                    logger.error(f"couldn't run {time.value} retrospects", exc_info=error)
+
+            try:
+                self.saveStatisticsToStatisticLog(time, session)
+            except Exception as error:
+                logger.error(f"couldn't save {time.value} statistics", exc_info=error)
+
+        if not (session := getSession()):
+            return
+
+        logger.debug("running daily statistics")
+
+        now = datetime.now()
+
+        await handleStatisticsForTime(StatisticsParameter.DAILY)
+
+        if now.weekday() == 0:
+            logger.debug("running weekly statistics")
+
+            await handleStatisticsForTime(StatisticsParameter.WEEKLY)
+
+        if now.day == 1:
+            logger.debug("running monthly statistics")
+
+            await handleStatisticsForTime(StatisticsParameter.MONTHLY)
+
+        if now.month == 1 and now.day == 1:
+            logger.debug("running yearly statistics")
+
+            await handleStatisticsForTime(StatisticsParameter.YEARLY)

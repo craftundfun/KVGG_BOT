@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
+from src.Entities.Meme.Entity.Meme import Meme
 from src.Id.ChannelId import ChannelId
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
-from src.Entities.Meme.Entity.Meme import Meme
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import getTagStringFromId
 from src.Services.QuestService import QuestService, QuestType
@@ -332,3 +332,11 @@ class MemeService:
             logger.debug("updated meme in database")
         finally:
             session.close()
+
+    async def midnightJob(self):
+        if datetime.now().day != 1:
+            logger.debug("not the first day of the month, skipping meme winner and loser selection")
+
+            return
+
+        await self.chooseWinnerAndLoser()
