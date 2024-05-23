@@ -32,7 +32,7 @@ loggerMinutelyJob.addHandler(fileHandlerMinutelyJob)
 loggerMinutelyJob.setLevel(logging.DEBUG)
 
 tz = datetime.datetime.now().astimezone().tzinfo
-midnightTime = datetime.time(hour=9, minute=9, second=15, microsecond=0, tzinfo=tz)
+midnightTime = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 minutelyErrorCount = 0
 
 
@@ -48,7 +48,7 @@ class BackgroundServices(commands.Cog):
         self.minutelyJobRunner = MinutelyJobRunner(self.client)
         self.statisticManager = StatisticManager(self.client)
 
-        # self.minutely.start()
+        self.minutely.start()
         logger.info("minutely-job started")
 
         self.midnight.start()
