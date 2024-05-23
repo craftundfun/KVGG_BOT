@@ -378,3 +378,19 @@ class QuestService:
         session.close()
 
         return answer
+
+    async def midnightJob(self):
+        now = datetime.now()
+
+        await self.resetQuests(QuestDates.DAILY)
+        logger.debug("reset daily quests")
+
+        # if monday reset weekly's as well
+        if now.weekday() == 0:
+            await self.resetQuests(QuestDates.WEEKLY)
+            logger.debug("reset weekly quests")
+
+        # if 1st of month reset monthly's
+        if now.day == 1:
+            await self.resetQuests(QuestDates.MONTHLY)
+            logger.debug("reset monthly quests")

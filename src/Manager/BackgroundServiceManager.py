@@ -5,11 +5,8 @@ import logging.handlers
 import discord
 from discord.ext import tasks, commands
 
-from src.DiscordParameters.QuestParameter import QuestDates
-from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
-from src.Manager.DatabaseManager import getSession
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.MemeService import MemeService
@@ -35,7 +32,7 @@ loggerMinutelyJob.addHandler(fileHandlerMinutelyJob)
 loggerMinutelyJob.setLevel(logging.DEBUG)
 
 tz = datetime.datetime.now().astimezone().tzinfo
-midnight = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
+midnightTime = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
 minutelyErrorCount = 0
 
 
@@ -54,14 +51,27 @@ class BackgroundServices(commands.Cog):
         self.minutely.start()
         logger.info("minutely-job started")
 
-        self.refreshQuests.start()
-        logger.info("refresh-quest-job started")
+        self.midnight.start()
+        logger.info("midnight-job started")
 
-        self.chooseWinnerAndLoserOfMemes.start()
-        logger.info("choose-winner-job started")
+    @tasks.loop(time=midnightTime)
+    async def midnight(self):
+        try:
+            await self.memeService.midnightJob()
+        except Exception as error:
+            logger.error("error while running midnight job of MemeService", exc_info=error)
 
-        self.createStatistics.start()
-        logger.info("createStatistics-job started")
+        try:
+            await self.questService.midnightJob()
+        except Exception as error:
+            logger.error("error while running midnight job of QuestService", exc_info=error)
+
+        try:
+            await self.statisticManager.midnightJob()
+        except Exception as error:
+            logger.error("error while running midnight job of StatisticManager", exc_info=error)
+
+        logger.debug("finished midnight jobs")
 
     @tasks.loop(seconds=60)
     async def minutely(self):
@@ -76,7 +86,7 @@ class BackgroundServices(commands.Cog):
             loggerMinutelyJob.error(f"skipping minutely job")
 
             return
-        # too fast
+        # too fast or too slow
         elif ((difference := (datetime.datetime.now() - self.lastTimeMinutely).total_seconds() * 1000000) <= 58000000
               or difference >= 62000000):
             minutelyErrorCount += 1
@@ -133,102 +143,3 @@ class BackgroundServices(commands.Cog):
         await functionWrapper(self.minutelyJobRunner.run)
 
         loggerTime.info("end")
-
-    @tasks.loop(time=midnight)
-    async def refreshQuests(self):
-        loggerTime.info("running refreshQuests")
-
-        now = datetime.datetime.now().replace(tzinfo=tz)
-
-        await self.questService.resetQuests(QuestDates.DAILY)
-        logger.debug("reset daily quests")
-
-        # if monday reset weekly's as well
-        if now.weekday() == 0:
-            await self.questService.resetQuests(QuestDates.WEEKLY)
-            logger.debug("reset weekly quests")
-
-        # if 1st of month reset monthly's
-        if now.day == 1:
-            await self.questService.resetQuests(QuestDates.MONTHLY)
-            logger.debug("reset monthly quests")
-
-    @tasks.loop(time=midnight)
-    async def chooseWinnerAndLoserOfMemes(self):
-        if datetime.datetime.now().day != 1:
-            logger.debug("not first of the month, dont choose winner for memes")
-
-            return
-
-        try:
-            await self.memeService.chooseWinnerAndLoser()
-        except Exception as error:
-            logger.error("error while running chooseWinner", exc_info=error)
-
-    @tasks.loop(time=midnight)
-    async def createStatistics(self):
-        """
-        Creates statistics at the end of the week, month or year
-        """
-        now = datetime.datetime.now()
-
-        if not (session := getSession()):
-            return
-
-        logger.debug("running daily statistics")
-
-        # own try block to ensure that the daily statistics are always saved incase this fails
-        try:
-            await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.DAILY, session)
-        except Exception as error:
-            logger.error("couldn't send current server statistics", exc_info=error)
-
-        try:
-
-            self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.DAILY, session)
-        except Exception as error:
-            logger.error("couldn't save daily statistics", exc_info=error)
-
-        if now.weekday() == 0:
-            logger.debug("running weekly statistics")
-
-            try:
-                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.WEEKLY, session)
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.WEEKLY, session)
-            except Exception as error:
-                logger.error("couldn't run weekly statistics", exc_info=error)
-
-            try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.WEEKLY, session)
-            except Exception as error:
-                logger.error("couldn't save weekly statistics", exc_info=error)
-
-        # 1st day of the month
-        if now.day == 1:
-            logger.debug("running monthly statistics")
-
-            try:
-                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.MONTHLY, session)
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.MONTHLY, session)
-            except Exception as error:
-                logger.error("couldn't run weekly statistics", exc_info=error)
-
-            try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.MONTHLY, session)
-            except Exception as error:
-                logger.error("couldn't save weekly statistics", exc_info=error)
-
-        # 1st day of the year
-        if now.month == 1 and now.day == 1:
-            logger.debug("running yearly statistics")
-
-            try:
-                await self.statisticManager.sendCurrentServerStatistics(StatisticsParameter.YEARLY, session)
-                await self.statisticManager.runRetrospectForUsers(StatisticsParameter.YEARLY, session)
-            except Exception as error:
-                logger.error("couldn't run weekly statistics", exc_info=error)
-
-            try:
-                self.statisticManager.saveStatisticsToStatisticLog(StatisticsParameter.YEARLY, session)
-            except Exception as error:
-                logger.error("couldn't save weekly statistics", exc_info=error)
