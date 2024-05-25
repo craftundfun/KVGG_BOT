@@ -96,8 +96,14 @@ class MemeService:
         Updates the counter of likes in the corresponding database field.
 
         :param message: Message that was reacted to
-        :raise ConnectionError: If the database connection cant be established
         """
+        if message.channel.id != ChannelId.CHANNEL_MEMES.value:
+            return
+
+        # dont change likes if the message is older than the current month
+        if message.created_at.month != datetime.now().month or message.created_at.year != datetime.now().year:
+            return
+
         if not (session := getSession()):
             return
 
