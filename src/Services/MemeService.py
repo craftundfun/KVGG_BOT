@@ -100,10 +100,6 @@ class MemeService:
         if message.channel.id != ChannelId.CHANNEL_MEMES.value:
             return
 
-        # dont change likes if the message is older than the current month
-        if message.created_at.month != datetime.now().month or message.created_at.year != datetime.now().year:
-            return
-
         if not (session := getSession()):
             return
 
@@ -197,8 +193,15 @@ class MemeService:
 
             return
 
-        if not (message := await channel.fetch_message(meme.message_id)):
-            logger.error("couldn't fetch message from channel, trying next one")
+        if not meme:
+            logger.error("no meme found in database")
+
+            return
+
+        try:
+            message = await channel.fetch_message(meme.message_id)
+        except Exception as error:
+            logger.warning("couldn't fetch message from channel, trying next one", exc_info=error)
 
             await self._chooseWinner(session, sinceTime, channel, offset + 1)
 
@@ -255,8 +258,15 @@ class MemeService:
 
             return
 
-        if not (message := await channel.fetch_message(meme.message_id)):
-            logger.warning("couldn't fetch message from channel, trying next one")
+        if not meme:
+            logger.error("no meme found in database")
+
+            return
+
+        try:
+            message = await channel.fetch_message(meme.message_id)
+        except Exception as error:
+            logger.warning("couldn't fetch message from channel, trying next one", exc_info=error)
 
             await self._chooseLoser(session, sinceTime, channel, offset + 1)
 
