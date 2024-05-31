@@ -301,9 +301,6 @@ class MemeService:
 
             return
 
-        if len(message.attachments) != 0:
-            return
-
         if not (session := getSession()):
             return
 
