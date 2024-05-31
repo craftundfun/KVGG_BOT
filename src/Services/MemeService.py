@@ -100,10 +100,6 @@ class MemeService:
         if message.channel.id != ChannelId.CHANNEL_MEMES.value:
             return
 
-        # dont change likes if the message is older than the current month
-        if message.created_at.month != datetime.now().month or message.created_at.year != datetime.now().year:
-            return
-
         if not (session := getSession()):
             return
 
@@ -299,6 +295,9 @@ class MemeService:
         except Exception as error:
             logger.error("couldn't fetch message", exc_info=error)
 
+            return
+
+        if len(message.attachments) != 0:
             return
 
         if not (session := getSession()):
