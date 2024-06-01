@@ -201,7 +201,7 @@ class MyClient(discord.Client):
         if not message:
             return
 
-        await self.memeService.changeLikeCounterOfMeme(message)
+        await self.memeService.changeLikeCounterOfMeme(message, payload.member)
 
     async def on_raw_reaction_add(self, payload: RawReactionActionEvent):
         await self._prepareForMemeService(payload)
@@ -726,6 +726,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     Choice(name=NotificationType.STATUS_SETTING_NAME.value, value=NotificationType.STATUS.value),
     Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
     Choice(name=NotificationType.XP_SPIN_SETTING_NAME.value, value=NotificationType.XP_SPIN.value),
+    Choice(name=NotificationType.MEME_LIKES_SETTING_NAME.value, value=NotificationType.MEME_LIKES.value),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[

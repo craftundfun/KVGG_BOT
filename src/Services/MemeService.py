@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 
 import dateutil.relativedelta
-from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent
+from discord import Message, Client, RawMessageUpdateEvent, RawMessageDeleteEvent, Member
 from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
@@ -91,11 +91,12 @@ class MemeService:
                                                         "Dein Meme wurde für den monatlichen Contest eingetragen!", )
         await self.questService.addProgressToQuest(message.author, QuestType.MEME_COUNT)
 
-    async def changeLikeCounterOfMeme(self, message: Message):
+    async def changeLikeCounterOfMeme(self, message: Message, memberWhoLiked: Member | None):
         """
         Updates the counter of likes in the corresponding database field.
 
         :param message: Message that was reacted to
+        :param memberWhoLiked: Member who liked the meme, but only if he added a like / dislike
         """
         if message.channel.id != ChannelId.CHANNEL_MEMES.value:
             return
@@ -109,7 +110,7 @@ class MemeService:
         try:
             meme = session.scalars(getQuery).one()
         except NoResultFound:
-            logger.debug("no meme with id {message.id} found in database")
+            logger.debug(f"no meme with id {message.id} found in database")
             session.close()
 
             return
@@ -119,6 +120,7 @@ class MemeService:
 
             return
 
+        likesBefore = meme.likes
         upvotes = 0
         downvotes = 0
 
@@ -143,6 +145,22 @@ class MemeService:
             session.rollback()
         else:
             logger.debug(f"updated {meme} to database")
+
+            notification = (f"{memberWhoLiked.display_name if memberWhoLiked else 'Jemand'} "
+                            f"hat folgendes deiner Memes "
+                            f"{'geliked' if memberWhoLiked and likesBefore < (upvotes - downvotes) else 'disliked'}: "
+                            f"{message.jump_url} "
+                            f"! Dein Meme hat nun {upvotes - downvotes} Likes!")
+
+            if memberWhoLiked != message.author:
+                await self.notificationService.sendMemeLikesNotification(message.author, notification)
+
+            if memberWhoLiked:
+                await (self.notificationService
+                       .notifyAboutAcceptedLike(memberWhoLiked,
+                                                f"Dein {'Like' if likesBefore < (upvotes - downvotes) else 'Dislike'} "
+                                                f"für folgendes Meme wurde gezählt: {message.jump_url} ! "
+                                                f"{message.author.display_name} wurde darüber benachrichtigt."))
         finally:
             session.close()
 

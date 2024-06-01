@@ -61,6 +61,8 @@ class UserSettings:
                 settings.status_report = switch
             case NotificationType.RETROSPECT:
                 settings.retrospect = switch
+            case NotificationType.MEME_LIKES:
+                settings.meme_likes = switch
             case _:
                 logger.error(f"undefined enum entry was reached: {setting}")
                 session.rollback()

@@ -380,3 +380,15 @@ class NotificationService:
         Checks and send the xp-spin reminder
         """
         await self._sendMessage(member, message, NotificationType.XP_SPIN)
+
+    async def sendMemeLikesNotification(self, member: Member, message: str):
+        """
+        Checks and send the meme likes notification
+        """
+        await self._sendMessage(member, message, NotificationType.MEME_LIKES)
+
+    async def notifyAboutAcceptedLike(self, member: Member, message: str):
+        """
+        Sends a message to the member about the accepted like.
+        """
+        await self._sendMessage(member, message, NotificationType.MEME_LIKES)
