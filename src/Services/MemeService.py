@@ -146,6 +146,11 @@ class MemeService:
         else:
             logger.debug(f"updated {meme} to database")
 
+            # dont sent likes from bots to bots
+            if memberWhoLiked:
+                if memberWhoLiked.bot:
+                    return
+
             notification = (f"{memberWhoLiked.display_name if memberWhoLiked else 'Jemand'} "
                             f"hat folgendes deiner Memes "
                             f"{'geliked' if memberWhoLiked and likesBefore < (upvotes - downvotes) else 'disliked'}: "

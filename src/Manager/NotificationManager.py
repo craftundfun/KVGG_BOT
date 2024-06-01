@@ -50,6 +50,11 @@ class NotificationService:
         :param content: C.F. sendDM
         :return: Bool about the success of the operation
         """
+        if member.bot:
+            logger.warning(f"not sending DM to {member.display_name} because it's a bot")
+
+            return
+
         if typeOfMessage:
             if not (session := getSession()):
                 return
