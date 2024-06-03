@@ -168,8 +168,8 @@ class StatisticManager:
 
                     continue
                 else:
-                    logger.debug(
-                        f"saved statistics for DiscordID: {statistic.discord_id}, type: {type} and time: {time}")
+                    logger.debug(f"saved statistics for DiscordID: {statistic.discord_id}, type: {type} and time: "
+                                 f"{time.value}")
 
     # noinspection PyMethodMayBeStatic
     def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
