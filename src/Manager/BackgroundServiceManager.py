@@ -9,6 +9,7 @@ from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
+from src.Services.GameDiscordService import GameDiscordService
 from src.Services.MemeService import MemeService
 from src.Services.QuestService import QuestService
 
@@ -47,6 +48,7 @@ class BackgroundServices(commands.Cog):
         self.memeService = MemeService(self.client)
         self.minutelyJobRunner = MinutelyJobRunner(self.client)
         self.statisticManager = StatisticManager(self.client)
+        self.gameDiscordService = GameDiscordService(self.client)
 
         self.minutely.start()
         logger.info("minutely-job started")
@@ -70,6 +72,11 @@ class BackgroundServices(commands.Cog):
             await self.statisticManager.midnightJob()
         except Exception as error:
             logger.error("error while running midnight job of StatisticManager", exc_info=error)
+
+        try:
+            self.gameDiscordService.midnightJob()
+        except Exception as error:
+            logger.error("error while running midnight job of GameDiscordService", exc_info=error)
 
         logger.debug("finished midnight jobs")
 
