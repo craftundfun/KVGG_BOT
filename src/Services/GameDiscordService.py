@@ -5,7 +5,7 @@ from pathlib import Path
 import discord
 from discord import Client
 from discord import Member
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -48,7 +48,7 @@ class GameDiscordService:
                     .where(GameDiscordMapping.discord_id == (select(DiscordUser.id)
                                                              .where(DiscordUser.user_id == str(member.id))
                                                              .scalar_subquery()),
-                           GameDiscordMapping.currently_playing == True, ))
+                           GameDiscordMapping.currently_playing.is_(True), ))
 
         try:
             activeRelations = session.scalars(getQuery).all()
@@ -109,6 +109,9 @@ class GameDiscordService:
                 else:
                     relation.time_played_offline += 1
 
+                relation.week += 1
+                relation.month += 1
+                relation.year += 1
                 relation.last_played = now
                 canIncreaseStatistic = True
                 relation.currently_playing = True
@@ -238,3 +241,39 @@ class GameDiscordService:
         session.close()
 
         return answer
+
+    # noinspection PyMethodMayBeStatic
+    def midnightJob(self):
+        """
+        The midnight job for the GameDiscordService
+        """
+        now = datetime.now()
+        values = {}
+
+        if now.weekday() == 0:
+            values["week"] = 0
+
+        if now.day == 1:
+            values["month"] = 0
+
+        if now.month == 1 and now.day == 1:
+            values["year"] = 0
+
+        if len(values.keys()) == 0:
+            return
+
+        if not (session := getSession()):
+            return
+
+        updateQuery = update(GameDiscordMapping).values(**values)
+
+        try:
+            session.execute(updateQuery)
+            session.commit()
+        except Exception as error:
+            logger.error("couldn't reset week, month and year for game_discord_mappings", exc_info=error)
+            session.rollback()
+        else:
+            logger.debug("reset week, month and year for game_discord_mappings")
+
+        session.close()

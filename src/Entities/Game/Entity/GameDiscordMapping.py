@@ -14,6 +14,9 @@ class GameDiscordMapping(Base):
     time_played_offline = Column(BigInteger, nullable=False, default=0)
     last_played = Column(DateTime, nullable=True)
     currently_playing = Column(Boolean, nullable=False, default=False)
+    week = Column(BigInteger, nullable=False, default=0)
+    month = Column(BigInteger, nullable=False, default=0)
+    year = Column(BigInteger, nullable=False, default=0)
 
     discord_user = relationship("DiscordUser", back_populates="game_mappings")
     discord_game = relationship("DiscordGame")

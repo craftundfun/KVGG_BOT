@@ -8,11 +8,14 @@ from sqlalchemy.orm import Session
 
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+from src.Entities.Game.Entity.GameDiscordMapping import GameDiscordMapping
 from src.Entities.Statistic.Entity.AllCurrentServerStats import AllCurrentServerStats
 from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
 from src.Entities.Statistic.Entity.StatisticLog import StatisticLog
 from src.Entities.Statistic.Repository.StatisticRepository import getCurrentStatisticsForUser
 from src.Helper.GetFormattedTime import getFormattedTime
+from src.Helper.ReadParameters import getParameter, Parameters
+from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Id.ChannelId import ChannelId
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
@@ -92,15 +95,23 @@ class StatisticManager:
 
         session.close()
 
-        if not (statisticChannel := (self.client
-                .get_guild(GuildId.GUILD_KVGG.value)
-                .get_channel(ChannelId.CHANNEL_SERVER_STATISTICS.value))):
+        if getParameter(Parameters.PRODUCTION):
+            channel = (self.client
+                       .get_guild(GuildId.GUILD_KVGG.value)
+                       .get_channel(ChannelId.CHANNEL_SERVER_STATISTICS.value))
+        else:
+            channel = (self.client.
+                       get_guild(GuildId.GUILD_KVGG.value)
+                       .get_channel(ChannelId.CHANNEL_BOT_TEST_ENVIRONMENT.value))
+
+        if not channel:
             logger.error(f"couldn't fetch {ChannelId.CHANNEL_SERVER_STATISTICS.name}-Channel")
 
             return
 
         try:
-            await statisticChannel.send("".join(messageParts))
+            for part in splitStringAtMaxLength("".join(messageParts)):
+                await channel.send(part)
         except Exception as error:
             logger.error(f"couldn't send statistics for {time}", exc_info=error)
         else:
@@ -135,7 +146,7 @@ class StatisticManager:
                 insertQuery = insert(StatisticLog).values(type=time.value,
                                                           statistic_type=type,
                                                           created_at=datetime.now(),
-                                                          discord_user_id=(discordUserId := statistic.discord_id),
+                                                          discord_user_id=statistic.discord_id,
                                                           value=statistic.value, )
 
                 try:
@@ -156,6 +167,9 @@ class StatisticManager:
                                  f"{time}", exc_info=error)
 
                     continue
+                else:
+                    logger.debug(
+                        f"saved statistics for DiscordID: {statistic.discord_id}, type: {type} and time: {time}")
 
     # noinspection PyMethodMayBeStatic
     def increaseStatistic(self, type: StatisticsParameter, member: Member, session: Session, value: int = 1):
@@ -216,10 +230,15 @@ class StatisticManager:
 
             return
 
+        if not (guild := self.client.get_guild(GuildId.GUILD_KVGG.value)):
+            logger.error(f"couldn't fetch guild from client")
+
+            return
+
         for dcUserDb in dcUsersDb:
             logger.debug(f"creating retrospect for {dcUserDb}")
 
-            if not (member := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(dcUserDb.user_id))):
+            if not (member := guild.get_member(int(dcUserDb.user_id))):
                 logger.warning(f"couldn't fetch member from guild for {dcUserDb}")
 
                 continue
@@ -274,15 +293,49 @@ class StatisticManager:
                         if statistic.value > 0:
                             message += f"-\tDu hast mich {statistic.value} Mal genutzt (aka. Commands genutzt).\n"
                             modified = True
-                    case StatisticsParameter.ACTIVITY.value:
-                        if statistic.value > 0:
-                            message += (f"-\tDu hast {getFormattedTime(statistic.value)} Stunden gespielt oder "
-                                        f"Programme genutzt.\n")
-                            modified = True
                     case StatisticsParameter.UNIVERSITY.value:
                         if statistic.value > 0:
                             message += f"-\tDu hast {getFormattedTime(statistic.value)} Stunden studiert.\n"
                             modified = True
+                    case StatisticsParameter.ACTIVITY.value:
+                        if statistic.value > 0:
+                            message += (f"-\tDu hast {getFormattedTime(statistic.value)} Stunden gespielt oder "
+                                        f"Programme genutzt. Deine Top 3:\n")
+                            modified = True
+
+                            match time:
+                                case StatisticsParameter.WEEKLY:
+                                    timeType = GameDiscordMapping.week
+                                    timeKey = "week"
+                                case StatisticsParameter.MONTHLY:
+                                    timeType = GameDiscordMapping.month
+                                    timeKey = "month"
+                                case StatisticsParameter.YEARLY:
+                                    timeType = GameDiscordMapping.year
+                                    timeKey = "year"
+                                case _:
+                                    logger.error(f"undefined enum entry was reached: {time}")
+
+                                    continue
+
+                            # noinspection PyTypeChecker
+                            getQuery = (select(GameDiscordMapping)
+                                        .where(GameDiscordMapping.discord_id == dcUserDb.id, )
+                                        .order_by(timeType.desc())
+                                        .limit(3))
+
+                            try:
+                                gameMappings: Sequence[GameDiscordMapping] = session.scalars(getQuery).all()
+                            except Exception as error:
+                                logger.error(f"couldn't fetch game mappings for {dcUserDb}", exc_info=error)
+
+                                continue
+                            else:
+                                logger.debug(f"fetched top three games for {dcUserDb}")
+
+                                for gameMapping in gameMappings:
+                                    message += (f"\t- \t{gameMapping.discord_game.name} "
+                                                f"({getFormattedTime(gameMapping.__dict__[timeKey])} Stunden)\n")
                     case _:
                         logger.error(f"undefined enum entry was reached: {statistic.statistic_type} for {dcUserDb}")
 
@@ -319,6 +372,7 @@ class StatisticManager:
 
         now = datetime.now()
 
+        logger.debug("running daily statistics")
         await handleStatisticsForTime(StatisticsParameter.DAILY)
 
         if now.weekday() == 0:
