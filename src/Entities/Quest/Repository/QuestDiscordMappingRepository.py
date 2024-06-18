@@ -44,7 +44,7 @@ def getQuestDiscordMapping(member: Member, session: Session) -> list[QuestDiscor
 
                 return None
     elif 0 < len(currentQuests) < maxLength:
-        logger.debug("not all quests are in the database for {member.display_name}, creating new missing ones")
+        logger.debug(f"not all quests are in the database for {member.display_name}, creating new missing ones")
 
         for questType in [QuestDates.DAILY, QuestDates.WEEKLY, QuestDates.MONTHLY]:
             if len([quest for quest in currentQuests if quest.quest.time_type == questType.value]) == 0:
