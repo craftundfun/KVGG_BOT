@@ -32,7 +32,7 @@ class VoiceStateUpdateService:
         self.waHelper = WhatsAppHelper(self.client)
         self.logService = LogService(self.client)
         self.notificationService = NotificationService(self.client)
-        self.felixCounter = FelixCounter()
+        self.felixCounter = FelixCounter(self.client)
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
 
@@ -110,7 +110,8 @@ class VoiceStateUpdateService:
                 logger.error(f"failure while running notifications for {dcUserDb}", exc_info=error)
 
             try:
-                await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb)
+                await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb, session)
+                print("finished")
             except Exception as error:
                 logger.error(f"failure while running felix timer for {dcUserDb}", exc_info=error)
 

@@ -6,11 +6,11 @@ from discord import Client, Member
 from sqlalchemy import null
 
 from src.DiscordParameters.AchievementParameter import AchievementParameter
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.AchievementManager import AchievementService
 from src.Manager.DatabaseManager import getSession
 from src.Manager.UpdateTimeManager import UpdateTimeService
-from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.RelationService import RelationService
@@ -27,7 +27,7 @@ class MinutelyJobRunner:
 
         self.updateTimeManager = UpdateTimeService(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
-        self.felixCounter = FelixCounter()
+        self.felixCounter = FelixCounter(self.client)
         self.reminderService = ReminderService(self.client)
         self.relationService = RelationService(self.client)
         self.achievementService = AchievementService(self.client)

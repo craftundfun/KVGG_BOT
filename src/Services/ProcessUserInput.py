@@ -16,10 +16,12 @@ from src.Helper.ReadParameters import getParameter, Parameters
 from src.Helper.SendDM import sendDM
 from src.Id.Categories import TrackedCategories
 from src.Id.ChannelId import ChannelId
+from src.Id.GuildId import GuildId
 from src.Id.RoleId import RoleId
 from src.InheritedCommands.NameCounter import FelixCounter as FelixCounterKeyword
 from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
+from src.Manager.NotificationManager import NotificationService
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
@@ -77,6 +79,7 @@ class ProcessUserInput:
         self.voiceClientService = VoiceClientService(self.client)
         self.statisticManager = StatisticManager(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
+        self.notificationService = NotificationService(self.client)
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -397,6 +400,11 @@ class ProcessUserInput:
 
             dcUserDb.felix_counter_start = date
 
+            if invoker := getDiscordUser(requestingMember, session):
+                dcUserDb.felix_counter_invoker = invoker.id
+            else:
+                logger.error(f"couldn't set {requestingMember.display_name} as invoker for a Felix-Timer")
+
             try:
                 session.commit()
             except Exception as error:
@@ -440,8 +448,20 @@ class ProcessUserInput:
 
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
+            invokerID = dcUserDb.felix_counter_invoker
             dcUserDb.felix_counter_start = None
+            dcUserDb.felix_counter_invoker = None
 
+            if invokerID:
+                if not (invoker := getDiscordUser(requestingMember, session)):
+                    logger.error(f"couldn't fetch invoker with id {invokerID}")
+
+                if not (invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id))):
+                    logger.error(f"couldn't fetch Member with userId {invoker.user_id} from guild")
+
+                await self.notificationService.sendStatusReport(invoker, f"Der Felix-Timer von "
+                                                                         f"{requestedMember.display_name} wurde von "
+                                                                         f"{requestingMember.display_name} beendet!")
             try:
                 session.commit()
             except Exception as error:
