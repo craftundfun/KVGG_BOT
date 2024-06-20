@@ -1,12 +1,17 @@
 import string
 from abc import ABC, abstractmethod
 
+from discord import Client
+
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+
 
 class Counter(ABC):
 
-    def __init__(self, name: str, dcUserDb):
+    def __init__(self, name: str, dcUserDb: DiscordUser, client: Client):
         self.name = name
         self.dcUserDb = dcUserDb
+        self.client = client
 
     def getNameOfCounter(self) -> string:
         return self.name

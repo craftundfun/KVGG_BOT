@@ -3,14 +3,16 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from discord import Member
+from discord import Member, Client
 from sqlalchemy import null
 from sqlalchemy.orm import Session
 
 from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordMapping
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
-from src.Helper.SendDM import sendDM, separator
+from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUserById
+from src.Id.GuildId import GuildId
 from src.InheritedCommands.NameCounter.Counter import Counter
+from src.Manager.NotificationManager import NotificationService
 
 FELIX_COUNTER_MINUTES = 20
 FELIX_COUNTER_START_KEYWORD = 'start'
@@ -26,25 +28,32 @@ def getAllKeywords() -> list:
 
 class FelixCounter(Counter):
 
-    def __init__(self, dcUserDb: DiscordUser = None):
-        super().__init__('Felix', dcUserDb)
+    def __init__(self, client: Client, dcUserDb: DiscordUser = None):
+        super().__init__('Felix', dcUserDb, client)
 
+        self.notificationService = NotificationService(self.client)
+
+    @DeprecationWarning
     def getCounterValue(self) -> int:
         if self.dcUserDb:
             return self.dcUserDb['felix_counter']
         return -1
 
+    @DeprecationWarning
     async def setCounterValue(self, value: int):
         if self.dcUserDb:
             self.dcUserDb['felix_counter'] = value
 
+    @DeprecationWarning
     def getCounterValueByDifferentDiscordUser(self, dcUserDb) -> int:
         return dcUserDb['felix_counter']
 
+    @DeprecationWarning
     def setFelixTimer(self, date: datetime | None):
         if self.dcUserDb:
             self.dcUserDb['felix_counter_start'] = date
 
+    @DeprecationWarning
     def getFelixTimer(self) -> datetime | None:
         if self.dcUserDb:
             return self.dcUserDb['felix_counter_start']
@@ -78,18 +87,33 @@ class FelixCounter(Counter):
 
             logger.debug(f"increased Felix-Counter of {dcUserDb.username}")
         else:
+            invokerID = dcUserDb.felix_counter_invoker
             dcUserDb.felix_counter_start = null()
+            dcUserDb.felix_counter_invoker = null()
 
-            try:
-                await sendDM(member, "Dein Felix-Counter ist ausgelaufen und du hast 20 dazu "
-                                     "bekommen! Schade, dass du dich nicht an deine abgemachte Zeit "
-                                     "gehalten hast." + separator)
-            except Exception as error:
-                logger.error(f"couldn't send DM to {member.display_name}", exc_info=error)
+            await self.notificationService.informAboutFelixTimer(member, "Dein Felix-Counter ist ausgelaufen und du"
+                                                                         " hast 20 dazu bekommen! Schade, dass du "
+                                                                         "dich nicht an deine abgemachte Zeit "
+                                                                         "gehalten hast.")
+            if not invokerID:
+                return
+            if not (invoker := getDiscordUserById(invokerID, session)):
+                logger.error(f"couldn't fetch invoker with id {invokerID}")
+                return
+            if invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id)):
+                await self.notificationService.sendStatusReport(invoker,
+                                                                f"Der Felix-Counter von {dcUserDb.username} "
+                                                                f"ist ausgelaufen und er/sie hat 20 dazu "
+                                                                f"bekommen! Schade, dass er/sie sich "
+                                                                f"nicht an die abgemachte Zeit gehalten "
+                                                                f"hat.")
             else:
-                logger.debug(f"informed {member.display_name} about Felix-Counter ending")
+                logger.error(f"couldn't fetch Member with userId {invoker.user_id} from guild")
 
-    async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: DiscordUser):
+            logger.debug(f"informed {member.display_name} about Felix-Counter ending")
+
+    # noinspection PyMethodMayBeStatic
+    async def checkFelixCounterAndSendStopMessage(self, member: Member, dcUserDb: DiscordUser, session: Session):
         """
         Check if the given DiscordUser had a Felix-Counter, if so it stops the timer
 
@@ -99,14 +123,28 @@ class FelixCounter(Counter):
         """
         logger.debug(f"checking Felix-Timer from {dcUserDb}")
 
+        invokerID = dcUserDb.felix_counter_invoker
+
         if dcUserDb.felix_counter_start:
             dcUserDb.felix_counter_start = None
+            dcUserDb.felix_counter_invoker = None
         else:
             return
 
-        try:
-            await sendDM(member, "Dein Felix-Counter wurde beendet!" + separator)
-        except Exception as error:
-            logger.error(f"couldn't send DM to {dcUserDb}", exc_info=error)
+        await self.notificationService.informAboutFelixTimer(member, "Dein Felix-Counter wurde beendet!")
+
+        if not invokerID:
+            return
+
+        if not (invoker := getDiscordUserById(invokerID, session)):
+            logger.error(f"couldn't fetch invoker with id {invokerID}")
+            return
+
+        if invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id)):
+            await self.notificationService.sendStatusReport(invoker,
+                                                            f"Der Felix-Counter von {dcUserDb.username} wurde beendet, da er/sie einem "
+                                                            f"Channel gejoint ist.")
         else:
-            logger.debug(f"informed {dcUserDb} about ending Felix-Counter")
+            logger.error(f"couldn't fetch {invoker} from guild")
+
+        logger.debug(f"informed {dcUserDb} about ending Felix-Counter")

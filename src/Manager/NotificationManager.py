@@ -397,3 +397,9 @@ class NotificationService:
         Sends a message to the member about the accepted like.
         """
         await self._sendMessage(member, message, NotificationType.MEME_LIKES)
+
+    async def informAboutFelixTimer(self, member: Member, message: str):
+        """
+        Sends a message to the member about the Felix-Counter.
+        """
+        await self._sendMessage(member, message, None)

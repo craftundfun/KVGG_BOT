@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, DateTime, null
+from sqlalchemy import Column, BigInteger, String, DateTime, null, ForeignKey
 from sqlalchemy.orm import relationship
 
 from src.Entities.BaseClass import Base
@@ -25,6 +25,7 @@ class DiscordUser(Base):
     felix_counter_start = Column(DateTime)
     command_count_all_time = Column(BigInteger, nullable=False, default=0)
     discord_name = Column(String(255))
+    felix_counter_invoker = Column(BigInteger, ForeignKey('discord.id'))
 
     user = relationship("User", back_populates="discord_user")
     # use useList, otherwise that would be a list
@@ -35,6 +36,9 @@ class DiscordUser(Base):
     memes = relationship("Meme", back_populates="discord_user")
     game_mappings = relationship("GameDiscordMapping", back_populates="discord_user")
     quest_mappings = relationship("QuestDiscordMapping", back_populates="discord_user")
+
+    # we cant use a mapping here, because we have a self-referencing relationship
+    # felix_counter_invoker_user = relationship("DiscordUser", uselist=False)
 
     def __repr__(self):
         return f"DiscordUser(id={self.id}, username={self.username})"

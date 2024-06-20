@@ -27,7 +27,7 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
         return None
 
     # noinspection PyTypeChecker
-    getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id),)
+    getQuery = select(DiscordUser).where(DiscordUser.user_id == str(member.id), )
 
     try:
         dcUserDb = session.scalars(getQuery).one()
@@ -69,3 +69,26 @@ def getDiscordUser(member: Member, session: Session) -> DiscordUser | None:
     dcUserDb.discord_name = member.name
 
     return dcUserDb
+
+
+def getDiscordUserById(id: int, session: Session) -> DiscordUser | None:
+    """
+    Returns the user from the database by id.
+
+    :param id: Id of the user
+    :param session: Session of the database connection
+    :return: None | DiscordUser
+    """
+    # noinspection PyTypeChecker
+    getQuery = select(DiscordUser).where(DiscordUser.id == id)
+
+    try:
+        dcUserDb = session.scalars(getQuery).one()
+    except Exception as error:
+        logger.error(f"couldn't fetch DiscordUser with id {id}", exc_info=error)
+
+        return None
+    else:
+        logger.debug(f"returning DiscordUser with id {id}")
+
+        return dcUserDb
