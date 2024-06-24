@@ -56,12 +56,14 @@ class PaginationView:
         self.is_paginated = len(self.data) > self.seperator
         self.defer = defer
 
-    async def send(self):
+    async def send(self, contextMenu: bool = False):
         """
         Sends a pagination view message to the channel.
+
+        :param contextMenu: (bool): Whether the message should be ephemeral or not.
         """
         if self.defer:
-            await self.ctx.response.defer(thinking=True)
+            await self.ctx.response.defer(thinking=True, ephemeral=contextMenu)
 
         def update_button():
             """Update Button States based on the curren Page"""

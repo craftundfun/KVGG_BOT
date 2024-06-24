@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 import discord.errors
-from discord import Client, Member, VoiceChannel, CategoryChannel
+from discord import Client, Member, VoiceChannel, CategoryChannel, VoiceState
 
 from src.Helper.MoveMembesToVoicechannel import moveMembers
 from src.Id.Categories import TrackedCategories
@@ -40,67 +40,79 @@ class ChannelService:
         except discord.errors.NotFound as error:
             logger.warning("channel not found - maybe because it was deleted beforehand", exc_info=error)
 
-    async def createKneipe(self, member: Member, member_1: Member | None, member_2: Member | None) -> str:
+    async def createKneipe(self, invoker: Member, member_1: Member | None, member_2: Member | None) -> str:
         """
         Fetches Paul and Rene or both given members specifically from the guild to move them into a new channel.
 
         :return:
         """
-        if not member_1 and not member_2:
-            # overwrite both members to paul and rene
-            member_1 = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(DiscordUserId.RENE.value)
-            member_2 = self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(DiscordUserId.PAUL.value)
+        memberToMove: list[tuple[Member, VoiceState | None]] = []
 
-            if not member_1 or not member_2:
-                logger.warning("couldn't fetch paul or rene from the guild")
+        if member_1:
+            memberToMove.append((member_1, None))
+
+        if member_2:
+            memberToMove.append((member_2, None))
+
+        if not member_1 and not member_2:
+            guild = self.client.get_guild(GuildId.GUILD_KVGG.value)
+
+            # overwrite both members to paul and rene
+            memberToMove.append((guild.get_member(DiscordUserId.RENE.value), None))
+            memberToMove.append((guild.get_member(DiscordUserId.PAUL.value), None))
+
+            if not memberToMove:
+                logger.error("couldn't find Paul and Rene")
 
                 return "Es ist ein Fehler aufgetreten."
-        elif not member_1 or not member_2:
-            logger.debug("user didnt choose two member to move in kneipe")
 
-            return "Du musst zwei Benutzer angeben!"
+        for i in range(0, len(memberToMove)):
+            if not (voice := memberToMove[i][0].voice):
+                logger.debug(f"{memberToMove[i][0].display_name} is not online")
 
-        nameMember = member.nick if member.nick else member.name
+                return f"<@{memberToMove[i][0].id}> ist nicht online."
+            else:
+                memberToMove[i] = (memberToMove[i][0], voice)
 
-        if not (member_1Voice := member_1.voice) or not (member_2Voice := member_2.voice):
-            logger.debug(f"{member_1.display_name} or {member_2.display_name} has no voice-state")
+        channel = None
 
-            return f"<@{member_1.id}> und / oder <@{member_2.id}> sind nicht online."
+        for member, voice in memberToMove:
+            if not channel:
+                channel = voice.channel
+            else:
+                if channel != voice.channel:
+                    logger.debug(f"{member.display_name} is not in the same channel as the other member")
 
-        if member_1Voice.channel != member_2Voice.channel:
-            logger.debug(f"{member_1.display_name} and {member_2.display_name} are not within the same channel")
+                    return f"<@{member.id}> ist nicht im gleichen Channel wie der andere Member."
 
-            return f"<@{member_1.id}> und <@{member_2.id}> sind nicht im gleichen Channel."
-
-        if not (memberVoice := member.voice):
-            logger.debug(f"{nameMember} is not online -> cant use kneipe")
+        if not (invokerVoice := invoker.voice):
+            logger.debug(f"{invoker.display_name} is not online -> cant use kneipe")
 
             return "Du bist aktuell in keinem VoiceChannel! Du kannst diesen Befehl nicht nutzen!"
 
-        # check only with member_1, here it's safe they both are in the same channel
-        if memberVoice.channel != member_1Voice.channel:
-            logger.debug(f"{nameMember} is not in the same channel as {member_1.display_name} and "
-                         f"{member_2.display_name}")
+        # check only with channel here, all are in this channel
+        if invokerVoice.channel != channel:
+            logger.debug(f"{invoker.display_name} is not in the same channel the chosen members: {memberToMove}")
 
-            return f"Du bist nicht im VoiceChannel von <@{member_1.id}> und <@{member_2.id}>."
+            return f"Du bist nicht im VoiceChannel von deinen ausgewählten Membern."
 
-        if member_1Voice.channel.category.id not in TrackedCategories.getValues():
-            logger.debug("category was not withing gaming / quatschen / besondere events")
+        if channel.category.id not in TrackedCategories.getValues():
+            logger.debug("category was not withing tracked categories")
 
             return "Dieser Command funktioniert nicht in deiner aktuellen VoiceChannel-Kategorie."
 
-        if voiceChannel := await self._createNewChannel(member_1Voice.channel.category):
+        if voiceChannel := await self._createNewChannel(channel.category):
             loop = asyncio.get_event_loop()
 
             try:
-                loop.run_until_complete(moveMembers([member_1, member_2], voiceChannel))
+                loop.run_until_complete(moveMembers([member for member, _ in memberToMove], voiceChannel))
             except Exception as error:
-                logger.error(f"couldn't move {member_1.display_name} and {member_2.display_name} into new channel ",
+                logger.error(f"couldn't move members: {memberToMove} into new channel ",
                              exc_info=error, )
 
                 return "Es ist ein Fehler aufgetreten."
             else:
-                return f"<@{member_1.id}> und<@{member_2.id}> wurden erfolgreich verschoben."
+                return f"Die Member wurden in den Channel {voiceChannel.mention} verschoben."
         else:
             return "Es ist ein Fehler aufgetreten."
 

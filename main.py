@@ -483,7 +483,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 """NAME COUNTER"""
 
 
-async def listCounters(_, current: str) -> list[Choice[str]]:
+async def listCounterChoices(_, current: str) -> list[Choice[str]]:
     choices = []
 
     if not (session := getSession()):
@@ -510,10 +510,21 @@ async def listCounters(_, current: str) -> list[Choice[str]]:
     return choices
 
 
+@tree.context_menu(name="+1 René-Counter", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def addOneReneCounter(interaction: discord.Interaction, member: Member):
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    contextMenu=True,
+                                    counterName="rene",
+                                    requestedUser=member,
+                                    requestingMember=interaction.user,
+                                    param=1, )
+
+
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-@app_commands.autocomplete(counter=listCounters)
+@app_commands.autocomplete(counter=listCounterChoices)
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(counter_hinzufuegen="Ändere den Wert eines Counter um den gegebenen Wert.")
@@ -557,7 +568,7 @@ async def createNewCounter(interaction: discord.Interaction, name: str, descript
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def listCounters(interaction: discord.Interaction):
     await commandService.runCommand(Commands.LIST_COUNTERS,
-                                    interaction)
+                                    interaction,)
 
 
 """MANAGE WHATSAPP SETTINGS"""
@@ -1044,14 +1055,32 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
 """KNEIPE"""
 
 
+@tree.context_menu(name="Kneipe", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def kneipeContextMenu(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.KNEIPE,
+                                    ctx,
+                                    contextMenu=True,
+                                    invoker=ctx.user,
+                                    member_1=member,
+                                    member_2=None, )
+
+
 @tree.command(name="kneipe",
-              description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
+              description="Verschiebt Paul und Rene oder ein / zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
-    await commandService.runCommand(Commands.KNEIPE, ctx, member=ctx.user, member_1=member_1, member_2=member_2)
+    await commandService.runCommand(Commands.KNEIPE, ctx, invoker=ctx.user, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""
+
+
+@tree.context_menu(name="Quests", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def listQuestsContextMenu(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.LIST_QUESTS,
+                                    ctx,
+                                    contextMenu=True,
+                                    member=member, )
 
 
 @tree.command(name="list_quests",
@@ -1064,6 +1093,14 @@ async def listQuests(ctx: discord.interactions.Interaction):
 
 
 """GAMES"""
+
+
+@tree.context_menu(name="zufälliges Spiel", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def chooseRandomGameContextMenu(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
+                                    ctx,
+                                    contextMenu=True,
+                                    members=[ctx.user, member], )
 
 
 @tree.command(name="choose_random_game",
