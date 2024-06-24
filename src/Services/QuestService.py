@@ -246,6 +246,11 @@ class QuestService:
 
     @classmethod
     def insertNewQuestsForMember(cls, member: Member, time: QuestDates, session: Session) -> bool:
+        if member.bot:
+            logger.warning("cant add quests for a bot")
+
+            return False
+
         # noinspection PyTypeChecker
         getQuery = select(Quest).where(Quest.time_type == time.value)
 
@@ -280,7 +285,7 @@ class QuestService:
             except Exception as error:
                 logger.error(f"couldn't save quest_discord_mapping to database", exc_info=error)
 
-                continue
+                return False
 
             logger.debug(f"added {quests[randomNumber]} to {member.display_name} quests")
             usedIndices.append(randomNumber)
@@ -321,8 +326,11 @@ class QuestService:
         """
         Lists all the quests from a user.
 
-        :param member: Member, who requested his quests
+        :param member: Member, whose quests got requested
         """
+        if member.bot:
+            return "Bots haben keine Quests!"
+
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
@@ -354,7 +362,7 @@ class QuestService:
             else:
                 return self.questNotAccomplished + "\n"
 
-        answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
+        answer = f"<@{member.id}> hat folgende aktive Quests:\n\n__**Dailys**__:\n"
 
         for quest in daily:
             answer += (f"- {quest.quest.description} Aktueller Wert: **{quest.current_value}**, von: "

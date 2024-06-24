@@ -4,6 +4,7 @@ import argparse
 import logging.handlers
 import os
 import os.path
+import random
 import sys
 import threading
 import time
@@ -435,7 +436,7 @@ async def moveUsers(interaction: discord.Interaction, channel: VoiceChannel):
 """ANSWER QUOTE"""
 
 
-@tree.command(name="zitat",
+@tree.command(name="quote",
               description="Antwortet die ein zufälliges Zitat aus unserem Zitat-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def answerQuote(interaction: discord.Interaction):
@@ -451,7 +452,7 @@ async def answerQuote(interaction: discord.Interaction):
 """ANSWER TIME / STREAMTIME / UNITIME"""
 
 
-@tree.command(name="zeit",
+@tree.command(name="time",
               description="Frage die Online-, Stream- oder Uni-Zeit an!",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 @app_commands.choices(zeit=[
@@ -483,7 +484,7 @@ async def answerTimes(interaction: discord.Interaction, zeit: Choice[str], user:
 """NAME COUNTER"""
 
 
-async def listCounters(_, current: str) -> list[Choice[str]]:
+async def listCounterChoices(_, current: str) -> list[Choice[str]]:
     choices = []
 
     if not (session := getSession()):
@@ -510,10 +511,21 @@ async def listCounters(_, current: str) -> list[Choice[str]]:
     return choices
 
 
+@tree.context_menu(name="+1 René-Counter", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def addOneReneCounter(interaction: discord.Interaction, member: Member):
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    contextMenu=True,
+                                    counterName="rene",
+                                    requestedUser=member,
+                                    requestingMember=interaction.user,
+                                    param=1, )
+
+
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-@app_commands.autocomplete(counter=listCounters)
+@app_commands.autocomplete(counter=listCounterChoices)
 @app_commands.describe(counter="Wähle den Name-Counter aus!")
 @app_commands.describe(user="Tagge den User von dem du den Counter wissen möchtest!")
 @app_commands.describe(counter_hinzufuegen="Ändere den Wert eines Counter um den gegebenen Wert.")
@@ -557,14 +569,14 @@ async def createNewCounter(interaction: discord.Interaction, name: str, descript
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def listCounters(interaction: discord.Interaction):
     await commandService.runCommand(Commands.LIST_COUNTERS,
-                                    interaction)
+                                    interaction, )
 
 
 """MANAGE WHATSAPP SETTINGS"""
 
 
-@tree.command(name="whatsapp",
-              description="Lässt dich deine Benachrichtigungseinstellungen ändern.",
+@tree.command(name="whatsapp-notifications",
+              description="Lässt dich deine WhatsApp-Benachrichtigungseinstellungen ändern.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 @app_commands.choices(typ=[
     Choice(name="Gaming", value="Gaming"),
@@ -618,7 +630,7 @@ async def sendLeaderboard(interaction: discord.Interaction):
                                     member=interaction.user, )
 
 
-@tree.command(name="daten_von_member",
+@tree.command(name="data_dump_from_member",
               description="Listet dir die Daten eines Mitglieds auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def sendMemberData(interaction: discord.Interaction, member: Member):
@@ -762,9 +774,8 @@ async def handleNotificationSettings(interaction: discord.Interaction, kategorie
 ])
 @app_commands.describe(action="Wähle eine Aktion aus!")
 @app_commands.describe(user="Wähle einen User aus!")
-@app_commands.describe(
-    zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten möchtest"
-)
+@app_commands.describe(zeit="Optionale Uhrzeit oder Zeit ab jetzt in Minuten wenn du einen Felix-Timer starten "
+                            "möchtest")
 async def handleFelixTimer(interaction: discord.Interaction, user: Member, action: Choice[str], zeit: str = None):
     await commandService.runCommand(Commands.FELIX_TIMER,
                                     interaction,
@@ -777,7 +788,7 @@ async def handleFelixTimer(interaction: discord.Interaction, user: Member, actio
 """WHATSAPP SUSPEND SETTING"""
 
 
-@tree.command(name="whatsapp_suspend_settings",
+@tree.command(name="suspend_whatsapp_messages",
               description="Stelle einen Zeitraum ein in dem du keine WhatsApp-Nachrichten bekommen möchtest",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.choices(day=[
@@ -800,7 +811,7 @@ async def handleWhatsappSuspendSetting(interaction: discord.Interaction, day: Ch
                                     end=end, )
 
 
-@tree.command(name="reset_message_suspend_setting",
+@tree.command(name="reset_suspended_whatsapp_message",
               description="Wähle einen Tag um deine Suspend-Einstellung zurückzustellen",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 @app_commands.choices(day=[
@@ -819,7 +830,7 @@ async def resetWhatsAppSuspendSetting(interaction: discord.Interaction, day: Cho
                                     weekday=day, )
 
 
-@tree.command(name="list_message_suspend_settings",
+@tree.command(name="list_suspended_whatsapp_settings",
               description="Listet dir deine Suspend-Zeiten auf",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def listSuspendSettings(interaction: discord.Interaction):
@@ -842,20 +853,20 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 """QR-CODE"""
 
 
-@tree.command(name="qrcode",
-              description="Dein Text als QRCode",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
-    """
-    Creates a QR-Code from the given text
-
-    :param ctx: Interaction by discord
-    :param text: Text that will be converted into a QR-Code
-    :return:
-    """
-    logger.debug("received command qrcode: text = %s, by %d" % (text, ctx.user.id))
-
-    await commandService.runCommand(Commands.QRCODE, ctx, text=text)
+# @tree.command(name="qrcode",
+#               description="Dein Text als QRCode",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+# async def generateQRCode(ctx: discord.interactions.Interaction, text: str):
+#     """
+#     Creates a QR-Code from the given text
+#
+#     :param ctx: Interaction by discord
+#     :param text: Text that will be converted into a QR-Code
+#     :return:
+#     """
+#     logger.debug("received command qrcode: text = %s, by %d" % (text, ctx.user.id))
+#
+#     await commandService.runCommand(Commands.QRCODE, ctx, text=text)
 
 
 """REMINDER"""
@@ -972,13 +983,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
     choices = []
-    # cap return to 25 results to comply to discord autocomplete limitations
-    counter = 0
 
     for file in os.listdir(path):
-        if counter == 25:
-            break
-
         if not file[-4:] == '.mp3':
             continue
 
@@ -986,9 +992,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
             continue
 
         choices.append(Choice(name=file, value=file))
-        counter += 1
 
-    return choices
+    return random.choices(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
 
 
 @tree.command(name="play",
@@ -1033,7 +1038,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
 
 
 @tree.command(name="delete_sound",
-              description="Lösche einen Sound aus deinen Sounds. Tipp: Liste mir '/list_sounds' deine Sounds vorher "
+              description="Lösche einen Sound aus deinen Sounds. Tipp: Liste mit '/list_sounds' deine Sounds vorher "
                           "auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
@@ -1044,26 +1049,52 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
 """KNEIPE"""
 
 
+@tree.context_menu(name="Kneipe", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def kneipeContextMenu(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.KNEIPE,
+                                    ctx,
+                                    contextMenu=True,
+                                    invoker=ctx.user,
+                                    member_1=member,
+                                    member_2=None, )
+
+
 @tree.command(name="kneipe",
-              description="Verschiebt Paul und Rene oder zwei beliebige Member in einen eigenen Voice-Channel.",
+              description="Verschiebt Paul und Rene oder ein / zwei beliebige Member in einen eigenen Voice-Channel.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None, member_2: Member = None):
-    await commandService.runCommand(Commands.KNEIPE, ctx, member=ctx.user, member_1=member_1, member_2=member_2)
+    await commandService.runCommand(Commands.KNEIPE, ctx, invoker=ctx.user, member_1=member_1, member_2=member_2)
 
 
 """QUESTS"""
 
 
-@tree.command(name="list_quests",
-              description="Liste deine aktuellen Quests auf.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-async def listQuests(ctx: discord.interactions.Interaction):
+@tree.context_menu(name="Quests", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def listQuestsContextMenu(ctx: discord.interactions.Interaction, member: Member):
     await commandService.runCommand(Commands.LIST_QUESTS,
                                     ctx,
-                                    member=ctx.user, )
+                                    contextMenu=True,
+                                    member=member, )
+
+
+@tree.command(name="quests",
+              description="Liste deine aktuellen Quests auf.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def listQuests(ctx: discord.interactions.Interaction, member: Member = None):
+    await commandService.runCommand(Commands.LIST_QUESTS,
+                                    ctx,
+                                    member=member if member else ctx.user, )
 
 
 """GAMES"""
+
+
+@tree.context_menu(name="zufälliges Spiel", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def chooseRandomGameContextMenu(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
+                                    ctx,
+                                    contextMenu=True,
+                                    members=[ctx.user, member], )
 
 
 @tree.command(name="choose_random_game",

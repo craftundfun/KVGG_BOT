@@ -88,7 +88,7 @@ class CommandService:
         self.counterService = CounterService(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
 
-    async def _prepareCommandRun(self, ctx: discord.interactions.Interaction) -> bool:
+    async def _prepareCommandRun(self, ctx: discord.interactions.Interaction, contextMenu: bool) -> bool:
         """
         Sets the interaction to thinking
 
@@ -97,7 +97,7 @@ class CommandService:
         """
         try:
             # noinspection PyUnresolvedReferences
-            await ctx.response.defer(thinking=True)
+            await ctx.response.defer(thinking=True, ephemeral=contextMenu)
         except discord.errors.NotFound:
             logger.warning("too late :(")
 
@@ -116,40 +116,46 @@ class CommandService:
         return True
 
     # noinspection PyMethodMayBeStatic
-    async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str | list[str]):
+    async def _sendAnswer(self, ctx: discord.interactions.Interaction, answer: str | list[str], contextMenu: bool):
         """
         Sends the specified answer to the interaction
 
         :param ctx: Interaction to answer
         :param answer: Answer that will be sent
+        :param contextMenu: True if the command was called from a context menu
         :return:
         """
         try:
             # special case for images
             if isinstance(answer, Path):
-                await ctx.followup.send(file=discord.File(answer))
+                await ctx.followup.send(file=discord.File(answer), ephemeral=contextMenu)
             elif isinstance(answer, list):
                 for part in answer:
                     for splitPart in splitStringAtMaxLength(part):
-                        await ctx.followup.send(splitPart)
+                        await ctx.followup.send(splitPart, ephemeral=contextMenu)
             else:
                 for part in splitStringAtMaxLength(answer):
-                    await ctx.followup.send(part)
+                    await ctx.followup.send(part, ephemeral=contextMenu)
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
         logger.debug("sent webhook-answer")
 
-    async def runCommand(self, command: Commands, interaction: discord.interactions.Interaction, **kwargs):
+    async def runCommand(self,
+                         command: Commands,
+                         interaction: discord.interactions.Interaction,
+                         contextMenu: bool = False,
+                         **kwargs):
         """
         Wrapper to use commands easily
 
         :param command: Command-type to execute
         :param interaction: Interaction from the user to answer to
+        :param contextMenu: True if the command was called from a context menu
         :param kwargs: Parameters of the called function
         :return:
         """
-        if not await self._prepareCommandRun(interaction):
+        if not await self._prepareCommandRun(interaction, contextMenu):
             return
 
         function = None
@@ -289,7 +295,7 @@ class CommandService:
 
         try:
             if not function:
-                await self._sendAnswer(interaction, "Es ist etwas schief gelaufen!")
+                await self._sendAnswer(interaction, "Es ist etwas schief gelaufen!", contextMenu)
 
                 return
             elif inspect.iscoroutinefunction(function):
@@ -304,4 +310,4 @@ class CommandService:
 
             answer = "Es gab einen Fehler!"
 
-        await self._sendAnswer(interaction, answer)
+        await self._sendAnswer(interaction, answer, contextMenu)
