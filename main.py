@@ -4,6 +4,7 @@ import argparse
 import logging.handlers
 import os
 import os.path
+import random
 import sys
 import threading
 import time
@@ -568,7 +569,7 @@ async def createNewCounter(interaction: discord.Interaction, name: str, descript
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def listCounters(interaction: discord.Interaction):
     await commandService.runCommand(Commands.LIST_COUNTERS,
-                                    interaction,)
+                                    interaction, )
 
 
 """MANAGE WHATSAPP SETTINGS"""
@@ -983,13 +984,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
     basepath = os.path.dirname(__file__)
     path = os.path.abspath(os.path.join(basepath, "..", "..", f"{basepath}/data/sounds/{member}/"))
     choices = []
-    # cap return to 25 results to comply to discord autocomplete limitations
-    counter = 0
 
     for file in os.listdir(path):
-        if counter == 25:
-            break
-
         if not file[-4:] == '.mp3':
             continue
 
@@ -997,9 +993,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
             continue
 
         choices.append(Choice(name=file, value=file))
-        counter += 1
 
-    return choices
+    return random.choices(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
 
 
 @tree.command(name="play",
