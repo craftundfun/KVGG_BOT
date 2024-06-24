@@ -1039,7 +1039,7 @@ async def listSounds(ctx: discord.interactions.Interaction):
 
 
 @tree.command(name="delete_sound",
-              description="Lösche einen Sound aus deinen Sounds. Tipp: Liste mir '/list_sounds' deine Sounds vorher "
+              description="Lösche einen Sound aus deinen Sounds. Tipp: Liste mit '/list_sounds' deine Sounds vorher "
                           "auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.describe(nummer="Sound in dieser Zeile der Auflistung wird gelöscht.")
