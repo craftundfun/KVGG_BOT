@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 
 import discord
+from dateutil.relativedelta import relativedelta
 from discord import Client, Member
 from sqlalchemy import select, insert
 from sqlalchemy.orm import Session
@@ -193,7 +194,8 @@ class NotificationService:
                     .where(Newsletter.id.not_in((select(NewsletterDiscordMapping.newsletter_id)
                                                  .where(NewsletterDiscordMapping.discord_id == dcUserDb.id, )
                                                  .scalar_subquery())),
-                           Newsletter.created_at > dcUserDb.created_at, ))
+                           Newsletter.created_at > dcUserDb.created_at,
+                           Newsletter.created_at > datetime.now() - relativedelta(months=6), ))
 
         try:
             newsletters = session.scalars(getQuery).all()

@@ -200,6 +200,9 @@ class CounterService:
         counterName = counterName.split(" ")[0]
         answerAppendix = ""
 
+        if requestedUser.bot:
+            return "Bots haben keine Counter!"
+
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
@@ -207,6 +210,7 @@ class CounterService:
 
         if not (dcUserDb := getDiscordUser(requestedUser, session)):
             logger.error(f"couldn't fetch DiscordUser for {requestedUser.display_name}")
+            session.close()
 
             return "Es gab einen Fehler!"
 

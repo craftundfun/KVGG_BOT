@@ -316,7 +316,7 @@ class MemeService:
         try:
             message = await self.client.get_channel(ChannelId.CHANNEL_MEMES.value).fetch_message(message.message_id)
         except Exception as error:
-            logger.error("couldn't fetch message", exc_info=error)
+            logger.warning("couldn't fetch message", exc_info=error)
 
             return
 

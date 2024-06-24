@@ -246,6 +246,11 @@ class QuestService:
 
     @classmethod
     def insertNewQuestsForMember(cls, member: Member, time: QuestDates, session: Session) -> bool:
+        if member.bot:
+            logger.warning("cant add quests for a bot")
+
+            return False
+
         # noinspection PyTypeChecker
         getQuery = select(Quest).where(Quest.time_type == time.value)
 
@@ -323,6 +328,9 @@ class QuestService:
 
         :param member: Member, whose quests got requested
         """
+        if member.bot:
+            return "Bots haben keine Quests!"
+
         if not (session := getSession()):
             return "Es gab einen Fehler!"
 
