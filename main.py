@@ -522,6 +522,39 @@ async def addOneReneCounter(interaction: discord.Interaction, member: Member):
                                     param=1, )
 
 
+@tree.context_menu(name="+1 Paul-Counter", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def addOneReneCounter(interaction: discord.Interaction, member: Member):
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    contextMenu=True,
+                                    counterName="paul",
+                                    requestedUser=member,
+                                    requestingMember=interaction.user,
+                                    param=1, )
+
+
+@tree.context_menu(name="+1 Jaja-Counter", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def addOneReneCounter(interaction: discord.Interaction, member: Member):
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    contextMenu=True,
+                                    counterName="jaja",
+                                    requestedUser=member,
+                                    requestingMember=interaction.user,
+                                    param=1, )
+
+
+@tree.context_menu(name="+1 Datum-Counter", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+async def addOneReneCounter(interaction: discord.Interaction, member: Member):
+    await commandService.runCommand(Commands.COUNTER,
+                                    interaction,
+                                    contextMenu=True,
+                                    counterName="datum",
+                                    requestedUser=member,
+                                    requestingMember=interaction.user,
+                                    param=1, )
+
+
 @tree.command(name='counter',
               description="Frag einen beliebigen Counter von einem User an.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
@@ -852,7 +885,6 @@ async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
 
 """QR-CODE"""
 
-
 # @tree.command(name="qrcode",
 #               description="Dein Text als QRCode",
 #               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
@@ -1069,14 +1101,6 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
 """QUESTS"""
 
 
-@tree.context_menu(name="Quests", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def listQuestsContextMenu(ctx: discord.interactions.Interaction, member: Member):
-    await commandService.runCommand(Commands.LIST_QUESTS,
-                                    ctx,
-                                    contextMenu=True,
-                                    member=member, )
-
-
 @tree.command(name="quests",
               description="Liste deine aktuellen Quests auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
@@ -1087,14 +1111,6 @@ async def listQuests(ctx: discord.interactions.Interaction, member: Member = Non
 
 
 """GAMES"""
-
-
-@tree.context_menu(name="zufälliges Spiel", guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def chooseRandomGameContextMenu(ctx: discord.interactions.Interaction, member: Member):
-    await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME,
-                                    ctx,
-                                    contextMenu=True,
-                                    members=[ctx.user, member], )
 
 
 @tree.command(name="choose_random_game",
