@@ -362,7 +362,7 @@ class QuestService:
             else:
                 return self.questNotAccomplished + "\n"
 
-        answer = "Du hat folgende aktive Quests:\n\n__**Dailys**__:\n"
+        answer = "Du hast folgende aktive Quests:\n\n__**Dailys**__:\n"
 
         for quest in daily:
             answer += (f"- {quest.quest.description} Aktueller Wert: **{quest.current_value}**, von: "

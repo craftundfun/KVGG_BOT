@@ -139,7 +139,7 @@ class NotificationService:
         time: str = quest.time_type
 
         await self._sendMessage(member,
-                                f"__**Hey {member.nick if member.nick else member.name}, "
+                                f"__**Hey {member.display_name}, "
                                 f"du hast folgende {time.capitalize()}-Quest geschafft**__:\n\n- "
                                 f"{quest.description}\n\n"
                                 f"Dafür hast du einen **XP-Boost** erhalten. Schau mal nach!",
@@ -195,7 +195,7 @@ class NotificationService:
                                                  .where(NewsletterDiscordMapping.discord_id == dcUserDb.id, )
                                                  .scalar_subquery())),
                            Newsletter.created_at > dcUserDb.created_at,
-                           Newsletter.created_at > datetime.now() - relativedelta(months=6), ))
+                           Newsletter.created_at > (datetime.now() - relativedelta(months=6)), ))
 
         try:
             newsletters = session.scalars(getQuery).all()
@@ -349,6 +349,7 @@ class NotificationService:
 
         return "Dieses Wochenende gibt es doppelte XP! Viel Spaß beim farmen."
 
+    @DeprecationWarning
     async def notifyAboutUnfinishedQuests(self, questDate: QuestDates, quests: list, member: Member):
         """
         Sends a message to the member about the unfinished quests.
@@ -405,3 +406,9 @@ class NotificationService:
         Sends a message to the member about the Felix-Counter.
         """
         await self._sendMessage(member, message, None)
+
+    async def informAboutCounterChange(self, member: Member, message: str):
+        """
+        Sends a message to the member about the counter-change.
+        """
+        await self._sendMessage(member, message, NotificationType.COUNTER_CHANGE)

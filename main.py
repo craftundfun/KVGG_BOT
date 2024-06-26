@@ -772,6 +772,7 @@ async def handleXpRequest(interaction: discord.Interaction, user: Member):
     Choice(name=NotificationType.RETROSPECT_SETTING_NAME.value, value=NotificationType.RETROSPECT.value),
     Choice(name=NotificationType.XP_SPIN_SETTING_NAME.value, value=NotificationType.XP_SPIN.value),
     Choice(name=NotificationType.MEME_LIKES_SETTING_NAME.value, value=NotificationType.MEME_LIKES.value),
+    Choice(name=NotificationType.COUNTER_CHANGE_SETTING_NAME.value, value=NotificationType.COUNTER_CHANGE.value),
 ])
 @app_commands.describe(kategorie="Wähle deine Nachrichten-Kategorie")
 @app_commands.choices(action=[
@@ -1157,7 +1158,7 @@ def run():
     try:
         client.run(token=token, reconnect=True, log_handler=clientHandler, log_level=logging.INFO)
     except Exception as error:
-        logger.critical("\n\n----BOT CRASHED----\n\n", exc_info=error)
+        logger.error("\n\n----BOT CRASHED----\n\n", exc_info=error)
 
         if restartTrys > 0:
             restartTrys -= 1

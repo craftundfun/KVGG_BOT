@@ -14,6 +14,7 @@ from src.Entities.Counter.Repository.CounterRepository import getCounterDiscordM
 from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.Id.RoleId import RoleId
 from src.Manager.DatabaseManager import getSession
+from src.Manager.NotificationManager import NotificationService
 from src.Manager.TTSManager import TTSService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.ProcessUserInput import hasUserWantedRoles, getTagStringFromId
@@ -31,6 +32,7 @@ class CounterService:
         self.voiceClientService = VoiceClientService(self.client)
         self.experienceService = ExperienceService(self.client)
         self.ttsService = TTSService()
+        self.notificationService = NotificationService(self.client)
 
     async def createNewCounter(self, name: str, description: str, voiceLine: str, member: Member) -> str:
         """
@@ -240,7 +242,7 @@ class CounterService:
                     f"{counterDiscordMapping.value}{'' if (place := self._getRankingPlace(requestedUser, counterName, session)) == -1 else ' und landet damit auf Platz ' + str(place)}.")
 
         try:
-            value = int(param)
+            value: int = int(param)
         except ValueError:
             logger.debug(f"parameter was not convertable to int: {param} by {requestingMember.display_name}")
 
@@ -314,6 +316,21 @@ class CounterService:
                                                    "./data/sounds/tts.mp3",
                                                    None,
                                                    True, )
+
+        if requestingMember != requestedUser:
+            if value >= 0:
+                message = (f"Dein {counterName.capitalize()}-Counter wurde um {value} von "
+                           f"<@{requestingMember.id}> ({requestingMember.display_name}) erhöht!")
+            else:
+                message = (f"Dein {counterName.capitalize()}-Counter wurde um {abs(value)} von "
+                           f"<@{requestingMember.id}> ({requestingMember.display_name}) verringert!")
+        else:
+            if value >= 0:
+                message = f"Du hast deinen {counterName.capitalize()}-Counter um {value} erhöht!"
+            else:
+                message = f"Du hast deinen {counterName.capitalize()}-Counter um {abs(value)} verringert!"
+
+        await self.notificationService.informAboutCounterChange(requestedUser, message)
 
         return (f"Der {counterName.capitalize()}-Counter von <@{requestedUser.id}> wurde um {value} erhöht! "
                 f"<@{requestedUser.id}> hat nun insgesamt {counterDiscordMapping.value} "
