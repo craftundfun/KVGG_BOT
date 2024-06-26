@@ -102,13 +102,14 @@ class FelixCounter(Counter):
                 return
             if invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id)):
                 await self.notificationService.sendStatusReport(invoker,
-                                                                f"Der Felix-Counter von {dcUserDb.username} "
+                                                                f"Der Felix-Counter von <@{dcUserDb.user_id}> "
+                                                                f"({dcUserDb.username}) "
                                                                 f"ist ausgelaufen und er/sie hat 20 dazu "
                                                                 f"bekommen! Schade, dass er/sie sich "
                                                                 f"nicht an die abgemachte Zeit gehalten "
                                                                 f"hat.")
             else:
-                logger.error(f"couldn't fetch Member with userId {invoker.user_id} from guild")
+                logger.error(f"couldn't fetch Member with userId {invoker.id} from guild")
 
             logger.debug(f"informed {member.display_name} about Felix-Counter ending")
 
@@ -142,7 +143,8 @@ class FelixCounter(Counter):
 
         if invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id)):
             await self.notificationService.sendStatusReport(invoker,
-                                                            f"Der Felix-Counter von {dcUserDb.username} wurde beendet, da er/sie einem "
+                                                            f"Der Felix-Counter von <@{dcUserDb.user_id}> "
+                                                            f"({dcUserDb.username}) wurde beendet, da er/sie einem "
                                                             f"Channel gejoint ist.")
         else:
             logger.error(f"couldn't fetch {invoker} from guild")

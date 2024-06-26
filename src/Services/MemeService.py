@@ -151,21 +151,29 @@ class MemeService:
                 if memberWhoLiked.bot:
                     return
 
-            notification = (f"{memberWhoLiked.display_name if memberWhoLiked else 'Jemand'} "
-                            f"hat folgendes deiner Memes "
-                            f"{'geliked' if memberWhoLiked and likesBefore < (upvotes - downvotes) else 'disliked'}: "
-                            f"{message.jump_url} "
-                            f"! Dein Meme hat nun {upvotes - downvotes} Likes!")
+            notification = (
+                f"{f'<@{memberWhoLiked.id}> ({memberWhoLiked.display_name})' if memberWhoLiked else 'Jemand'} "
+                f"hat folgendes deiner Memes "
+                f"{'geliked' if memberWhoLiked and likesBefore < (upvotes - downvotes) else 'disliked'}: "
+                f"{message.jump_url} "
+                f"! Dein Meme hat nun {upvotes - downvotes} Likes!"
+            )
 
             if memberWhoLiked != message.author:
                 await self.notificationService.sendMemeLikesNotification(message.author, notification)
 
-            if memberWhoLiked:
+            if memberWhoLiked != message.author:
                 await (self.notificationService
                        .notifyAboutAcceptedLike(memberWhoLiked,
                                                 f"Dein {'Like' if likesBefore < (upvotes - downvotes) else 'Dislike'} "
                                                 f"für folgendes Meme wurde gezählt: {message.jump_url} ! "
-                                                f"{message.author.display_name} wurde darüber benachrichtigt."))
+                                                f"<@{(author := message.author).id}> ({author.display_name}) "
+                                                f"wurde darüber benachrichtigt."))
+            else:
+                await (self.notificationService
+                       .notifyAboutAcceptedLike(memberWhoLiked,
+                                                f"Dein {'Like' if likesBefore < (upvotes - downvotes) else 'Dislike'} "
+                                                f"wurde gezählt!"))
         finally:
             session.close()
 

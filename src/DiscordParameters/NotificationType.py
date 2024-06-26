@@ -32,6 +32,9 @@ class NotificationType(Enum):
     MEME_LIKES = "meme_likes"
     MEME_LIKES_SETTING_NAME = "Meme-Likes"
 
+    COUNTER_CHANGE = "counter_change"
+    COUNTER_CHANGE_SETTING_NAME = "Counter"
+
     @classmethod
     def getValues(cls) -> set[str]:
         return set(notificationType.value for notificationType in NotificationType)
@@ -69,6 +72,9 @@ class NotificationType(Enum):
 
             case cls.MEME_LIKES:
                 return cls.MEME_LIKES_SETTING_NAME
+
+            case cls.COUNTER_CHANGE:
+                return cls.COUNTER_CHANGE_SETTING_NAME
 
             case _:
                 logger.error(f"undefined enum entry was reached: {settingType}")

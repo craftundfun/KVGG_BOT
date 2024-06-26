@@ -18,6 +18,7 @@ class NotificationSetting(Base):
     retrospect = Column(Boolean, default=True, nullable=False)
     xp_spin = Column(Boolean, default=True, nullable=False)
     meme_likes = Column(Boolean, default=True, nullable=False)
+    counter_change = Column(Boolean, default=True, nullable=False)
     # noinspection PyTypeChecker
     discord_user = relationship("DiscordUser", foreign_keys=discord_id)
 

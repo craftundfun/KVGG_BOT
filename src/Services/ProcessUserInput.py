@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import discord
 from discord import Message, Client, Member, VoiceChannel
+from sqlalchemy import null
 
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
@@ -418,15 +419,16 @@ class ProcessUserInput:
             session.close()
 
             try:
-                await sendDM(requestedMember, f"Dein Felix-Timer wurde von {requestingMember.display_name} auf "
+                await sendDM(requestedMember, f"Dein Felix-Timer wurde von <@{requestingMember.id}> "
+                                              f"({requestingMember.display_name}) auf "
                                               f"{date.strftime('%H:%M')} Uhr gesetzt! Pro vergangener Minute bekommst "
                                               f"du ab der Uhrzeit einen Felix-Counter dazu! Um den Timer zu stoppen "
-                                              f"komm (vorher) online oder 'warte' ab dem Zeitpunkt 20 Minuten!\n")
+                                              f"komm (vorher) online oder \"warte\" ab dem Zeitpunkt 20 Minuten!\n")
                 await sendDM(requestedMember, FelixCounterKeyword.LIAR)
             except Exception as error:
                 logger.error(f"couldn't send DM to {requestedMember.display_name}", exc_info=error)
 
-                return (f"Der Felix-Timer wurde gestellt. {requestedMember.display_name} wurde allerdings nicht "
+                return (f"Der Felix-Timer wurde gestellt. <@{requestedMember.id}> wurde allerdings nicht "
                         f"darüber informiert - es gab Probleme beim Senden einer DM.")
             else:
                 logger.debug(f"notified {requestedMember.display_name} about his / her Felix-Timer by "
@@ -449,15 +451,15 @@ class ProcessUserInput:
                 return "Du darfst deinen eigenen Felix-Timer nicht beenden! Komm doch einfach online!"
 
             invokerID = dcUserDb.felix_counter_invoker
-            dcUserDb.felix_counter_start = None
-            dcUserDb.felix_counter_invoker = None
+            dcUserDb.felix_counter_start = null()
+            dcUserDb.felix_counter_invoker = null()
 
             if invokerID:
                 if not (invoker := getDiscordUser(requestingMember, session)):
                     logger.error(f"couldn't fetch invoker with id {invokerID}")
 
                 if not (invoker := self.client.get_guild(GuildId.GUILD_KVGG.value).get_member(int(invoker.user_id))):
-                    logger.error(f"couldn't fetch Member with userId {invoker.user_id} from guild")
+                    logger.error(f"couldn't fetch Member with userId {invoker.id} from guild")
 
                 await self.notificationService.sendStatusReport(invoker, f"Der Felix-Timer von "
                                                                          f"{requestedMember.display_name} wurde von "
