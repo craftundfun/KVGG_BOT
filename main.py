@@ -1026,7 +1026,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
 
         choices.append(Choice(name=file, value=file))
 
-    return random.choices(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
+    # return random samples if now input is given, else return the matching sounds
+    return random.sample(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
 
 
 @tree.command(name="play",
