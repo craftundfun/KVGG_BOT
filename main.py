@@ -1026,7 +1026,8 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
 
         choices.append(Choice(name=file, value=file))
 
-    return random.choices(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
+    # return random samples if now input is given, else return the matching sounds
+    return random.sample(choices, k=min(len(choices), 25)) if current == "" else choices[:25]
 
 
 @tree.command(name="play",
@@ -1105,10 +1106,10 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
 @tree.command(name="quests",
               description="Liste deine aktuellen Quests auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-async def listQuests(ctx: discord.interactions.Interaction, member: Member = None):
+async def listQuests(ctx: discord.interactions.Interaction):
     await commandService.runCommand(Commands.LIST_QUESTS,
                                     ctx,
-                                    member=member if member else ctx.user, )
+                                    member=ctx.user, )
 
 
 """GAMES"""
