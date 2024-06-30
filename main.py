@@ -1105,10 +1105,10 @@ async def kneipe(ctx: discord.interactions.Interaction, member_1: Member = None,
 @tree.command(name="quests",
               description="Liste deine aktuellen Quests auf.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-async def listQuests(ctx: discord.interactions.Interaction, member: Member = None):
+async def listQuests(ctx: discord.interactions.Interaction):
     await commandService.runCommand(Commands.LIST_QUESTS,
                                     ctx,
-                                    member=member if member else ctx.user, )
+                                    member=ctx.user, )
 
 
 """GAMES"""
