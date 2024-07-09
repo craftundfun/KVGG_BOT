@@ -120,15 +120,6 @@ class QuestService:
                         quest.current_value = 0
                         quest.time_updated = null()
 
-                        try:
-                            session.commit()
-                        except Exception as error:
-                            logger.error(f"failure to save quest_discord_mapping to database: {quest}",
-                                         exc_info=error, )
-                            session.rollback()
-
-                        continue
-
                 quest.current_value += value
                 quest.time_updated = datetime.now()
 
