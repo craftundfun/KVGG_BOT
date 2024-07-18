@@ -4,3 +4,4 @@ parameters.env
 .github
 **/__pycache__
 venv
+vosk-model-small-de-0.15
