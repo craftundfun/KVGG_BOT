@@ -1,7 +1,7 @@
 import logging
 from asyncio import sleep
 
-from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member
+from discord import Client, VoiceChannel, FFmpegPCMAudio, Member
 from discord.ext import voice_recv
 from discord.ext.voice_recv import VoiceRecvClient
 from discord.interactions import Interaction
@@ -15,11 +15,12 @@ logger = logging.getLogger("KVGG_BOT")
 
 class VoiceClientService:
     _self = None
-    voiceClient: VoiceClient | VoiceRecvClient | None = None
+    voiceClient: VoiceRecvClient | None = None
     # CTX to tell the user his /her playing of a sound is getting cancelled due to a forced sound
     voiceClientCorrespondingCTX: Interaction | None = None
     # if the bot should hang up after playing a sound
     hangUp = True
+    sink = None
 
     def __init__(self, client: Client):
         self.client = client
@@ -33,7 +34,12 @@ class VoiceClientService:
 
         return cls._self
 
-    async def play(self, channel: VoiceChannel, pathToSound: str, ctx: Interaction = None, force: bool = False) -> bool:
+    async def play(self,
+                   channel: VoiceChannel,
+                   pathToSound: str,
+                   ctx: Interaction = None,
+                   force: bool = False,
+                   shouldHandUp: bool = True, ) -> bool:
         """
         Plays the given sound. If the sound is forced to play, the bot stops the current replay and plays the new given
         sound.
@@ -62,7 +68,7 @@ class VoiceClientService:
         # create VoiceClient if it does not exist yet
         if not self.voiceClient:
             try:
-                self.voiceClient = await channel.connect()
+                self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
             except Exception as error:
                 logger.debug("something went wrong while connecting to a voice-channel", exc_info=error)
 
@@ -113,12 +119,19 @@ class VoiceClientService:
             if force and not self.hangUp:
                 self.hangUp = True
 
-            if self.voiceClient and self.hangUp:
+            if self.voiceClient and self.hangUp and shouldHandUp:
                 await self.voiceClient.disconnect()
                 self.voiceClient = None
 
             if self.voiceClientCorrespondingCTX:
                 self.voiceClientCorrespondingCTX = None
+
+            print("played sound")
+            #await self.voiceClient.disconnect(force=True)
+            #self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
+
+            from src.Services.AIService import ListenSink
+            self.voiceClient.listen(ListenSink(self, channel))
 
     async def stop(self, member: Member) -> str:
         """
@@ -154,21 +167,21 @@ class VoiceClientService:
 
         return "Das Abspielen des Sounds wurde beendet."
 
-    async def listen(self, channel: VoiceChannel, sink: voice_recv.AudioSink):
+    async def listen(self, channel: VoiceChannel):
         """
         Connects to a voice channel and starts listening for audio data.
 
         :param channel: The voice channel to connect to.
-        :param sink: The audio sink to handle received audio data.
         """
         if not self.voiceClient:
-            voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
+            self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
         else:
-            await self.voiceClient.disconnect(force=True)
+            # await self.voiceClient.disconnect(force=True)
             self.hangUp = False
-            voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
+            self.voiceClient = await self.voiceClient.move_to(channel)
 
-        voiceClient.listen(sink)
+        from src.Services.AIService import ListenSink
+        self.voiceClient.listen(ListenSink(self, channel))
 
         return "Starte das Zuhören"
 

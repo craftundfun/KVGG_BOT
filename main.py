@@ -1083,7 +1083,7 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
 @tree.command(name="test",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 async def cock(ctx: discord.interactions.Interaction):
-    await commandService.runCommand(Commands.TEST, ctx, channel=ctx.user.voice.channel)
+    await commandService.runCommand(Commands.TEST, ctx, channel=ctx.user.voice.channel, member=ctx.user)
 
 
 """KNEIPE"""
