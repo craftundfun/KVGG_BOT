@@ -9,6 +9,7 @@ from discord import Client
 from src.Helper.SplitStringAtMaxLength import splitStringAtMaxLength
 from src.Manager.ChannelManager import ChannelService
 from src.Manager.QuotesManager import QuotesManager
+from src.Services.AIService import AIService
 from src.Services.ApiServices import ApiServices
 from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
@@ -88,6 +89,7 @@ class CommandService:
         self.questService = QuestService(self.client)
         self.counterService = CounterService(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
+        self.aiService = AIService(self.client)
 
     async def _prepareCommandRun(self, ctx: discord.interactions.Interaction, contextMenu: bool) -> bool:
         """
@@ -292,7 +294,7 @@ class CommandService:
                 function = self.gameDiscordService.chooseRandomGameInChannel
 
             case Commands.TEST:
-                function = self.voiceClientService.listen
+                function = self.aiService.listen
 
             case _:
                 logger.error("undefined enum entry was reached!")

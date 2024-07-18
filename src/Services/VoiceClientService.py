@@ -1,8 +1,6 @@
 import logging
-import wave
 from asyncio import sleep
 
-import vosk
 from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member
 from discord.ext import voice_recv
 from discord.ext.voice_recv import VoiceRecvClient
@@ -13,36 +11,6 @@ from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories
 
 logger = logging.getLogger("KVGG_BOT")
-
-
-class MySink(voice_recv.WaveSink):
-    def __init__(self):
-        super().__init__("./test.wav")
-        self.model = vosk.Model("./vosk-model-small-de-0.15")
-        self.rec = vosk.KaldiRecognizer(self.model, 16000)
-
-    def cleanup(self) -> None:
-        try:
-            print("cleanup")
-            super().cleanup()
-
-            wf = wave.open("./test.wav", "rb")
-            self.rec.SetWords(True)
-
-            while True:
-                data = wf.readframes(4000)
-                if len(data) == 0:
-                    break
-                if self.rec.AcceptWaveform(data):
-                    print(self.rec.Result())
-                else:
-                    print(self.rec.PartialResult())
-
-                print(self.rec.FinalResult())
-
-            print("finished")
-        except Exception as error:
-            logger.error("couldn't cleanup sink", exc_info=error)
 
 
 class VoiceClientService:
@@ -94,7 +62,7 @@ class VoiceClientService:
         # create VoiceClient if it does not exist yet
         if not self.voiceClient:
             try:
-                self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
+                self.voiceClient = await channel.connect()
             except Exception as error:
                 logger.debug("something went wrong while connecting to a voice-channel", exc_info=error)
 
@@ -186,7 +154,7 @@ class VoiceClientService:
 
         return "Das Abspielen des Sounds wurde beendet."
 
-    async def listen(self, channel: VoiceChannel, sink: voice_recv.AudioSink = MySink()):
+    async def listen(self, channel: VoiceChannel, sink: voice_recv.AudioSink):
         """
         Connects to a voice channel and starts listening for audio data.
 
@@ -194,23 +162,15 @@ class VoiceClientService:
         :param sink: The audio sink to handle received audio data.
         """
         if not self.voiceClient:
-            try:
-                self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
-            except Exception as error:
-                logger.error("Failed to connect to the voice channel for listening.", exc_info=error)
-                return False
+            voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
         else:
-            logger.warning("Bot is already connected to a voice channel.")
+            await self.voiceClient.disconnect(force=True)
+            self.hangUp = False
+            voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
 
-        self.voiceClient.listen(sink, after=None)
+        voiceClient.listen(sink)
 
-        return "starting"
+        return "Starte das Zuhören"
 
-    async def stop_listening(self):
-        """
-        Stops listening to audio data.
-        """
-        if self.voiceClient and isinstance(self.voiceClient, voice_recv.VoiceRecvClient):
-            self.voiceClient.stop_listening()
-        else:
-            logger.warning("Voice client is not set up for listening or not connected.")
+    def getLoop(self):
+        return self.client.loop
