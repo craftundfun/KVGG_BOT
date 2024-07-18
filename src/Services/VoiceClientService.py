@@ -127,8 +127,6 @@ class VoiceClientService:
                 self.voiceClientCorrespondingCTX = None
 
             print("played sound")
-            #await self.voiceClient.disconnect(force=True)
-            #self.voiceClient = await channel.connect(cls=voice_recv.VoiceRecvClient)
 
             from src.Services.AIService import ListenSink
             self.voiceClient.listen(ListenSink(self, channel))
