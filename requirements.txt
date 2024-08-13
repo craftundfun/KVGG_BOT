@@ -10,6 +10,6 @@ discord.py[voice]
 levenshtein
 matplotlib
 fastapi==0.110.1
-uvicorn==0.29.0
+uvicorn==0.30.6
 sqlalchemy
 python-dotenv
