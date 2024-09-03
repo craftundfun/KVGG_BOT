@@ -1080,10 +1080,11 @@ async def deleteSound(ctx: discord.interactions.Interaction, nummer: int):
     await commandService.runCommand(Commands.DELETE_SOUND, ctx, ctx=ctx, row=nummer)
 
 
-@tree.command(name="test",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-async def cock(ctx: discord.interactions.Interaction):
-    await commandService.runCommand(Commands.TEST, ctx, channel=ctx.user.voice.channel, member=ctx.user)
+@tree.command(name="ai_voice_companion",
+              description="Startet den AI Voice Companion. Befindet sich aktuell in der Testphase.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def aiVoice(ctx: discord.interactions.Interaction):
+    await commandService.runCommand(Commands.AI_COMPANION, ctx, channel=ctx.user.voice.channel, member=ctx.user)
 
 
 """KNEIPE"""

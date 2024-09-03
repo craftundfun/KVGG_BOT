@@ -1,4 +1,4 @@
-mysql-connector-python>=8.3.0
+mysql-connector-python>=8.4.0
 requests>=2.31.0
 mutagen>=1.47.0
 nest-asyncio
@@ -13,3 +13,6 @@ fastapi==0.110.1
 uvicorn==0.29.0
 sqlalchemy
 python-dotenv
+SpeechRecognition==3.10.4
+discord-ext-voice-recv==0.4.2a145
+vosk==0.3.45

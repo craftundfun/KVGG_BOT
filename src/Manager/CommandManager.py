@@ -68,7 +68,7 @@ class Commands(Enum):
     CHOOSE_RANDOM_GAME = 38
     DATA_FROM_MEMBER = 39
     CHOOSE_RANDOM_GAME_IN_CHANNEL = 40
-    TEST = 41
+    AI_COMPANION = 41
 
 
 class CommandService:
@@ -293,7 +293,7 @@ class CommandService:
             case Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL:
                 function = self.gameDiscordService.chooseRandomGameInChannel
 
-            case Commands.TEST:
+            case Commands.AI_COMPANION:
                 function = self.aiService.listen
 
             case _:
