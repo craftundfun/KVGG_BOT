@@ -4,3 +4,4 @@ parameters.env
 .github
 **/__pycache__
 venv
+model
