@@ -35,7 +35,7 @@ def getDiscordGame(activity: discord.Activity, session: Session) -> DiscordGame 
 
     try:
         if not existingIdField or not activity.application_id:
-            # skip empty application_id
+            # skip empty / non-existing application_id
             raise NoResultFound
 
         # noinspection PyUnboundLocalVariable
@@ -92,6 +92,8 @@ def getDiscordGame(activity: discord.Activity, session: Session) -> DiscordGame 
                     session.rollback()
 
                     return None
+                else:
+                    return game
         else:
             logger.debug(f"fetched game with name {activity.name}")
 
