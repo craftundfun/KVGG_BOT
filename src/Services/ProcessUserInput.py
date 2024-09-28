@@ -24,6 +24,7 @@ from src.InheritedCommands.Times import UniversityTime, StreamTime, OnlineTime
 from src.Manager.DatabaseManager import getSession
 from src.Manager.NotificationManager import NotificationService
 from src.Manager.StatisticManager import StatisticManager
+from src.Manager.TTSManager import TTSService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.QuestService import QuestService, QuestType
@@ -81,6 +82,8 @@ class ProcessUserInput:
         self.statisticManager = StatisticManager(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
         self.notificationService = NotificationService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
+        self.ttsService = TTSService()
 
     async def raiseMessageCounter(self, member: Member, channel, command: bool = False):
         """
@@ -200,6 +203,16 @@ class ProcessUserInput:
             return "Irgendetwas ist schief gelaufen!"
 
         logger.debug("moved all users without problems")
+
+        try:
+            await self.ttsService.generateTTS(f"Ihr wurdet von {member.display_name} verschoben. "
+                                              f"Denkt dran eure Streams wieder einzuschalten!", )
+            await self.voiceClientService.play(member.voice.channel,
+                                               "./data/sounds/tts.mp3",
+                                               ctx=None,
+                                               force=True, )
+        except Exception as error:
+            logger.error("couldn't play TTS for moved members", exc_info=error)
 
         return "Alle User wurden erfolgreich verschoben!"
 

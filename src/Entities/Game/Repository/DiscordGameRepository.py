@@ -1,6 +1,7 @@
 import logging
 
 import Levenshtein
+import discord
 from discord import Member
 from sqlalchemy import desc
 from sqlalchemy import func
@@ -17,67 +18,105 @@ from src.Entities.Game.Entity.GameDiscordMapping import GameDiscordMapping
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getDiscordGame(activityName: str, session: Session) -> DiscordGame | None:
-    insertQuery = insert(DiscordGame).values(name=activityName)
-    # noinspection PyTypeChecker
-    getQuery = select(DiscordGame).where(DiscordGame.name == activityName)
+def getDiscordGame(activity: discord.Activity, session: Session) -> DiscordGame | None:
+    existingIdField = True
 
     try:
-        game = session.scalars(getQuery).one()
+        # noinspection PyTypeChecker
+        getQueryByID = select(DiscordGame).where(DiscordGame.external_game_id == activity.application_id, )
+    # catch AttributeError if activity has no application_id
+    except AttributeError:
+        logger.debug(f"activity {activity.name} has no application_id")
+
+        existingIdField = False
+
+    # noinspection PyTypeChecker
+    getQueryByName = select(DiscordGame).where(DiscordGame.name == activity.name, )
+
+    try:
+        if not existingIdField or not activity.application_id:
+            # skip empty / non-existing application_id
+            raise NoResultFound
+
+        # noinspection PyUnboundLocalVariable
+        game = session.scalars(getQueryByID).one()
     except MultipleResultsFound as error:
-        logger.error(f"multiple results found for game: {activityName}", exc_info=error)
+        logger.error(f"found multiple results for {activity.name}",
+                     exc_info=error, )
 
         return None
     except NoResultFound:
-        logger.debug(f"did not found exact name match for {activityName}")
-
-        getGamesQuery = select(DiscordGame)
+        logger.debug(f"did not found game with external_id for {activity.name}")
 
         try:
-            games = session.scalars(getGamesQuery).all()
-        except NoResultFound as error:
-            logger.error("did not found any game in database", exc_info=error)
+            game = session.scalars(getQueryByName).one()
+        except MultipleResultsFound as error:
+            logger.error(f"found multiple results for game with name {activity.name}", exc_info=error, )
 
             return None
+        except NoResultFound:
+            logger.debug(f"did not found game with exact name {activity.name}")
 
-        for game in games:
-            if Levenshtein.distance(activityName.lower(), game.name.lower(), score_cutoff=2) <= 2:
-                logger.debug(f"found game without exact name: {activityName} and {game.name}")
+            try:
+                games = session.scalars(select(DiscordGame)).all()
+            except Exception as error:
+                logger.error("couldn't fetch all games", exc_info=error)
 
-                return game
+                return None
+            else:
+                logger.debug("traversing all games for Levenshtein distance")
 
-        # if we arrive here, we will have to insert a new game into the database
-        try:
-            session.execute(insertQuery)
-            session.commit()
-        except Exception as error:
-            logger.error(f"couldn't insert new game with name: {activityName}", exc_info=error)
-            session.rollback()
+                for game in games:
+                    if Levenshtein.distance(activity.name.lower(), game.name.lower(), score_cutoff=2) <= 2:
+                        logger.debug(f"found game without name {activity.name} by Levenshtein distance")
 
-            return None
+                        if existingIdField and activity.application_id:
+                            game.external_game_id = activity.application_id
 
-        try:
-            game = session.scalars(getQuery).one()
-        except Exception as error:
-            logger.error(f"couldn't fetch newly inserted game with name: {activityName}", exc_info=error)
+                            session.commit()
+                            logger.debug(f"added external_game_id {activity.application_id} to game without exact name "
+                                         f"{activity.name}")
 
-            return None
+                        # found game without an exact name
+                        return game
 
-        logger.debug(f"successfully fetched new inserted game with name: {activityName}")
-    except Exception as error:
-        logger.error(f"an error occurred while fetching discord game: {activityName}", exc_info=error)
+                # if we arrive here, we will have to insert a new game into the database
+                try:
+                    game = DiscordGame(name=activity.name,
+                                       external_game_id=activity.application_id if existingIdField else None, )
 
-        return None
+                    session.add(game)
+                    session.commit()
+                except Exception as error:
+                    logger.error(f"couldn't insert new game with name {activity.name}", exc_info=error)
+                    session.rollback()
+
+                    return None
+                else:
+                    return game
+        else:
+            logger.debug(f"fetched game with name {activity.name}")
+
+            if existingIdField and activity.application_id:
+                game.external_game_id = activity.application_id
+
+                session.commit()
+                logger.debug(f"added external_game_id {activity.application_id} to game without exact name "
+                             f"{activity.name}")
+
+            # found game with exact name
+            return game
     else:
-        logger.debug("found activity with exact name")
+        logger.debug(f"fetched game with external_id {activity.application_id}")
 
-    return game
+        # found game with external_id
+        return game
 
 
 def getGameDiscordRelation(session: Session,
                            member: Member,
-                           activityName: str, ) -> GameDiscordMapping | None:
-    if not (game := getDiscordGame(activityName, session)):
+                           activity: discord.Activity, ) -> GameDiscordMapping | None:
+    if not (game := getDiscordGame(activity, session)):
         logger.error("couldn't get game")
 
         return None
@@ -99,40 +138,40 @@ def getGameDiscordRelation(session: Session,
     try:
         relation = session.scalars(getQuery).one()
     except MultipleResultsFound as error:
-        logger.error(f"found multiple results for game relation for {member.display_name} and {activityName}",
+        logger.error(f"found multiple results for game relation for {member.display_name} and {activity.name}",
                      exc_info=error, )
 
         return None
     except NoResultFound:
-        logger.debug(f"did not found relation for {member.display_name} and {activityName}")
+        logger.debug(f"did not found relation for {member.display_name} and {activity.name}")
 
         try:
             session.execute(insertQuery)
             session.commit()
         except Exception as error:
-            logger.error(f"couldn't insert new game relation for {member.display_name} and {activityName}",
+            logger.error(f"couldn't insert new game relation for {member.display_name} and {activity.name}",
                          exc_info=error, )
             session.rollback()
 
             return None
 
-        logger.debug(f"inserted new game relation for {member.display_name} and {activityName}")
+        logger.debug(f"inserted new game relation for {member.display_name} and {activity.name}")
 
         try:
             relation = session.scalars(getQuery).one()
         except Exception as error:
-            logger.error(f"couldn't fetch newly inserted game relation for {member.display_name} and {activityName}",
+            logger.error(f"couldn't fetch newly inserted game relation for {member.display_name} and {activity.name}",
                          exc_info=error, )
 
             return None
     except Exception as error:
         logger.debug(
-            f"an error occurred while fetching DiscordGameRelation for {member.display_name} and {activityName}",
+            f"an error occurred while fetching DiscordGameRelation for {member.display_name} and {activity.name}",
             exc_info=error, )
 
         return None
 
-    logger.debug(f"fetched game relation for {member.display_name} and {activityName}")
+    logger.debug(f"fetched game relation for {member.display_name} and {activity.name}")
 
     return relation
 
