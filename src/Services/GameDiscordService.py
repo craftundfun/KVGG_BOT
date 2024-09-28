@@ -95,7 +95,7 @@ class GameDiscordService:
 
                 continue
 
-            if relation := getGameDiscordRelation(session, member, activity.name):
+            if relation := getGameDiscordRelation(session, member, activity):
                 if member.voice:
                     relation.time_played_online += 1
 
