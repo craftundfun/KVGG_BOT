@@ -70,7 +70,7 @@ def getDiscordGame(activity: discord.Activity, session: Session) -> DiscordGame 
                     if Levenshtein.distance(activity.name.lower(), game.name.lower(), score_cutoff=2) <= 2:
                         logger.debug(f"found game without name {activity.name} by Levenshtein distance")
 
-                        if existingIdField and activity.application_id:
+                        if existingIdField and activity.application_id and not game.external_game_id:
                             game.external_game_id = activity.application_id
 
                             session.commit()
@@ -97,7 +97,8 @@ def getDiscordGame(activity: discord.Activity, session: Session) -> DiscordGame 
         else:
             logger.debug(f"fetched game with name {activity.name}")
 
-            if existingIdField and activity.application_id:
+            # dont overwrite existing external_game_id
+            if existingIdField and activity.application_id and not game.external_game_id:
                 game.external_game_id = activity.application_id
 
                 session.commit()
