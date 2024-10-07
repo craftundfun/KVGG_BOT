@@ -71,7 +71,6 @@ class BackgroundServices(commands.Cog):
 
         if dmManagerErrorCount >= 5:
             logger.debug("skipping dm-manager")
-
         try:
             await self.dmManager.sendMessages()
         except Exception as error:
