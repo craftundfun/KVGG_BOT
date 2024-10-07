@@ -8,6 +8,7 @@ from discord.ext import tasks, commands
 
 from src.Logger.CustomFormatterFile import CustomFormatterFile
 from src.Manager.AchievementManager import AchievementService
+from src.Manager.DmManager import DmManager
 from src.Manager.MinutelyJobRunner import MinutelyJobRunner
 from src.Manager.StatisticManager import StatisticManager
 from src.Services.GameDiscordService import GameDiscordService
@@ -38,6 +39,7 @@ midnightTime = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=
 minutelyTimes = [datetime.time(hour=h, minute=m, second=45, microsecond=0, tzinfo=tz)
                  for h, m in product(range(24), range(60))]
 minutelyErrorCount = 0
+dmManagerErrorCount = 0
 
 
 class BackgroundServices(commands.Cog):
@@ -52,12 +54,33 @@ class BackgroundServices(commands.Cog):
         self.minutelyJobRunner = MinutelyJobRunner(self.client)
         self.statisticManager = StatisticManager(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
+        self.dmManager = DmManager()
 
-        self.minutely.start()
+        # self.minutely.start()
         logger.info("minutely-job started")
 
         self.midnight.start()
         logger.info("midnight-job started")
+
+        self.runDmManager.start()
+        logger.info("dm-manager started")
+
+    @tasks.loop(seconds=5)
+    async def runDmManager(self):
+        global dmManagerErrorCount
+
+        if dmManagerErrorCount >= 5:
+            logger.debug("skipping dm-manager")
+
+        try:
+            await self.dmManager.sendMessages()
+        except Exception as error:
+            logger.error("error while running dm-manager", exc_info=error)
+
+            dmManagerErrorCount += 1
+
+            if dmManagerErrorCount == 5:
+                logger.error("⚠️ CANCELLING DM-MANAGER FROM NOW ON ⚠️")
 
     @tasks.loop(time=midnightTime)
     async def midnight(self):

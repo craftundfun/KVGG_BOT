@@ -14,9 +14,10 @@ from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
 from src.Entities.Reminder.Entity.Reminder import Reminder
 from src.Entities.User.Entity.User import User
 from src.Helper.CheckDateAgainstRegex import checkDateAgainstRegex, checkTimeAgainstRegex
-from src.Helper.SendDM import sendDM, separator
+from src.Helper.SendDM import separator
 from src.Id.GuildId import GuildId
 from src.Manager.DatabaseManager import getSession
+from src.Manager.DmManager import DmManager
 from src.View.PaginationView import PaginationViewDataItem
 
 logger = logging.getLogger("KVGG_BOT")
@@ -29,6 +30,8 @@ class ReminderService:
         :param client:
         """
         self.client = client
+
+        self.dmManager = DmManager()
 
     def createTimer(self, member: Member, name: str, minutes: int) -> str:
         """
@@ -409,15 +412,11 @@ class ReminderService:
             else:
                 logger.debug(f"saved whatsapp into MessageQueue for {member.display_name}")
 
-        try:
-            await sendDM(member, f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n"
-                         + reminder.content + separator)
+        self.dmManager.addMessage(member,
+                                    f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n"
+                                    + reminder.content + separator)
 
-            logger.debug(f"send reminder to {member.display_name}")
-        except Exception as e:
-            logger.error("there was a problem sending the message", exc_info=e)
-
-            reminder.error = True
+        logger.debug(f"send reminder to {member.display_name}")
 
         if not reminder.repeat_in_minutes:
             reminder.time_to_sent = null()
