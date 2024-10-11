@@ -46,6 +46,8 @@ class DmManager:
         """
         Traverses the messageList and sends the messages to the members if the waiting time is reached
         """
+        membersToRemove = []
+
         with self.lock:
             for member, (queue, timeOfLastMessage,) in self.messageList.items():
                 # declare types for IDE
@@ -70,7 +72,11 @@ class DmManager:
                 except Exception as error:
                     logger.error(f"couldn't send DM to {member.name}", exc_info=error)
 
-                # remove member from the list
-                del self.messageList[member]
+                membersToRemove.append(member)
             else:
                 logger.debug("no messages to send")
+
+            for member in membersToRemove:
+                del self.messageList[member]
+
+                logger.debug(f"removed {member} from messageList")
