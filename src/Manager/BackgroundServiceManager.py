@@ -56,7 +56,7 @@ class BackgroundServices(commands.Cog):
         self.gameDiscordService = GameDiscordService(self.client)
         self.dmManager = DmManager()
 
-        # self.minutely.start()
+        self.minutely.start()
         logger.info("minutely-job started")
 
         self.midnight.start()
@@ -67,6 +67,9 @@ class BackgroundServices(commands.Cog):
 
     @tasks.loop(seconds=5)
     async def runDmManager(self):
+        """
+        Runs the dm-manager every 5 seconds to send messages to users
+        """
         global dmManagerErrorCount
 
         if dmManagerErrorCount >= 5:
