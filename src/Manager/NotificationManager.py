@@ -1,7 +1,6 @@
 import logging
 from datetime import datetime, timedelta
 
-import discord
 from dateutil.relativedelta import relativedelta
 from discord import Client, Member
 from sqlalchemy import select, insert
@@ -19,9 +18,10 @@ from src.Entities.Newsletter.Entity.NewsletterDiscordMapping import NewsletterDi
 from src.Entities.Quest.Entity.Quest import Quest
 from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping
 from src.Helper.GetFormattedTime import getFormattedTime
-from src.Helper.SendDM import sendDM, separator
+from src.Helper.SendDM import separator
 from src.Id.Categories import UniversityCategory
 from src.Manager.DatabaseManager import getSession
+from src.Manager.DmManager import DmManager
 from src.Services.ExperienceService import isDoubleWeekend, ExperienceService
 
 logger = logging.getLogger("KVGG_BOT")
@@ -36,6 +36,7 @@ class NotificationService:
         self.client = client
 
         self.xpService = ExperienceService(self.client)
+        self.dmManager = DmManager()
 
     # noinspection PyMethodMayBeStatic
     async def _sendMessage(self,
@@ -49,7 +50,6 @@ class NotificationService:
 
         :param member: C.F. sendDM
         :param content: C.F. sendDM
-        :return: Bool about the success of the operation
         """
         if member.bot:
             logger.warning(f"not sending DM to {member.display_name} because it's a bot")
@@ -83,12 +83,8 @@ class NotificationService:
         if useSeparator:
             content += separator
 
-        try:
-            await sendDM(member, content)
-        except discord.Forbidden:
-            logger.warning(f"couldn't send DM to {member.name}: Forbidden")
-        except Exception as error:
-            logger.error(f"couldn't send DM to {member.name}", exc_info=error)
+        self.dmManager.addMessage(member, content)
+
 
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):
         """

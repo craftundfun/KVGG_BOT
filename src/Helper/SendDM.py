@@ -36,6 +36,7 @@ async def sendDM(member: Member, content: str):
         if not member.dm_channel:
             raise Exception(f"couldn't create DM channel with {member.display_name}")
 
+    # don't send too long messages
     for part in splitStringAtMaxLength(content):
         await member.dm_channel.send(part)
 
