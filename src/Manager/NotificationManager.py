@@ -83,7 +83,7 @@ class NotificationService:
         if useSeparator:
             content += separator
 
-        self.dmManager.addMessage(member, content)
+        await self.dmManager.addMessage(member, content)
 
 
     async def informAboutXpBoostInventoryLength(self, member: Member, currentAmount: int):

@@ -1,7 +1,6 @@
 import logging
+from asyncio import Lock, Queue
 from datetime import datetime
-from queue import Queue
-from threading import Lock
 from typing import Tuple
 
 import discord
@@ -33,11 +32,11 @@ class DmManager:
 
         return cls._self
 
-    def addMessage(self, member: Member, message: str):
-        with self.lock:
+    async def addMessage(self, member: Member, message: str):
+        async with self.lock:
             queue, timeOfLastMessage = self.messageList.get(member, (Queue(), None,))
 
-            queue.put(message)
+            await queue.put(message)
             timeOfLastMessage = datetime.now()
 
             self.messageList[member] = (queue, timeOfLastMessage,)
@@ -48,7 +47,7 @@ class DmManager:
         """
         membersToRemove = []
 
-        with self.lock:
+        async with self.lock:
             for member, (queue, timeOfLastMessage,) in self.messageList.items():
                 # declare types for IDE
                 member: Member
@@ -63,7 +62,7 @@ class DmManager:
                 message = ""
 
                 while not queue.empty():
-                    message += queue.get()
+                    message += await queue.get()
 
                 try:
                     await sendDM(member, message)
