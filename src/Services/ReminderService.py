@@ -412,9 +412,9 @@ class ReminderService:
             else:
                 logger.debug(f"saved whatsapp into MessageQueue for {member.display_name}")
 
-        self.dmManager.addMessage(member,
-                                    f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n"
-                                    + reminder.content + separator)
+        await self.dmManager.addMessage(member,
+                                        f"Hier ist {'deine Erinnerung' if not reminder.is_timer else 'dein Timer'}:\n\n"
+                                        + reminder.content + separator)
 
         logger.debug(f"send reminder to {member.display_name}")
 
