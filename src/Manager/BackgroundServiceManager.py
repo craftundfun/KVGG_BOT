@@ -65,7 +65,7 @@ class BackgroundServices(commands.Cog):
         self.runDmManager.start()
         logger.info("dm-manager started")
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=2)
     async def runDmManager(self):
         """
         Runs the dm-manager every 5 seconds to send messages to users
