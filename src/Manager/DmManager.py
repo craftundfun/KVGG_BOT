@@ -18,7 +18,7 @@ class DmManager:
 
     _self = None
     messageList: dict[Member, Tuple[Queue[str], datetime,]] = {}
-    waitingTime = 5  # seconds
+    waitingTime = 2  # seconds
 
     def __init__(self):
         self.lock = Lock()
