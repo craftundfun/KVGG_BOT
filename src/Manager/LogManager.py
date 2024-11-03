@@ -50,7 +50,7 @@ class LogService:
         """
         voiceStateBefore: VoiceState = voiceStates[0]
         voiceStateAfter: VoiceState = voiceStates[1]
-        profilePicture = member.avatar.url
+        profilePicture = member.avatar.url if member.avatar else None
 
         match event:
             case Events.JOINED_VOICE_CHAT:
