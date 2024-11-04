@@ -254,6 +254,8 @@ class GameDiscordService:
 
             return "Es gab einen Fehler!"
 
+        # remove bots
+        members = [member for member in members if not member.bot]
         session = getSession()
 
         # Fetch game relations for each member
@@ -312,7 +314,6 @@ class GameDiscordService:
         session.close()
 
         return answer
-
 
     # noinspection PyMethodMayBeStatic
     def midnightJob(self):
