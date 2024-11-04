@@ -244,10 +244,10 @@ class GameDiscordService:
 
     def getTogetherPlayedGames(self, members: list[Member]) -> str:
         """
-        Returns all the games played together by a list of members along with their individual offline and online play time.
+        Returns all the games played together by a list of members along with their individual play time.
 
         :param members: List of members to check
-        :return: Dictionary with game names as keys and another dictionary with member play times as values
+        :return: answer
         """
         if not members:
             logger.error("no members provided")
