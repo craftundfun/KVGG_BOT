@@ -647,20 +647,19 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
 
 """SEND LEADERBOARD"""
 
-
-@tree.command(name="leaderboard",
-              description="Listet dir unsere Bestenliste auf.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-async def sendLeaderboard(interaction: discord.Interaction):
-    """
-    Calls the send leaderboard from ProcessUserInput from this interaction
-
-    :param interaction: Interaction object of the call
-    :return:
-    """
-    await commandService.runCommand(Commands.LEADERBOARD,
-                                    interaction,
-                                    member=interaction.user, )
+# @tree.command(name="leaderboard",
+#               description="Listet dir unsere Bestenliste auf.",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+# async def sendLeaderboard(interaction: discord.Interaction):
+#     """
+#     Calls the send leaderboard from ProcessUserInput from this interaction
+#
+#     :param interaction: Interaction object of the call
+#     :return:
+#     """
+#     await commandService.runCommand(Commands.LEADERBOARD,
+#                                     interaction,
+#                                     member=interaction.user, )
 
 
 @tree.command(name="data_dump_from_member",
@@ -876,12 +875,12 @@ async def listSuspendSettings(interaction: discord.Interaction):
 """WEATHER"""
 
 
-@tree.command(name="weather",
-              description="Frag das Wetter von einem Ort in Deutschland an",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.describe(stadt="Stadt / Ort in Deutschland")
-async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
-    await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
+# @tree.command(name="weather",
+#               description="Frag das Wetter von einem Ort in Deutschland an",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+# @app_commands.describe(stadt="Stadt / Ort in Deutschland")
+# async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
+#     await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
 
 
 """QR-CODE"""
@@ -1123,7 +1122,7 @@ async def listQuests(ctx: discord.interactions.Interaction):
 @app_commands.describe(freund_2="Tagge einen weiteren Freund")
 @app_commands.describe(freund_3="Tagge noch einen weiteren Freund")
 async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
-                           freund_3: Member = None):
+                           freund_3: Member = None, ):
     members = [ctx.user, freund, ]
 
     if freund_2 is not None:
@@ -1143,6 +1142,23 @@ async def chooseRandomGame(ctx: discord.interactions.Interaction):
     await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL,
                                     ctx,
                                     member=ctx.user, )
+
+
+@tree.command(name="all_together_played_games",
+              description="Listet alle Spiele auf, die du und deine Freunde zusammen gespielt habt.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
+                                 freund_3: Member = None, ):
+    members = [ctx.user, freund, ]
+
+    if freund_2 is not None:
+        members.append(freund_2)
+    if freund_3 is not None:
+        members.append(freund_3)
+
+    await commandService.runCommand(Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES,
+                                    ctx,
+                                    members=members, )
 
 
 restartTrys = 5
