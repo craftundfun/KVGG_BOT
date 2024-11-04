@@ -647,20 +647,19 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
 
 """SEND LEADERBOARD"""
 
-
-@tree.command(name="leaderboard",
-              description="Listet dir unsere Bestenliste auf.",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
-async def sendLeaderboard(interaction: discord.Interaction):
-    """
-    Calls the send leaderboard from ProcessUserInput from this interaction
-
-    :param interaction: Interaction object of the call
-    :return:
-    """
-    await commandService.runCommand(Commands.LEADERBOARD,
-                                    interaction,
-                                    member=interaction.user, )
+# @tree.command(name="leaderboard",
+#               description="Listet dir unsere Bestenliste auf.",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+# async def sendLeaderboard(interaction: discord.Interaction):
+#     """
+#     Calls the send leaderboard from ProcessUserInput from this interaction
+#
+#     :param interaction: Interaction object of the call
+#     :return:
+#     """
+#     await commandService.runCommand(Commands.LEADERBOARD,
+#                                     interaction,
+#                                     member=interaction.user, )
 
 
 @tree.command(name="data_dump_from_member",
@@ -876,12 +875,12 @@ async def listSuspendSettings(interaction: discord.Interaction):
 """WEATHER"""
 
 
-@tree.command(name="weather",
-              description="Frag das Wetter von einem Ort in Deutschland an",
-              guild=discord.Object(id=GuildId.GUILD_KVGG.value))
-@app_commands.describe(stadt="Stadt / Ort in Deutschland")
-async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
-    await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
+# @tree.command(name="weather",
+#               description="Frag das Wetter von einem Ort in Deutschland an",
+#               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
+# @app_commands.describe(stadt="Stadt / Ort in Deutschland")
+# async def getWeather(interaction: discord.interactions.Interaction, stadt: str):
+#     await commandService.runCommand(Commands.WEATHER, interaction, city=stadt)
 
 
 """QR-CODE"""
