@@ -180,19 +180,19 @@ class CommandService:
             case Commands.WHATSAPP:
                 function = self.userSettings.manageWhatsAppSettings
 
-            case Commands.LEADERBOARD:
-                data = await LeaderboardService(self.client).getLeaderboard()
+            # case Commands.LEADERBOARD:
+            #     data = await LeaderboardService(self.client).getLeaderboard()
 
-                await PaginationView(
-                    ctx=interaction,
-                    data=data,
-                    client=self.client,
-                    title="Leaderboard",
-                    defer=False,
-                    seperator=1,
-                ).send()
+            #     await PaginationView(
+            #         ctx=interaction,
+            #         data=data,
+            #         client=self.client,
+            #         title="Leaderboard",
+            #         defer=False,
+            #         seperator=1,
+            #     ).send()
 
-                function = "Pagination-View"
+            #     function = "Pagination-View"
 
             case Commands.XP_SPIN:
                 function = self.experienceService.spinForXpBoost
@@ -218,8 +218,8 @@ class CommandService:
             case Commands.LIST_WHATSAPP_SUSPEND_SETTINGS:
                 function = self.whatsappHelper.listSuspendSettings
 
-            case Commands.WEATHER:
-                function = self.apiService.getWeather
+            # case Commands.WEATHER:
+            #     function = self.apiService.getWeather
 
             case Commands.QRCODE:
                 function = self.apiService.generateQRCode
