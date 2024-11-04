@@ -1146,6 +1146,7 @@ async def chooseRandomGame(ctx: discord.interactions.Interaction):
 
 
 @tree.command(name="all_together_played_games",
+              description="Listet alle Spiele auf, die du und deine Freunde zusammen gespielt habt.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
 async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
                                  freund_3: Member = None, ):
