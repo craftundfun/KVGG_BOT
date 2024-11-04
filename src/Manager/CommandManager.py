@@ -67,6 +67,7 @@ class Commands(Enum):
     CHOOSE_RANDOM_GAME = 38
     DATA_FROM_MEMBER = 39
     CHOOSE_RANDOM_GAME_IN_CHANNEL = 40
+    SHOW_ALL_TOGETHER_PLAYED_GAMES = 41
 
 
 class CommandService:
@@ -289,6 +290,9 @@ class CommandService:
 
             case Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL:
                 function = self.gameDiscordService.chooseRandomGameInChannel
+
+            case Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES:
+                function = self.gameDiscordService.getTogetherPlayedGames
 
             case _:
                 logger.error("undefined enum entry was reached!")

@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from database.migrationForCurrentDiscordStatistics import session
 from src.DiscordParameters.AchievementParameter import AchievementParameter
 from src.DiscordParameters.StatisticsParameter import StatisticsParameter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
@@ -241,6 +242,55 @@ class GameDiscordService:
         session.close()
 
         return answer
+
+    def getTogetherPlayedGames(self, members: list[Member]) -> dict[str, dict[str, int]]:
+        """
+        Returns all the games played together by a list of members along with their individual offline and online play time.
+
+        :param members: List of members to check
+        :param session: Database session
+        :return: Dictionary with game names as keys and another dictionary with member play times as values
+        """
+        # session = getSession()
+
+        if not members:
+            print({})
+
+        # Fetch game relations for each member
+        member_game_relations = {}
+        for member in members:
+            # noinspection PyTypeChecker
+            getQuery = (select(GameDiscordMapping)
+                        .where(GameDiscordMapping.discord_id == (select(DiscordUser.id)
+                                                                 .where(DiscordUser.user_id == str(member.id))
+                                                                 .scalar_subquery())))
+            try:
+                relations = session.scalars(getQuery).all()
+                member_game_relations[member.id] = relations
+            except Exception as error:
+                logger.error(f"couldn't fetch game relations for {member.display_name}", exc_info=error)
+                print({})
+
+        # Find common games
+        common_games = set(relation.discord_game_id for relation in member_game_relations[members[0].id])
+        for member_id, relations in member_game_relations.items():
+            common_games.intersection_update(relation.discord_game_id for relation in relations)
+
+        # Collect individual play times for each member for the common games
+        result = {}
+        for game_id in common_games:
+            game_name = session.query(DiscordGame.name).filter(DiscordGame.id == game_id).scalar()
+            result[game_name] = {}
+            for member in members:
+                relation = next((rel for rel in member_game_relations[member.id] if rel.discord_game_id == game_id),
+                                None)
+                if relation:
+                    result[game_name][member.display_name] = {
+                        "time_played_online": relation.time_played_online,
+                        "time_played_offline": relation.time_played_offline
+                    }
+
+        print(result)
 
     # noinspection PyMethodMayBeStatic
     def midnightJob(self):

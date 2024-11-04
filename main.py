@@ -1123,7 +1123,7 @@ async def listQuests(ctx: discord.interactions.Interaction):
 @app_commands.describe(freund_2="Tagge einen weiteren Freund")
 @app_commands.describe(freund_3="Tagge noch einen weiteren Freund")
 async def chooseRandomGame(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
-                           freund_3: Member = None):
+                           freund_3: Member = None, ):
     members = [ctx.user, freund, ]
 
     if freund_2 is not None:
@@ -1143,6 +1143,22 @@ async def chooseRandomGame(ctx: discord.interactions.Interaction):
     await commandService.runCommand(Commands.CHOOSE_RANDOM_GAME_IN_CHANNEL,
                                     ctx,
                                     member=ctx.user, )
+
+
+@tree.command(name="all_together_played_games",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: Member, freund_2: Member = None,
+                                 freund_3: Member = None, ):
+    members = [ctx.user, freund, ]
+
+    if freund_2 is not None:
+        members.append(freund_2)
+    if freund_3 is not None:
+        members.append(freund_3)
+
+    await commandService.runCommand(Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES,
+                                    ctx,
+                                    members=members, )
 
 
 restartTrys = 5
