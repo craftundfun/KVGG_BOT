@@ -286,7 +286,8 @@ class GameDiscordService:
         result = {}
 
         for game_id in common_games:
-            game_name = session.query(DiscordGame.name).filter(DiscordGame.id == game_id).scalar()
+            game_name = session.query(DiscordGame.name).filter(DiscordGame.id == game_id,
+                                                               DiscordGame.is_playable == True, ).scalar()
             result[game_name] = {}
 
             for member in members:
