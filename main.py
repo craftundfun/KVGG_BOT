@@ -79,6 +79,8 @@ logger.addHandler(consoleHandler)
 
 logger.info("\n\n----Initial bot start!----\n\n")
 
+didBotStartAlready = False
+
 
 class MyClient(discord.Client):
     backgroundServices = None
@@ -219,6 +221,15 @@ class MyClient(discord.Client):
 
         :return:
         """
+        global didBotStartAlready
+
+        if didBotStartAlready:
+            logger.error("NO ERROR: Bot already started, aborting on_ready")
+
+            return
+
+        didBotStartAlready = True
+
         logger.info("Logged in as: " + str(self.user))
 
         await client.change_presence(activity=discord.CustomActivity(type=discord.ActivityType.custom,
@@ -647,6 +658,7 @@ async def manageWhatsAppSettings(interaction: discord.Interaction, typ: Choice[s
 
 """SEND LEADERBOARD"""
 
+
 # @tree.command(name="leaderboard",
 #               description="Listet dir unsere Bestenliste auf.",
 #               guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
@@ -873,7 +885,6 @@ async def listSuspendSettings(interaction: discord.Interaction):
 
 
 """WEATHER"""
-
 
 # @tree.command(name="weather",
 #               description="Frag das Wetter von einem Ort in Deutschland an",

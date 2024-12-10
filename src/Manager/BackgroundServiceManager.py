@@ -43,6 +43,7 @@ dmManagerErrorCount = 0
 
 
 class BackgroundServices(commands.Cog):
+    _self = None
 
     def __init__(self, client: discord.Client):
         self.client = client
@@ -64,6 +65,15 @@ class BackgroundServices(commands.Cog):
 
         self.runDmManager.start()
         logger.info("dm-manager started")
+
+    def __new__(cls, *args, **kwargs):
+        """
+        Singleton-Pattern
+        """
+        if not cls._self:
+            cls._self = super().__new__(cls)
+
+        return cls._self
 
     @tasks.loop(seconds=2)
     async def runDmManager(self):
