@@ -299,8 +299,14 @@ class StatisticManager:
                             modified = True
                     case StatisticsParameter.ACTIVITY.value:
                         if statistic.value > 0:
+                            if time == StatisticsParameter.YEARLY:
+                                amountOfGames = 10
+                            else:
+                                amountOfGames = 3
+
                             message += (f"-\tDu hast {getFormattedTime(statistic.value)} Stunden gespielt oder "
-                                        f"Programme genutzt. Deine Top 3:\n")
+                                        f"Programme genutzt. Deine Top {amountOfGames}:\n")
+
                             modified = True
 
                             match time:
@@ -322,7 +328,7 @@ class StatisticManager:
                             getQuery = (select(GameDiscordMapping)
                                         .where(GameDiscordMapping.discord_id == dcUserDb.id, )
                                         .order_by(timeType.desc())
-                                        .limit(3))
+                                        .limit(amountOfGames))
 
                             try:
                                 gameMappings: Sequence[GameDiscordMapping] = session.scalars(getQuery).all()
@@ -331,7 +337,7 @@ class StatisticManager:
 
                                 continue
                             else:
-                                logger.debug(f"fetched top three games for {dcUserDb}")
+                                logger.debug(f"fetched top {amountOfGames} games for {dcUserDb}")
 
                                 for gameMapping in gameMappings:
                                     message += (f"\t- \t{gameMapping.discord_game.name} "
