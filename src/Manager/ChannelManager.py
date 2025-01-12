@@ -198,7 +198,8 @@ class ChannelService:
         dont_use_channels = [ChannelId.CHANNEL_WARTE_AUF_MITSPIELER_INNEN.value,
                              ChannelId.CHANNEL_GAMING_EIN_DREIVIERTEL.value,
                              ChannelId.CHANNEL_GAMING_ZWEI_LEAGUE_OF_LEGENDS.value,
-                             ChannelId.CHANNEL_GAMING_SIEBEN_AMERICA.value, ]
+                             ChannelId.CHANNEL_GAMING_SIEBEN_AMERICA.value,
+                             ChannelId.CHANNEL_MARIE_UND_JESPER.value, ]
 
         for channel in gaming_category.voice_channels:
             if channel.id in dont_use_channels:
