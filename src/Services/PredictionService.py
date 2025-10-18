@@ -2,7 +2,6 @@ import logging
 
 import lightgbm as lgb
 import pandas as pd
-from PIL.ImageMath import lambda_eval
 from discord import Client, Member
 from pandas import DataFrame
 from sklearn.model_selection import train_test_split
