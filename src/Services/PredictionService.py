@@ -130,6 +130,7 @@ class PredictionService:
             model_reg.fit(X_train_reg, y_train_reg)
 
         last_vals = features['online_minutes'].iloc[-7:].tolist()
+
         if not last_vals:
             # If there is no data, pad with zeros
             last_vals = [0] * 7
@@ -138,6 +139,7 @@ class PredictionService:
 
         # Safely get the last 3 days' values, padding with the earliest available value if needed
         last_3 = features['online_minutes'].iloc[-3:].tolist()
+
         if len(last_3) < 3:
             pad_value = last_3[0] if last_3 else 0
             last_3 = [pad_value] * (3 - len(last_3)) + last_3
