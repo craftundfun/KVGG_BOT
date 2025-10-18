@@ -130,7 +130,11 @@ class PredictionService:
             model_reg.fit(X_train_reg, y_train_reg)
 
         last_vals = features['online_minutes'].iloc[-7:].tolist()
-        last_vals = ([last_vals[0]] * (7 - len(last_vals))) + last_vals
+        if not last_vals:
+            # If there is no data, pad with zeros
+            last_vals = [0] * 7
+        elif len(last_vals) < 7:
+            last_vals = [last_vals[0]] * (7 - len(last_vals)) + last_vals
 
         X_next = pd.DataFrame({
             '1_days_ago': [features['online_minutes'].iloc[-1]],
