@@ -14,6 +14,7 @@ from src.Services.CounterService import CounterService
 from src.Services.ExperienceService import ExperienceService
 from src.Services.GameDiscordService import GameDiscordService
 from src.Services.LeaderboardService import LeaderboardService
+from src.Services.PredictionService import PredictionService
 from src.Services.ProcessUserInput import ProcessUserInput
 from src.Services.QuestService import QuestService, QuestType
 from src.Services.ReminderService import ReminderService
@@ -68,6 +69,7 @@ class Commands(Enum):
     DATA_FROM_MEMBER = 39
     CHOOSE_RANDOM_GAME_IN_CHANNEL = 40
     SHOW_ALL_TOGETHER_PLAYED_GAMES = 41
+    ONLINE_PREDICTION = 42
 
 
 class CommandService:
@@ -88,6 +90,7 @@ class CommandService:
         self.questService = QuestService(self.client)
         self.counterService = CounterService(self.client)
         self.gameDiscordService = GameDiscordService(self.client)
+        self.predictionService = PredictionService(self.client)
 
     async def _prepareCommandRun(self, ctx: discord.interactions.Interaction, contextMenu: bool) -> bool:
         """
@@ -135,8 +138,14 @@ class CommandService:
                     for splitPart in splitStringAtMaxLength(part):
                         await ctx.followup.send(splitPart, ephemeral=contextMenu)
             else:
-                for part in splitStringAtMaxLength(answer):
-                    await ctx.followup.send(part, ephemeral=contextMenu)
+                parts = splitStringAtMaxLength(answer)
+
+                if parts:
+                    for part in parts:
+                        await ctx.followup.send(part, ephemeral=contextMenu)
+                else:
+                    await ctx.followup.send("Es gab keine Antwort!", ephemeral=contextMenu)
+
         except Exception as e:
             logger.error("couldn't send answer to command", exc_info=e)
 
@@ -293,6 +302,9 @@ class CommandService:
 
             case Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES:
                 function = self.gameDiscordService.getTogetherPlayedGames
+
+            case Commands.ONLINE_PREDICTION:
+                function = self.predictionService.predict
 
             case _:
                 logger.error("undefined enum entry was reached!")

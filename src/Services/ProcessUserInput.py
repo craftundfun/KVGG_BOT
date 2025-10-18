@@ -34,14 +34,14 @@ from src.Services.VoiceClientService import VoiceClientService
 logger = logging.getLogger("KVGG_BOT")
 
 
-def getTagStringFromId(tag: str) -> str:
+def getTagStringFromId(tag: str | int) -> str:
     """
     Builds a tag from the given user id 123 => <@123>
 
     :param tag: Tag to be transformed
     :return:
     """
-    return "<@%s>" % tag
+    return f"<@{tag}>"
 
 
 def hasUserWantedRoles(author: Message.author, *roles) -> bool:

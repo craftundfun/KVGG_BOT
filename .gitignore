@@ -5,3 +5,4 @@ parameters.env
 **/__pycache__
 venv
 model
+.venv
