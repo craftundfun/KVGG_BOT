@@ -136,10 +136,16 @@ class PredictionService:
         elif len(last_vals) < 7:
             last_vals = [last_vals[0]] * (7 - len(last_vals)) + last_vals
 
+        # Safely get the last 3 days' values, padding with the earliest available value if needed
+        last_3 = features['online_minutes'].iloc[-3:].tolist()
+        if len(last_3) < 3:
+            pad_value = last_3[0] if last_3 else 0
+            last_3 = [pad_value] * (3 - len(last_3)) + last_3
+
         X_next = pd.DataFrame({
-            '1_days_ago': [features['online_minutes'].iloc[-1]],
-            '2_days_ago': [features['online_minutes'].iloc[-2]],
-            '3_days_ago': [features['online_minutes'].iloc[-3]],
+            '1_days_ago': [last_3[-1]],
+            '2_days_ago': [last_3[-2]],
+            '3_days_ago': [last_3[-3]],
             '7_days_ago': [last_vals[0]],
             'rolling_mean_7': [features['online_minutes'].where(features['online_minutes'] > 0).tail(7).mean()],
             'rolling_std_7': [features['online_minutes'].where(features['online_minutes'] > 0).tail(7).std()],
