@@ -51,7 +51,7 @@ class PredictionService:
                     f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{onlineProbability * 100:.2f}%**\n"
                     f"- Voraussichtliche Onlinezeit (sofern online): **{onlineTime:.2f} Minuten**\n\n"
                     f"-# Es wurden {len(data)} Datensätze seit dem "
-                    f"{dataframe.iloc[-1]["created_at"].strftime('%d.%m.%Y')} verwendet.")
+                    f"{dataframe.iloc[-1]['created_at'].strftime('%d.%m.%Y')} verwendet.")
         except NoResultFound:
             logger.debug(f"No statistics found for prediction for {member.display_name}")
 
