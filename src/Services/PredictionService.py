@@ -48,9 +48,9 @@ class PredictionService:
 
             prob_percent = onlineProbability * 100
 
-            if prob_percent < 0.001:  # Check if less than 0.001%
+            if prob_percent < 0.001:
                 formatted_prob = f"{prob_percent:.16f}"
-            elif prob_percent < 0.01:  # Check if less than 0.01%
+            elif prob_percent < 0.01:
                 formatted_prob = f"{prob_percent:.8f}"
             elif prob_percent < 0.1:
                 formatted_prob = f"{prob_percent:.6f}"
