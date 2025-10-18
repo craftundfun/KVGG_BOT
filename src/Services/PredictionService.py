@@ -48,21 +48,29 @@ class PredictionService:
 
             prob_percent = onlineProbability * 100
 
-            if prob_percent < 0.001:  # Check if less than 0.001%
+            if prob_percent < 0.001:
                 formatted_prob = f"{prob_percent:.16f}"
-            elif prob_percent < 0.01: # Check if less than 0.01%
+            elif prob_percent < 0.01:
                 formatted_prob = f"{prob_percent:.8f}"
             elif prob_percent < 0.1:
                 formatted_prob = f"{prob_percent:.6f}"
             else:
                 formatted_prob = f"{prob_percent:.4f}"
 
-            return (f"Basierend auf den bisherigen Daten wird für {getTagStringFromId(member.id)} folgendes "
-                    f"vorhergesagt:\n\n"
-                    f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{formatted_prob}%**\n"
-                    f"- Voraussichtliche Onlinezeit (sofern online): **{onlineTime:.2f} Minuten**\n\n"
-                    f"-# Es wurden {len(data)} Datensätze seit dem "
-                    f"{dataframe.iloc[-1]['created_at'].strftime('%d.%m.%Y')} verwendet.")
+            return (
+                f"Basierend auf den bisherigen Daten wird für {getTagStringFromId(member.id)} folgendes "
+                f"vorhergesagt:\n\n"
+                f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{formatted_prob}%**\n"
+                f"- Voraussichtliche Onlinezeit (sofern online): **{onlineTime:.2f} Minuten**\n\n"
+                f"-# Es wurden {len(data)} Datensätze seit dem "
+                f"{dataframe.iloc[-1]['created_at'].strftime('%d.%m.%Y')} verwendet. Folgende Werte wurden für die "
+                f"Vorhersage herangezogen:\n"
+                f"-# - Onlinezeit gestern, vorgestern, vorvorgestern und vor einer Woche\n"
+                f"-# - Durchschnittliche Onlinezeit der letzten 7 Tage\n"
+                f"-# - Standardabweichung der Onlinezeit der letzten 7 Tage\n"
+                f"-# - Wochentag\n"
+                f"-# - Durchschnittliche Onlinezeit der letzten 4 Wochen am selben Wochentag\n"
+            )
         except NoResultFound:
             logger.debug(f"No statistics found for prediction for {member.display_name}")
 
