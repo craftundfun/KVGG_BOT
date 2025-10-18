@@ -46,12 +46,20 @@ class PredictionService:
             data = self._createFeatureSet(dataframe)
             onlineProbability, onlineTime = self._predictNow(data)
 
-            print(data.to_string())
-            print(f"Predicted online probability: {onlineProbability}, predicted online time: {onlineTime}")
+            prob_percent = onlineProbability * 100
+
+            if prob_percent < 0.001:  # Check if less than 0.001%
+                formatted_prob = f"{prob_percent:.16f}"
+            elif prob_percent < 0.01: # Check if less than 0.01%
+                formatted_prob = f"{prob_percent:.8f}"
+            elif prob_percent < 0.1:
+                formatted_prob = f"{prob_percent:.6f}"
+            else:
+                formatted_prob = f"{prob_percent:.4f}"
 
             return (f"Basierend auf den bisherigen Daten wird für {getTagStringFromId(member.id)} folgendes "
                     f"vorhergesagt:\n\n"
-                    f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{onlineProbability * 100:.4f}%**\n"
+                    f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{formatted_prob}%**\n"
                     f"- Voraussichtliche Onlinezeit (sofern online): **{onlineTime:.2f} Minuten**\n\n"
                     f"-# Es wurden {len(data)} Datensätze seit dem "
                     f"{dataframe.iloc[-1]['created_at'].strftime('%d.%m.%Y')} verwendet.")
@@ -80,7 +88,11 @@ class PredictionService:
         data['rolling_mean_7'] = data['online_minutes'].rolling(7).mean()
         data['rolling_std_7'] = data['online_minutes'].rolling(7).std()
         data['day_of_week'] = data['date'].dt.dayofweek
-        data['month'] = data['date'].dt.month
+
+        data['rolling_mean_4_weeks_same_day'] = (
+            data.groupby('day_of_week')['online_minutes']
+            .transform(lambda x: x.shift(1).rolling(4).mean())
+        )
 
         data = data.dropna()
         return data
@@ -97,7 +109,7 @@ class PredictionService:
             'rolling_mean_7',
             'rolling_std_7',
             'day_of_week',
-            'month',
+            'rolling_mean_4_weeks_same_day',
         ]
 
         ### Binary Classification Model ###
@@ -112,7 +124,15 @@ class PredictionService:
         )
 
         model_bin = lgb.LGBMClassifier(
-            objective='binary', learning_rate=0.1, n_estimators=200, max_depth=4, n_jobs=-1, verbose=-1,
+            objective='binary',
+            learning_rate=0.1,
+            n_estimators=200,
+            max_depth=4,
+            n_jobs=-1,
+            verbose=-1,
+            min_child_samples=30,
+            lambda_l1=0.1,
+            lambda_l2=0.1,
         )
         model_bin.fit(X_train_bin, y_train_bin)
 
@@ -128,7 +148,15 @@ class PredictionService:
             )
 
             model_reg = lgb.LGBMRegressor(
-                objective='regression', learning_rate=0.1, n_estimators=200, max_depth=4, n_jobs=-1, verbose=-1,
+                objective='regression',
+                learning_rate=0.1,
+                n_estimators=100,
+                max_depth=4,
+                n_jobs=-1,
+                verbose=-1,
+                min_child_samples=30,
+                lambda_l1=0.1,
+                lambda_l2=0.1,
             )
             model_reg.fit(X_train_reg, y_train_reg)
 
@@ -147,15 +175,26 @@ class PredictionService:
             pad_value = last_3[0] if last_3 else 0
             last_3 = [pad_value] * (3 - len(last_3)) + last_3
 
+        prediction_day_of_week = (features['date'].iloc[-1] + pd.Timedelta(days=1)).dayofweek
+        same_day_data = features[features['day_of_week'] == prediction_day_of_week]
+        rolling_mean_4_weeks_same_day_value = same_day_data['online_minutes'].where(
+            same_day_data['online_minutes'] > 0
+        ).tail(4).mean()
+
+        if pd.isna(rolling_mean_4_weeks_same_day_value):
+            rolling_mean_4_weeks_same_day_value = 0.0
+
         X_next = pd.DataFrame({
             '1_days_ago': [last_3[-1]],
             '2_days_ago': [last_3[-2]],
             '3_days_ago': [last_3[-3]],
             '7_days_ago': [last_vals[0]],
-            'rolling_mean_7': [features['online_minutes'].where(features['online_minutes'] > 0).tail(7).mean()],
-            'rolling_std_7': [features['online_minutes'].where(features['online_minutes'] > 0).tail(7).std()],
+            'rolling_mean_7': [features['online_minutes'].tail(7).mean()],
+            'rolling_std_7': [features['online_minutes'].tail(7).std()],
             'day_of_week': [(features['date'].iloc[-1] + pd.Timedelta(days=1)).dayofweek],
-            'month': [(features['date'].iloc[-1] + pd.Timedelta(days=1)).month]
+            'rolling_mean_4_weeks_same_day': [
+                rolling_mean_4_weeks_same_day_value
+            ],
         })
 
         prob_online = model_bin.predict_proba(X_next)[0][1]
