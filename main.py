@@ -1171,6 +1171,14 @@ async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: 
                                     ctx,
                                     members=members, )
 
+@tree.command(name="online_prediction",
+              description="Gibt eine Online-Vorhersage für den heutigen Tag aus.",
+              guild=discord.Object(id=GuildId.GUILD_KVGG.value), )
+async def onlinePrediction(ctx: discord.interactions.Interaction, member: Member):
+    await commandService.runCommand(Commands.ONLINE_PREDICTION,
+                                    ctx,
+                                    member=member, )
+
 
 restartTrys = 5
 

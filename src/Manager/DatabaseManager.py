@@ -1,6 +1,6 @@
 import logging
 
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, Engine
 from sqlalchemy.orm import Session
 
 from src.Helper.ReadParameters import getParameter, Parameters
@@ -23,3 +23,7 @@ def getSession() -> Session | None:
         logger.error("could not create new Session", exc_info=error)
 
         return None
+
+
+def getEngine() -> Engine:
+    return _engine

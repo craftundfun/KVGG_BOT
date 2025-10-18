@@ -6,6 +6,9 @@ def splitStringAtMaxLength(input_string: str, max_length: int = 2000) -> list[st
     :param input_string:
     :return:
     """
+    if input_string is None:
+        return []
+
     # Initialisieren Sie eine leere Liste, um die Teilstrings zu speichern.
     result = []
 
