@@ -46,9 +46,12 @@ class PredictionService:
             data = self._createFeatureSet(dataframe)
             onlineProbability, onlineTime = self._predictNow(data)
 
+            print(data.to_string())
+            print(f"Predicted online probability: {onlineProbability}, predicted online time: {onlineTime}")
+
             return (f"Basierend auf den bisherigen Daten wird für {getTagStringFromId(member.id)} folgendes "
                     f"vorhergesagt:\n\n"
-                    f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{onlineProbability * 100:.2f}%**\n"
+                    f"- Wahrscheinlichkeit, dass der Nutzer / die Nutzerin heute online ist: **{onlineProbability * 100:.4f}%**\n"
                     f"- Voraussichtliche Onlinezeit (sofern online): **{onlineTime:.2f} Minuten**\n\n"
                     f"-# Es wurden {len(data)} Datensätze seit dem "
                     f"{dataframe.iloc[-1]['created_at'].strftime('%d.%m.%Y')} verwendet.")
