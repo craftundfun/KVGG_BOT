@@ -402,12 +402,18 @@ class MyClient(discord.Client):
             try:
                 activityIdentifierBefore = before.activity.application_id
             except AttributeError:
-                activityIdentifierBefore = before.activity.name
+                if before.activity:
+                    activityIdentifierBefore = before.activity.name
+                else:
+                    activityIdentifierBefore = None
 
             try:
                 activityIdentifierAfter = after.activity.application_id
             except AttributeError:
-                activityIdentifierAfter = after.activity.name
+                if after.activity:
+                    activityIdentifierAfter = after.activity.name
+                else:
+                    activityIdentifierAfter = None
 
             if not before.activity and after.activity:
                 await self.historyManager.addHistory(
