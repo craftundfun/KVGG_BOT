@@ -1,4 +1,4 @@
-USE beta;
+USE testproject;
 
 START TRANSACTION;
 

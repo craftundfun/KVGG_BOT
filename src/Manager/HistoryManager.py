@@ -1,7 +1,7 @@
 import logging
 
 from discord import Client, Member
-from sqlalchemy import select
+from sqlalchemy import select, null
 
 from src.DiscordParameters.HistoryEvent import HistoryEvent
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
@@ -36,7 +36,7 @@ class HistoryManager:
             eventHistory = EventHistory(
                 discord_id=discordUserDatabase.id,
                 event_id=eventDatabase.id,
-                additional_data=additionalData,
+                additional_data=additionalData if additionalData else null(),
             )
 
             try:
