@@ -438,7 +438,7 @@ class MyClient(discord.Client):
                     additionalData={"activity": str(activityIdentifierBefore)},
                 )
 
-                logger.debug(f"Activity stooped by {after}")
+                logger.debug(f"Activity stopped by {after}")
             else:
                 logger.error(f"Unknown activity change for {after}")
 
