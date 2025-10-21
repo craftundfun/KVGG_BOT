@@ -36,6 +36,7 @@ class DiscordUser(Base):
     memes = relationship("Meme", back_populates="discord_user")
     game_mappings = relationship("GameDiscordMapping", back_populates="discord_user")
     quest_mappings = relationship("QuestDiscordMapping", back_populates="discord_user")
+    event_history = relationship("EventHistory", back_populates="discord_user")
 
     # we cant use a mapping here, because we have a self-referencing relationship
     # felix_counter_invoker_user = relationship("DiscordUser", uselist=False)

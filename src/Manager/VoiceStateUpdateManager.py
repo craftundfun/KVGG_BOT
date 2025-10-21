@@ -6,10 +6,12 @@ from datetime import datetime
 from discord import Member, VoiceState, Client
 from sqlalchemy import null
 
+from src.DiscordParameters.HistoryEvent import HistoryEvent
 from src.Entities.DiscordUser.Repository.DiscordUserRepository import getDiscordUser
 from src.InheritedCommands.NameCounter.FelixCounter import FelixCounter
 from src.Manager.ChannelManager import ChannelService
 from src.Manager.DatabaseManager import getSession
+from src.Manager.HistoryManager import HistoryManager
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
 from src.Services.QuestService import QuestService, QuestType
@@ -35,6 +37,7 @@ class VoiceStateUpdateService:
         self.felixCounter = FelixCounter(self.client)
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
+        self.historyManager = HistoryManager(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
@@ -111,7 +114,6 @@ class VoiceStateUpdateService:
 
             try:
                 await self.felixCounter.checkFelixCounterAndSendStopMessage(member, dcUserDb, session)
-                print("finished")
             except Exception as error:
                 logger.error(f"failure while running felix timer for {dcUserDb}", exc_info=error)
 
@@ -142,6 +144,12 @@ class VoiceStateUpdateService:
             except Exception as error:
                 logger.error(f"failure while running addProgressToQuest for {member}", exc_info=error)
 
+            await self.historyManager.addHistory(
+                member,
+                HistoryEvent.JOIN_VOICE_CHANNEL,
+                {"after_channel_id": voiceStateAfter.channel.id},
+            )
+
             await runLogService(Events.JOINED_VOICE_CHAT)
 
         # user changed channel or changed status
@@ -160,12 +168,22 @@ class VoiceStateUpdateService:
                     if not dcUserDb.muted_at:
                         dcUserDb.muted_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.MUTE_SELF,
+                    )
+
                     await runLogService(Events.SELF_MUTE)
                 # not self mute
                 elif voiceStateBefore.self_mute and not voiceStateAfter.self_mute:
                     # dont go over server mute
                     if not voiceStateAfter.mute:
                         dcUserDb.muted_at = null()
+
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.UNMUTE_SELF,
+                    )
 
                     await runLogService(Events.SELF_NOT_MUTE)
 
@@ -175,12 +193,22 @@ class VoiceStateUpdateService:
                     if not dcUserDb.muted_at:
                         dcUserDb.muted_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.MUTE_SERVER,
+                    )
+
                     await runLogService(Events.MUTE)
                 # not server mute
                 elif voiceStateBefore.mute and not voiceStateAfter.mute:
                     # dont go over self mute
                     if not voiceStateAfter.self_mute:
                         dcUserDb.muted_at = null()
+
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.UNMUTE_SERVER,
+                    )
 
                     await runLogService(Events.NOT_MUTE)
 
@@ -190,12 +218,22 @@ class VoiceStateUpdateService:
                     if not dcUserDb.full_muted_at:
                         dcUserDb.full_muted_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.DEAFEN_SELF,
+                    )
+
                     await runLogService(Events.SELF_DEAF)
                 # not self deaf
                 elif voiceStateBefore.self_deaf and not voiceStateAfter.self_deaf:
                     # dont go over server deaf
                     if not voiceStateAfter.deaf:
                         dcUserDb.full_muted_at = null()
+
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.UNDEAFEN_SELF,
+                    )
 
                     await runLogService(Events.SELF_NOT_DEAF)
 
@@ -205,6 +243,11 @@ class VoiceStateUpdateService:
                     if not dcUserDb.full_muted_at:
                         dcUserDb.full_muted_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.DEAFEN_SERVER,
+                    )
+
                     await runLogService(Events.DEAF)
                 # not server deaf
                 elif voiceStateBefore.deaf and not voiceStateAfter.deaf:
@@ -212,15 +255,30 @@ class VoiceStateUpdateService:
                     if not voiceStateAfter.self_deaf:
                         dcUserDb.full_muted_at = null()
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.UNDEAFEN_SERVER,
+                    )
+
                     await runLogService(Events.NOT_DEAF)
 
                 # if user started stream
                 if not voiceStateBefore.self_stream and voiceStateAfter.self_stream:
                     dcUserDb.started_stream_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.START_STREAMING,
+                    )
+
                     await runLogService(Events.START_STREAM)
                 elif voiceStateBefore.self_stream and not voiceStateAfter.self_stream:
                     dcUserDb.started_stream_at = None
+
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.STOP_STREAMING,
+                    )
 
                     await runLogService(Events.END_STREAM)
 
@@ -228,9 +286,19 @@ class VoiceStateUpdateService:
                 if not voiceStateBefore.self_video and voiceStateAfter.self_video:
                     dcUserDb.started_webcam_at = now
 
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.START_WEBCAM,
+                    )
+
                     await runLogService(Events.START_WEBCAM)
                 elif voiceStateBefore.self_video and not voiceStateAfter.self_video:
                     dcUserDb.started_webcam_at = None
+
+                    await self.historyManager.addHistory(
+                        member,
+                        HistoryEvent.STOP_WEBCAM,
+                    )
 
                     await runLogService(Events.END_WEBCAM)
 
@@ -250,6 +318,15 @@ class VoiceStateUpdateService:
                                  exc_info=error, )
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
+
+                await self.historyManager.addHistory(
+                    member,
+                    HistoryEvent.SWITCH_VOICE_CHANNEL,
+                    {
+                        "before_channel_id": voiceStateBefore.channel.id,
+                        "after_channel_id": voiceStateAfter.channel.id,
+                    },
+                )
 
                 try:
                     await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter),
@@ -276,6 +353,12 @@ class VoiceStateUpdateService:
             dcUserDb.last_online = datetime.now()
 
             await ChannelService.manageKneipe(voiceStateBefore.channel)
+
+            await self.historyManager.addHistory(
+                member,
+                HistoryEvent.LEAVE_VOICE_CHANNEL,
+                {"before_channel_id": voiceStateBefore.channel.id, }
+            )
 
             try:
                 await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.LEFT_VOICE_CHANNEL)

@@ -6,20 +6,19 @@ import os
 import os.path
 import random
 import sys
-import threading
 import time
 from typing import Any
 
 import discord
 import nest_asyncio
 from discord import RawMessageDeleteEvent, RawMessageUpdateEvent, VoiceState, Member, app_commands, DMChannel, \
-    RawReactionActionEvent, Intents, RawMemberRemoveEvent
+    RawReactionActionEvent, Intents, RawMemberRemoveEvent, Status
 from discord import VoiceChannel, Role
 from discord.app_commands import Choice
 from sqlalchemy import select
 
-from src.API import main as FastAPI
 from src.DiscordParameters.ExperienceParameter import ExperienceParameter
+from src.DiscordParameters.HistoryEvent import HistoryEvent
 from src.DiscordParameters.NotificationType import NotificationType
 from src.Entities.Counter.Entity.Counter import Counter
 from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
@@ -35,6 +34,7 @@ from src.Manager.CommandManager import CommandService, Commands
 from src.Manager.DatabaseManager import getSession
 from src.Manager.DatabaseRefreshManager import DatabaseRefreshService
 from src.Manager.DiscordRoleManager import DiscordRoleManager
+from src.Manager.HistoryManager import HistoryManager
 from src.Manager.QuotesManager import QuotesManager
 from src.Manager.VoiceStateUpdateManager import VoiceStateUpdateService
 from src.Services.MemeService import MemeService
@@ -95,10 +95,11 @@ class MyClient(discord.Client):
         self.processUserInput = ProcessUserInput(self)
         self.databaseRefreshService = DatabaseRefreshService(self)
         self.discordRoleManager = DiscordRoleManager()
+        self.historyManager = HistoryManager(self)
 
-        thread = threading.Thread(target=FastAPI.run_server)
-        thread.daemon = True
-        thread.start()
+        # thread = threading.Thread(target=FastAPI.run_server)
+        # thread.daemon = True
+        # thread.start()
 
     async def on_guild_role_delete(self, role: Role):
         self.discordRoleManager.deleteRole(role)
@@ -364,6 +365,82 @@ class MyClient(discord.Client):
         logger.debug("received voice state update")
 
         await self.voiceStateUpdateService.handleVoiceStateUpdate(member, voiceStateBefore, voiceStateAfter)
+
+    async def on_presence_update(self, before: Member, after: Member):
+        """
+        When a member has a presence update, such as status or activity change.
+
+        :param before: The member's presence before the update.
+        :param after: The member's presence after the update.
+        """
+        if before.status != after.status:
+            logger.debug(f"Status changed for {before}")
+
+            # noinspection PyTypeChecker
+            event: HistoryEvent = None
+
+            match after.status:
+                case Status.online:
+                    event = HistoryEvent.STATUS_ONLINE
+                case Status.idle:
+                    event = HistoryEvent.STATUS_IDLE
+                case Status.dnd:
+                    event = HistoryEvent.STATUS_DND
+                case Status.offline:
+                    event = HistoryEvent.STATUS_OFFLINE
+                case _:
+                    logger.error(f"Unknown status: {after.status} for {after}")
+
+                    return
+
+            await self.historyManager.addHistory(
+                after,
+                event,
+            )
+
+        if before.activity != after.activity:
+            try:
+                activityIdentifierBefore = before.activity.application_id
+            except AttributeError:
+                activityIdentifierBefore = before.activity.name
+
+            try:
+                activityIdentifierAfter = after.activity.application_id
+            except AttributeError:
+                activityIdentifierAfter = after.activity.name
+
+            if not before.activity and after.activity:
+                await self.historyManager.addHistory(
+                    after,
+                    HistoryEvent.START_ACTIVITY,
+                    additionalData={"activity": str(activityIdentifierAfter)},
+                )
+
+                logger.debug(f"Activity started by {after}")
+            elif before.activity and after.activity:
+                await self.historyManager.addHistory(
+                    after,
+                    HistoryEvent.STOP_ACTIVITY,
+                    additionalData={"activity": str(activityIdentifierBefore)},
+                )
+
+                await self.historyManager.addHistory(
+                    after,
+                    HistoryEvent.START_ACTIVITY,
+                    additionalData={"activity": str(activityIdentifierAfter)},
+                )
+
+                logger.debug(f"Activity switched by {after}")
+            elif before.activity and not after.activity:
+                await self.historyManager.addHistory(
+                    after,
+                    HistoryEvent.STOP_ACTIVITY,
+                    additionalData={"activity": str(activityIdentifierBefore)},
+                )
+
+                logger.debug(f"Activity stooped by {after}")
+            else:
+                logger.error(f"Unknown activity change for {after}")
 
 
 # reads the token
@@ -1170,6 +1247,7 @@ async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: 
     await commandService.runCommand(Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES,
                                     ctx,
                                     members=members, )
+
 
 @tree.command(name="online_prediction",
               description="Gibt eine Online-Vorhersage für den heutigen Tag aus.",

@@ -2,6 +2,7 @@ import logging
 
 from sqlalchemy import create_engine, MetaData, Engine
 from sqlalchemy.orm import Session
+from src.Entities.BaseClass import Base
 
 from src.Helper.ReadParameters import getParameter, Parameters
 
@@ -12,7 +13,13 @@ _engine = create_engine(
     f'@{getParameter(Parameters.DATABASE_HOST)}'
     f'/{getParameter(Parameters.DATABASE_SCHEMA)}',
     echo=False, pool_recycle=60)
-metadata = MetaData()
+
+# import the Entities module to register all models and automatically create tables
+# noinspection PyUnresolvedReferences
+import src.Entities
+
+metadata = Base.metadata
+metadata.create_all(bind=_engine, checkfirst=True)
 metadata.reflect(bind=_engine)
 
 
