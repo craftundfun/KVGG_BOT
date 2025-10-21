@@ -16,7 +16,7 @@ class EventHistory(Base):
     additional_data = Column(JSON, nullable=True, default=None)
 
     event = relationship("Event")
-    discord_user = relationship("DiscordUser", back_populates="event_history", uselist=True)
+    discord_user = relationship("DiscordUser", back_populates="event_history")
 
     def __init__(self, discord_id: int, event_id: int, additional_data: dict | None = None):
         super().__init__()
