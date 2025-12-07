@@ -19,8 +19,12 @@ class HistoryManager:
     def __init__(self, client: Client):
         self.client = client
 
+    @DeprecationWarning
     # noinspection PyMethodMayBeStatic
     async def addHistory(self, member: Member, event: HistoryEvent, additionalData: dict | None = None):
+        # TODO fix this
+        return
+
         if member.bot:
             return
 
