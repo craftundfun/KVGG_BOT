@@ -5,7 +5,7 @@ from time import sleep
 from typing import Sequence
 
 import requests
-from sqlalchemy import select
+from sqlalchemy import select, null
 from sqlalchemy.exc import NoResultFound
 
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
@@ -136,7 +136,7 @@ while True:
                     message.sent_at = datetime.now()
                     message.error = False
 
-            message.time_to_sent = None
+            message.time_to_sent = null()
 
             session.commit()
             logger.info("Messages sent successfully.")
