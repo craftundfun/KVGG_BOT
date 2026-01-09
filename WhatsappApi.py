@@ -110,8 +110,11 @@ while True:
         }
 
         for message in messages:
+            if not (number := message.user.phone_number):
+                continue
+
             messagesToSend.append({
-                "to": f"+{message.user.phone_number}",
+                "to": f"+{number}",
                 "message": f"{message.message}\n`Ich bin der neue WhatsApp-Bot von KVGG! Der alte Bot wird vorerst "
                            f"weiterhin unterstützt, aber ich bin hier, um dir ein besseres Erlebnis zu bieten!`",
             })
