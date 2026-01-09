@@ -23,3 +23,9 @@ class GameDiscordMapping(Base):
 
     def __repr__(self):
         return f"GameDiscordMapping(id={self.id}, DiscordUser={self.discord_user}, DiscordGame={self.discord_game_id})"
+
+# lazy loading to avoid circular imports
+# noinspection PyUnresolvedReferences
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+# noinspection PyUnresolvedReferences
+from .DiscordGame import DiscordGame

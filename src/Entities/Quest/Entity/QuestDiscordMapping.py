@@ -20,3 +20,10 @@ class QuestDiscordMapping(Base):
 
     def __repr__(self):
         return f"QuestDiscordMapping(id={self.id}, DiscordUser={self.discord_user}, Quest={self.quest})"
+
+
+# lazy loading to avoid circular imports
+# noinspection PyUnresolvedReferences
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser
+# noinspection PyUnresolvedReferences
+from src.Entities.Quest.Entity.Quest import Quest
