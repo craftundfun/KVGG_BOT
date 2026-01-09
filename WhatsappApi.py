@@ -135,7 +135,8 @@ while True:
                     message.sent_at = datetime.now()
                     message.error = False
 
-            message.time_to_sent = null()
+            for message in messages:
+                message.time_to_sent = null()
 
             session.commit()
             logger.info("Messages sent successfully.")
