@@ -79,6 +79,7 @@ while True:
             .where(
                 MessageQueue.sent_at.is_(None),
                 MessageQueue.time_to_sent <= datetime.now(),
+                MessageQueue.error.is_(None),
             )
             .limit(BATCH_SIZE)
         )
@@ -133,6 +134,9 @@ while True:
             else:
                 for message in messages:
                     message.sent_at = datetime.now()
+                    message.error = False
+
+            message.time_to_sent = None
 
             session.commit()
             logger.info("Messages sent successfully.")
