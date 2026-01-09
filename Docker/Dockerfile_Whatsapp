@@ -4,7 +4,9 @@ COPY ../requirements.whatsapp.txt requirements.txt
 COPY ../WhatsappApi.py .
 COPY ../src/Entities ./src/Entities
 COPY ../src/Helper/ ./src/Helper
+COPY ../src/Logger ./src/Logger
 COPY ../src/Manager/DatabaseManager.py ./src/Manager/DatabaseManager.py
+COPY ../src/Id/ExceptionEmailAddresses.py ./src/Id/ExceptionEmailAddresses.py
 COPY ../parameters.env .
 
 RUN pip install -r requirements.txt
