@@ -116,8 +116,7 @@ while True:
 
             messagesToSend.append({
                 "to": f"+{number}",
-                "message": f"{message.message}\n\n`Ich bin der neue WhatsApp-Bot von KVGG! Der alte Bot wird vorerst "
-                           f"weiterhin unterstützt, aber ich bin hier, um dir ein besseres Erlebnis zu bieten!`",
+                "message": f"{message.message}\n\n`Ich bin der neue WhatsApp-Bot von KVGG!`",
             })
 
         try:
