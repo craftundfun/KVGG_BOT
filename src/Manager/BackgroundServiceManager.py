@@ -35,7 +35,7 @@ loggerMinutelyJob.addHandler(fileHandlerMinutelyJob)
 loggerMinutelyJob.setLevel(logging.DEBUG)
 
 tz = datetime.datetime.now().astimezone().tzinfo
-midnightTime = datetime.time(hour=0, minute=0, second=15, microsecond=0, tzinfo=tz)
+midnightTime = datetime.time(hour=0, minute=15, second=15, microsecond=0, tzinfo=tz)
 minutelyTimes = [datetime.time(hour=h, minute=m, second=45, microsecond=0, tzinfo=tz)
                  for h, m in product(range(24), range(60))]
 minutelyErrorCount = 0
