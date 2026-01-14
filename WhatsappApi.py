@@ -5,7 +5,7 @@ from time import sleep
 from typing import Sequence
 
 import requests
-from sqlalchemy import select, null
+from sqlalchemy import select, null, or_
 from sqlalchemy.exc import NoResultFound
 
 from src.Entities.MessageQueue.Entity.MessageQueue import MessageQueue
@@ -78,7 +78,7 @@ while True:
             select(MessageQueue)
             .where(
                 MessageQueue.sent_at.is_(None),
-                MessageQueue.time_to_sent <= datetime.now(),
+                or_(MessageQueue.time_to_sent <= datetime.now(), MessageQueue.time_to_sent.is_(None)),
                 MessageQueue.error.is_(None),
             )
             .limit(BATCH_SIZE)
