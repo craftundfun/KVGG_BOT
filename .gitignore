@@ -6,3 +6,5 @@ parameters.env
 venv
 model
 .venv
+Logs
+data/*

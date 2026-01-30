@@ -1,0 +1,20 @@
+services:
+    bot:
+        build:
+            context: ..
+            dockerfile: Docker/Dockerfile_Bot
+        container_name: kvggbot
+        restart: always
+        ports:
+            - 8000:8000
+        volumes:
+            - ../Logs:/Logs
+            - ../data:/data
+
+    whatsapp:
+        build:
+            context: ..
+            dockerfile: Docker/Dockerfile_Whatsapp
+        container_name: kvggbot_whatsapp
+        volumes:
+            - ../Logs:/Logs

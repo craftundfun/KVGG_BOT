@@ -42,3 +42,22 @@ class DiscordUser(Base):
 
     def __repr__(self):
         return f"DiscordUser(id={self.id}, username={self.username})"
+
+
+# lazy loading to avoid circular imports
+# noinspection PyUnresolvedReferences
+from src.Entities.User.Entity.User import User
+# noinspection PyUnresolvedReferences
+from .WhatsappSetting import WhatsappSetting
+# noinspection PyUnresolvedReferences
+from src.Entities.Experience.Entity.Experience import Experience
+# noinspection PyUnresolvedReferences
+from src.Entities.Counter.Entity.CounterDiscordMapping import CounterDiscordMapping
+# noinspection PyUnresolvedReferences
+from src.Entities.Statistic.Entity.CurrentDiscordStatistic import CurrentDiscordStatistic
+# noinspection PyUnresolvedReferences
+from src.Entities.Meme.Entity.Meme import Meme
+# noinspection PyUnresolvedReferences
+from src.Entities.Game.Entity.GameDiscordMapping import GameDiscordMapping
+# noinspection PyUnresolvedReferences
+from src.Entities.Quest.Entity.QuestDiscordMapping import QuestDiscordMapping

@@ -22,3 +22,10 @@ class MessageQueue(Base):
 
     def __repr__(self):
         return f"MessageQueue(id={self.id}, DiscordUser={self.trigger_user}, User={self.user})"
+
+
+# lazy loading to avoid circular imports
+# noinspection PyUnresolvedReferences
+from src.Entities.User.Entity.User import User
+# noinspection PyUnresolvedReferences
+from src.Entities.DiscordUser.Entity.DiscordUser import DiscordUser

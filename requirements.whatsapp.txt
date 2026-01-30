@@ -1,0 +1,4 @@
+sqlalchemy
+requests
+python-dotenv
+mysql-connector-python

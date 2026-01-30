@@ -19,3 +19,8 @@ class CounterDiscordMapping(Base):
 
     def __repr__(self):
         return f"CounterDiscordMapping(id={self.id}, DiscordUser={self.discord_user}, Counter={self.counter})"
+
+
+# lazy loading to avoid circular imports
+# noinspection PyUnresolvedReferences
+from .Counter import Counter

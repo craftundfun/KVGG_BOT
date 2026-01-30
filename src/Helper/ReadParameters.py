@@ -31,6 +31,8 @@ class Parameters(Enum):
     API_NINJA_KEY = 9
     PRODUCTION = 10
     API_PORT = 11
+    WHATSAPP_API_URL = 12
+    WHATSAPP_API_KEY = 13
 
 
 @functools.lru_cache(maxsize=128)
@@ -60,6 +62,10 @@ def getParameter(param: Parameters) -> Any:
             return bool(int(os.getenv("PRODUCTION")))
         case Parameters.API_PORT:
             return int(os.getenv("API_PORT"))
+        case Parameters.WHATSAPP_API_URL:
+            return os.getenv("WHATSAPP_API_URL")
+        case Parameters.WHATSAPP_API_KEY:
+            return os.getenv("WHATSAPP_API_KEY")
         case _:
             logger.error(f"parameter {param} not found")
 
