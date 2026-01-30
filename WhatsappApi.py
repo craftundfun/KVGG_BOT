@@ -106,9 +106,6 @@ while True:
             "Content-Type": "application/json",
             "X-API-Key": WHATSAPP_API_KEY,
         }
-        payload = {
-            "messages": messagesToSend,
-        }
 
         for message in messages:
             if not (number := message.user.phone_number):
@@ -118,6 +115,10 @@ while True:
                 "to": f"+{number}",
                 "message": f"{message.message}\n\n`Ich bin der neue WhatsApp-Bot von KVGG!`",
             })
+
+        payload = {
+            "messages": messagesToSend,
+        }
 
         try:
             logger.debug("Sending messages to WhatsApp API...")
