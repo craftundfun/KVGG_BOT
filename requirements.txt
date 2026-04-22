@@ -3,7 +3,7 @@ requests>=2.33.1
 mutagen>=1.47.0
 nest-asyncio
 httpx>=0.28.1
-gTTS>=2.5.1
+gTTS>=2.5.4
 python-dateutil>=2.9.0.post0
 discord.py>=2.3.2
 discord.py[voice]
