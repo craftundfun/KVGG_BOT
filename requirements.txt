@@ -1,5 +1,5 @@
 mysql-connector-python>=9.6.0
-requests>=2.31.0
+requests>=2.33.1
 mutagen>=1.47.0
 nest-asyncio
 httpx>=0.26.0
