@@ -1,4 +1,4 @@
-mysql-connector-python>=9.6.0
+mysql-connector-python>=9.7.0
 requests>=2.33.1
 mutagen>=1.47.0
 nest-asyncio
