@@ -113,7 +113,7 @@ while True:
 
             messagesToSend.append({
                 "to": f"+{number}",
-                "message": f"{message.message}\n\n`Ich bin der neue WhatsApp-Bot von KVGG!`",
+                "message": f"{message.message}",
             })
 
         payload = {
