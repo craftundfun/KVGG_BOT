@@ -16,5 +16,6 @@ services:
             context: ..
             dockerfile: Docker/Dockerfile_Whatsapp
         container_name: kvggbot_whatsapp
+        restart: always
         volumes:
             - ../Logs:/Logs
