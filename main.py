@@ -1044,7 +1044,11 @@ async def getPersonalSounds(interaction: discord.Interaction, current: str) -> l
               description="Spielt einen Sound aus deinen hochgeladenen Sounds.",
               guild=discord.Object(id=GuildId.GUILD_KVGG.value))
 @app_commands.autocomplete(sound=getPersonalSounds)
-async def playSound(ctx: discord.interactions.Interaction, sound: str):
+@app_commands.describe(
+    sound="Wähle einen Sound aus deinen hochgeladenen Sounds aus.",
+    loop="Wenn du den Sound in einer Schleife abspielen möchtest, wähle 'ja' aus. Ansonsten 'nein'.",
+)
+async def playSound(ctx: discord.interactions.Interaction, sound: str, loop: bool = False):
     """
     Plays the given sound.
 
@@ -1056,7 +1060,8 @@ async def playSound(ctx: discord.interactions.Interaction, sound: str):
                                     ctx,
                                     ctx=ctx,
                                     member=ctx.user,
-                                    sound=sound, )
+                                    sound=sound,
+                                    loop=loop, )
 
 
 @tree.command(name="stop",
@@ -1170,6 +1175,7 @@ async def allTogetherPlayedGames(ctx: discord.interactions.Interaction, freund: 
     await commandService.runCommand(Commands.SHOW_ALL_TOGETHER_PLAYED_GAMES,
                                     ctx,
                                     members=members, )
+
 
 @tree.command(name="online_prediction",
               description="Gibt eine Online-Vorhersage für den heutigen Tag aus.",

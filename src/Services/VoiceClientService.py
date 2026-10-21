@@ -1,9 +1,8 @@
 import logging
 from asyncio import sleep
 
-from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member
+from discord import Client, VoiceChannel, VoiceClient, FFmpegPCMAudio, Member, VoiceState
 from discord.interactions import Interaction
-from mutagen.mp3 import MP3
 
 from src.Helper.GetChannelsFromCategory import getVoiceChannelsFromCategoryEnum
 from src.Id.Categories import TrackedCategories
@@ -31,16 +30,11 @@ class VoiceClientService:
 
         return cls._self
 
-    async def play(self, channel: VoiceChannel, pathToSound: str, ctx: Interaction = None, force: bool = False) -> bool:
+    async def play(self, channel: VoiceChannel, pathToSound: str, ctx: Interaction = None, force: bool = False,
+                   loop: bool = False) -> bool:
         """
         Plays the given sound. If the sound is forced to play, the bot stops the current replay and plays the new given
         sound.
-
-        :param channel:
-        :param pathToSound:
-        :param ctx:
-        :param force:
-        :return:
         """
         # already playing something and not forced to play the new sound
         if self.voiceClient and not force:
@@ -88,17 +82,25 @@ class VoiceClientService:
         # save ctx to current voice-client
         self.voiceClientCorrespondingCTX = ctx
 
-        file = FFmpegPCMAudio(source=pathToSound, options="-filter:a loudnorm")
-        duration = MP3(pathToSound).info.length
+        before_options = "-stream_loop -1" if loop else None
+        file = FFmpegPCMAudio(source=pathToSound, before_options=before_options, options="-filter:a loudnorm")
 
         try:
             self.voiceClient.play(file)
 
             if ctx:
-                await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
+                if loop:
+                    await ctx.followup.send("Dein gewählter Sound wird in einer Endlosschleife abgespielt.")
+                else:
+                    await ctx.followup.send("Dein gewählter Sound wird abgespielt.")
 
-            # sleep 250ms longer to avoid hiccups at the start and the following abrupt ending
-            await sleep(duration + 0.25)
+            # wait dynamically as long as this audio source is playing (reacts immediately to stop/kick)
+            while self.voiceClient and self.voiceClient.is_playing() and self.voiceClient.source == file:
+                await sleep(0.25)
+
+            # short buffer at the natural end of a non-looped sound to avoid clipping
+            if not loop and self.voiceClient and self.hangUp:
+                await sleep(0.25)
 
             return True
         except Exception as error:
@@ -111,19 +113,17 @@ class VoiceClientService:
                 self.hangUp = True
 
             if self.voiceClient and self.hangUp:
-                await self.voiceClient.disconnect()
+                vc = self.voiceClient
                 self.voiceClient = None
+                await vc.disconnect()
 
-            if self.voiceClientCorrespondingCTX:
+            if self.voiceClientCorrespondingCTX == ctx:
                 self.voiceClientCorrespondingCTX = None
 
     async def stop(self, member: Member) -> str:
         """
         If the VoiceClient is active and the bot and user are in the same channel, the bot will disconnect from the
         channel.
-
-        :param member:
-        :return:
         """
         if not (voiceState := member.voice):
             logger.debug(f"{member.name} was not in a channel")
@@ -140,13 +140,83 @@ class VoiceClientService:
 
             return "Du befindest nicht im selben Channel wie der Bot!"
 
-        await self.voiceClient.disconnect(force=True)
+        vc = self.voiceClient
         self.voiceClient = None
+        await vc.disconnect(force=True)
 
         if self.voiceClientCorrespondingCTX:
-            await self.voiceClientCorrespondingCTX.followup.send(f"Das Abspielen deines Sounds wurde von "
-                                                                 f"{member.display_name} gestoppt!")
-
+            ctx = self.voiceClientCorrespondingCTX
             self.voiceClientCorrespondingCTX = None
+            await ctx.followup.send(f"Das Abspielen deines Sounds wurde von {member.display_name} gestoppt!")
 
         return "Das Abspielen des Sounds wurde beendet."
+
+    async def leaveIfChannelEmpty(self, channel: VoiceChannel):
+        """
+        Disconnects the bot if it is currently in the given channel and no human members are left.
+        """
+        if not self.voiceClient or self.voiceClient.channel != channel:
+            return
+
+        if not any(not member.bot for member in channel.members):
+            logger.debug(f"No members left in {channel.name}, disconnecting VoiceClient")
+
+            vc = self.voiceClient
+            self.voiceClient = None
+            await vc.disconnect(force=True)
+
+            if self.voiceClientCorrespondingCTX:
+                ctx = self.voiceClientCorrespondingCTX
+                self.voiceClientCorrespondingCTX = None
+                await ctx.followup.send(
+                    "Das Abspielen des Sounds wurde beendet, da sich niemand mehr im Channel befindet."
+                )
+
+    async def handleBotVoiceStateUpdate(self, before: VoiceState, after: VoiceState):
+        """
+        Handles cases where the bot itself is manually disconnected or moved by an admin.
+        """
+        if not self.voiceClient:
+            return
+
+        # Fall 1: Bot wurde manuell aus dem Channel gekickt (Verbindung getrennt)
+        if before.channel and not after.channel:
+            logger.info("Bot was manually disconnected from voice channel")
+
+            vc = self.voiceClient
+            self.voiceClient = None
+            vc.stop()
+            # interne VoiceClient-Session in discord.py sauber aufräumen
+            await vc.disconnect(force=True)
+
+            if self.voiceClientCorrespondingCTX:
+                ctx = self.voiceClientCorrespondingCTX
+                self.voiceClientCorrespondingCTX = None
+                await ctx.followup.send(
+                    "Das Abspielen deines Sounds wurde abgebrochen, da der Bot aus dem Channel getrennt wurde."
+                )
+
+        # Fall 2: Bot wurde in einen anderen Channel verschoben
+        elif before.channel and after.channel and before.channel != after.channel:
+            logger.info(f"Bot was moved from {before.channel.name} to {after.channel.name}")
+
+            allowedChannels = getVoiceChannelsFromCategoryEnum(self.client, TrackedCategories)
+
+            # Wenn der Ziel-Channel nicht erlaubt ist, sofort trennen
+            if not allowedChannels or after.channel not in allowedChannels:
+                logger.warning("Bot was moved into an unallowed channel, disconnecting")
+
+                vc = self.voiceClient
+                self.voiceClient = None
+                await vc.disconnect(force=True)
+
+                if self.voiceClientCorrespondingCTX:
+                    ctx = self.voiceClientCorrespondingCTX
+                    self.voiceClientCorrespondingCTX = None
+                    await ctx.followup.send(
+                        "Das Abspielen wurde beendet, da der Bot in einen nicht erlaubten Channel verschoben wurde."
+                    )
+                return
+
+            # Prüfen, ob im neuen Ziel-Channel überhaupt echte User sitzen (sonst direkt wieder verlassen)
+            await self.leaveIfChannelEmpty(after.channel)

@@ -236,13 +236,14 @@ class SoundboardService:
             threading.Thread(target=self.downloadFileFromURL, args=(message, url, loop)).start()
             logger.debug(f"started thread for downloading '{url}'")
 
-    async def playSound(self, member: Member, sound: str, ctx: discord.interactions.Interaction) -> str:
+    async def playSound(self, member: Member, sound: str, loop: bool, ctx: discord.interactions.Interaction) -> str:
         """
         Starts to play the specified sounds in the channel from the member.
 
         :param ctx: Interaction
         :param member: Member, who used the command
         :param sound: Sound to play
+        :param loop: If the sound should be looped
         :return:
         """
         if not self.searchInPersonalFiles(member=member, search=sound):
@@ -259,7 +260,7 @@ class SoundboardService:
 
         filepath = f"{member.id}/{sound}"
 
-        if not await self.voiceClientService.play(voiceState.channel, self.path + filepath, ctx, False):
+        if not await self.voiceClientService.play(voiceState.channel, self.path + filepath, ctx, False, loop):
             return "Der Bot spielt aktuell schon etwas ab oder es gab ein Problem."
 
         return "Dein gewählter Sound wurde abgespielt."

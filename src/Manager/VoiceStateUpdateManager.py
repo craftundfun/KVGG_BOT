@@ -13,6 +13,7 @@ from src.Manager.DatabaseManager import getSession
 from src.Manager.LogManager import Events, LogService
 from src.Manager.NotificationManager import NotificationService
 from src.Services.QuestService import QuestService, QuestType
+from src.Services.VoiceClientService import VoiceClientService
 from src.Services.WhatsAppService import WhatsAppHelper
 
 logger = logging.getLogger("KVGG_BOT")
@@ -35,6 +36,7 @@ class VoiceStateUpdateService:
         self.felixCounter = FelixCounter(self.client)
         self.channelService = ChannelService(self.client)
         self.questService = QuestService(self.client)
+        self.voiceClientService = VoiceClientService(self.client)
 
     async def handleVoiceStateUpdate(self, member: Member, voiceStateBefore: VoiceState, voiceStateAfter: VoiceState):
         """
@@ -54,6 +56,9 @@ class VoiceStateUpdateService:
 
             return
         elif member.bot:
+            if member.id == self.client.user.id:
+                await self.voiceClientService.handleBotVoiceStateUpdate(voiceStateBefore, voiceStateAfter)
+
             logger.debug(f"{member.display_name} was a bot")
 
             return
@@ -250,6 +255,7 @@ class VoiceStateUpdateService:
                                  exc_info=error, )
 
                 await ChannelService.manageKneipe(voiceStateBefore.channel)
+                await self.voiceClientService.leaveIfChannelEmpty(voiceStateBefore.channel)
 
                 try:
                     await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter),
@@ -276,6 +282,7 @@ class VoiceStateUpdateService:
             dcUserDb.last_online = datetime.now()
 
             await ChannelService.manageKneipe(voiceStateBefore.channel)
+            await self.voiceClientService.leaveIfChannelEmpty(voiceStateBefore.channel)
 
             try:
                 await self.logService.sendLog(member, (voiceStateBefore, voiceStateAfter), Events.LEFT_VOICE_CHANNEL)
